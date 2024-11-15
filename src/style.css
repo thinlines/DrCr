@@ -1,0 +1,39 @@
+/*
+	DrCr: Web-based double-entry bookkeeping framework
+	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+	
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU Affero General Public License for more details.
+	
+	You should have received a copy of the GNU Affero General Public License
+	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+	.bordered-field {
+		@apply block w-full border-0 py-1 text-gray-900 placeholder:text-gray-400 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-emerald-600;
+	}
+	.btn-primary {
+		@apply inline-flex items-center gap-x-1.5 bg-emerald-600 px-3 py-1 text-white shadow-sm hover:bg-emerald-700;
+	}
+	.btn-secondary {
+		@apply inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-50;
+	}
+	.checkbox-primary {
+		@apply h-4 w-4 border-gray-300 text-emerald-600 shadow-sm focus:ring-emerald-600 -mt-0.5;
+	}
+	.page-heading {
+		@apply text-xl sm:text-base font-medium text-gray-700 print:text-xl print:text-gray-900;
+	}
+}

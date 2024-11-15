@@ -23,6 +23,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import App from './App.vue';
 import HomeView from './HomeView.vue';
+import GeneralLedgerView from './GeneralLedgerView.vue';
 import TrialBalanceView from './TrialBalanceView.vue';
 
 import { db } from './db.ts';
@@ -31,6 +32,7 @@ async function initApp() {
 	// Init router
 	const routes = [
 		{ path: '/', component: HomeView },
+		{ path: '/general-ledger', component: GeneralLedgerView },
 		{ path: '/trial-balance', component: TrialBalanceView },
 	];
 	const router = createRouter({
@@ -41,7 +43,7 @@ async function initApp() {
 	// Init state
 	const dbFilename: string = await invoke('get_open_filename');
 	if (dbFilename !== null) {
-		db.init(dbFilename);
+		await db.init(dbFilename);  // Ensure all metadata cached before loading Vue
 	}
 	
 	// Create Vue app

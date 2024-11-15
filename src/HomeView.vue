@@ -31,7 +31,7 @@
 		<div class="px-4">
 			<h2 class="font-medium text-gray-700 mb-2">General reports</h2>
 			<ul class="list-disc ml-6">
-				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">General ledger</a></li>-->
+				<li><RouterLink to="/general-ledger" class="text-gray-900 hover:text-blue-700 hover:underline">General ledger</RouterLink></li>
 				<li><RouterLink to="/trial-balance" class="text-gray-900 hover:text-blue-700 hover:underline">Trial balance</RouterLink></li>
 				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Balance sheet</a></li>-->
 				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Income statement</a></li>-->

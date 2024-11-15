@@ -18,24 +18,21 @@
 
 import { db } from './db.ts';
 
-export function pp(quantity: number): string {
-	// Pretty print the quantity
-	if (quantity < 0) {
-		return '−' + pp(-quantity);
-	}
+export function asCost(quantity: number, commodity: string): number {
+	// Convert the amount to cost price in the reporting commodity
 	
-	const factor = Math.pow(10, db.metadata.dps);
-	const wholePart = Math.floor(quantity / factor);
-	const fracPart = quantity % factor;
-	
-	return wholePart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u202F') + '.' + fracPart.toString().padStart(db.metadata.dps, '0');
-}
-
-export function ppWithCommodity(quantity: number, commodity: string): string {
-	// Pretty print the amount including commodity
-	if (commodity.length === 1) {
-		return commodity + pp(quantity);
-	} else {
-		return pp(quantity) + ' ' + commodity;
+	if (commodity === db.metadata.reporting_commodity) {
+		return quantity;
 	}
+	if (commodity.indexOf('{{') >= 0) {
+		// Total price
+		const price = parseFloat(commodity.substring(commodity.indexOf('{{') + 2, commodity.indexOf('}}', commodity.indexOf('{{'))));
+		return Math.round(price * Math.pow(10, db.metadata.dps));
+	}
+	if (commodity.indexOf('{') >= 0) {
+		// Unit price
+		const price = parseFloat(commodity.substring(commodity.indexOf('{') + 1, commodity.indexOf('}', commodity.indexOf('{'))));
+		return Math.round(quantity * price);
+	}
+	throw new Error('No cost base specified: ' + quantity + ' ' + commodity);
 }

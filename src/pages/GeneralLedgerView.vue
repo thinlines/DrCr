@@ -56,7 +56,7 @@
 	
 	import { onUnmounted, ref } from 'vue';
 	
-	import { asCost } from '../commodities.ts';
+	import { asCost } from '../amounts.ts';
 	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from '../db.ts';
 	import { pp, ppWithCommodity } from '../display.ts';
 	

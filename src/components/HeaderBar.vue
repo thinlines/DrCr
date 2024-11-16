@@ -17,7 +17,7 @@
 -->
 
 <template>
-	<nav class="border-b border-gray-200 bg-white print:hidden">
+	<nav class="border-b border-gray-200 bg-white print:hidden" v-if="isMainWindow">
 		<div class="mx-auto max-w-7xl px-6 lg:px-8">
 			<div class="flex h-12 justify-between ml-[-0.25rem]"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
 				<div class="flex">
@@ -46,5 +46,10 @@
 </template>
 
 <script setup lang="ts">
+	import { getCurrentWindow } from '@tauri-apps/api/window';
+	
 	import { db } from '../db.js';
+	
+	// Only display header bar in main window
+	const isMainWindow = getCurrentWindow().label === 'main';
 </script>

@@ -54,6 +54,8 @@
 <script setup lang="ts">
 	import Clusterize from 'clusterize.js';
 	
+	import dayjs from 'dayjs';
+	
 	import { onUnmounted, ref } from 'vue';
 	
 	import { asCost } from '../amounts.ts';
@@ -86,7 +88,7 @@
 		for (const transaction of transactions) {
 			rows.push(
 				`<tr class="border-t border-gray-300">
-					<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ transaction.dt.split(' ')[0] }</td>
+					<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ dayjs(transaction.dt).format('YYYY-MM-DD') }</td>
 					<td class="py-0.5 px-1 text-gray-900" colspan="3">${ transaction.description }</td>
 					<td></td>
 					<td></td>

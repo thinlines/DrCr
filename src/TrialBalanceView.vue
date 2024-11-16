@@ -31,7 +31,7 @@
 		</thead>
 		<tbody>
 			<tr v-for="account in accounts">
-				<td class="py-0.5 pr-1 text-gray-900"><a href="#" class="hover:text-blue-700 hover:underline">{{ account.account }}</a></td>
+				<td class="py-0.5 pr-1 text-gray-900"><RouterLink :to="{ name: 'transactions', params: { 'account': account.account } }" class="hover:text-blue-700 hover:underline">{{ account.account }}</RouterLink></td>
 				<td class="py-0.5 px-1 text-gray-900 text-end">
 					<template v-if="account.quantity >= 0">{{ pp(account.quantity) }}</template>
 				</td>

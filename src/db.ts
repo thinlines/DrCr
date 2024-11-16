@@ -68,3 +68,60 @@ export async function totalBalances(session: Database): Promise<{account: string
 		JOIN postings p4 ON p3.account = p4.account AND p3.max_tid = p4.transaction_id ORDER BY account
 	`);
 }
+
+// Type definitions
+
+export interface Transaction {
+	id: number,
+	dt: string,
+	description: string,
+	postings: Posting[]
+}
+
+export interface Posting {
+	id: number,
+	description: string,
+	account: string,
+	quantity: number,
+	commodity: string,
+	running_balance?: number
+}
+
+export interface JoinedTransactionPosting {
+	transaction_id: number,
+	dt: string,
+	transaction_description: string,
+	id: number,
+	description: string,
+	account: string,
+	quantity: number,
+	commodity: string,
+	running_balance?: number
+}
+
+export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {
+	// Group postings into transactions
+	const transactions: Transaction[] = [];
+	
+	for (const joinedTransactionPosting of joinedTransactionPostings) {
+		if (transactions.length === 0 || transactions.at(-1)!.id !== joinedTransactionPosting.transaction_id) {
+			transactions.push({
+				id: joinedTransactionPosting.transaction_id,
+				dt: joinedTransactionPosting.dt,
+				description: joinedTransactionPosting.transaction_description,
+				postings: []
+			});
+		}
+		
+		transactions.at(-1)!.postings.push({
+			id: joinedTransactionPosting.id,
+			description: joinedTransactionPosting.description,
+			account: joinedTransactionPosting.account,
+			quantity: joinedTransactionPosting.quantity,
+			commodity: joinedTransactionPosting.commodity,
+			running_balance: joinedTransactionPosting.running_balance
+		});
+	}
+	
+	return transactions;
+}

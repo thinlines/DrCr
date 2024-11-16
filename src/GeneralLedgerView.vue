@@ -57,53 +57,25 @@
 	import { onUnmounted, ref } from 'vue';
 	
 	import { asCost } from './commodities.ts';
-	import { db } from './db.ts';
+	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from './db.ts';
 	import { pp, ppWithCommodity } from './display.ts';
 	
 	const commodityDetail = ref(false);
 	
-	interface _Transaction {
-		id: number,
-		dt: string,
-		description: string,
-		postings: _Posting[]
-	}
-	
-	interface _Posting {
-		id: number,
-		description: string,
-		account: string,
-		quantity: number,
-		commodity: string
-	}
-	
-	const transactions: _Transaction[] = [];
+	let transactions: Transaction[] = [];
 	let clusterize: Clusterize | null = null;
 	
 	async function load() {
 		const session = await db.load();
 		
-		const transactionsRaw: {transaction_id: number, dt: string, transaction_description: string, id: number, description: string, account: string, quantity: number, commodity: string}[] = await session.select('SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity FROM transactions LEFT JOIN postings ON transactions.id = postings.transaction_id ORDER BY dt DESC, transaction_id DESC, postings.id');
+		const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
+			`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity
+			FROM transactions
+			JOIN postings ON transactions.id = postings.transaction_id
+			ORDER BY dt DESC, transaction_id DESC, postings.id`
+		);
 		
-		// Group postings into transactions
-		for (const transactionRaw of transactionsRaw) {
-			if (transactions.length === 0 || transactions.at(-1)!.id !== transactionRaw.transaction_id) {
-				transactions.push({
-					id: transactionRaw.transaction_id,
-					dt: transactionRaw.dt,
-					description: transactionRaw.transaction_description,
-					postings: []
-				});
-			}
-			
-			transactions.at(-1)!.postings.push({
-				id: transactionRaw.id,
-				description: transactionRaw.description,
-				account: transactionRaw.account,
-				quantity: transactionRaw.quantity,
-				commodity: transactionRaw.commodity
-			});
-		}
+		transactions = joinedToTransactions(joinedTransactionPostings);
 		
 		renderTable();
 	}
@@ -125,9 +97,9 @@
 					rows.push(
 						`<tr>
 							<td class=""></td>
-							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.description || '' }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.description ?? '' }</td>
 							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
-							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.account }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]"><a href="/transactions/${ encodeURIComponent(posting.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ posting.account }</a></td>
 							<td class="py-0.5 px-1 text-gray-900 text-end">
 								${ posting.quantity >= 0 ? ppWithCommodity(posting.quantity, posting.commodity) : '' }
 							</td>
@@ -140,9 +112,9 @@
 					rows.push(
 						`<tr>
 							<td class=""></td>
-							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.description || '' }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.description ?? '' }</td>
 							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
-							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.account }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]"><a href="/transactions/${ encodeURIComponent(posting.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ posting.account }</a></td>
 							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">
 								${ posting.quantity >= 0 ? pp(asCost(posting.quantity, posting.commodity)) : '' }
 							</td>

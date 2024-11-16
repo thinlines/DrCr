@@ -22,18 +22,16 @@ import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
 import App from './App.vue';
-import HomeView from './HomeView.vue';
-import GeneralLedgerView from './GeneralLedgerView.vue';
-import TrialBalanceView from './TrialBalanceView.vue';
 
 import { db } from './db.ts';
 
 async function initApp() {
 	// Init router
 	const routes = [
-		{ path: '/', component: HomeView },
-		{ path: '/general-ledger', component: GeneralLedgerView },
-		{ path: '/trial-balance', component: TrialBalanceView },
+		{ path: '/', name: 'index', component: () => import('./HomeView.vue') },
+		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./GeneralLedgerView.vue') },
+		{ path: '/transactions/:account', name: 'transactions', component: () => import('./TransactionsView.vue') },
+		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./TrialBalanceView.vue') },
 	];
 	const router = createRouter({
 		history: createWebHistory(),

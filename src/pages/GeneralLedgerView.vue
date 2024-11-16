@@ -56,9 +56,9 @@
 	
 	import { onUnmounted, ref } from 'vue';
 	
-	import { asCost } from './commodities.ts';
-	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from './db.ts';
-	import { pp, ppWithCommodity } from './display.ts';
+	import { asCost } from '../commodities.ts';
+	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from '../db.ts';
+	import { pp, ppWithCommodity } from '../display.ts';
 	
 	const commodityDetail = ref(false);
 	

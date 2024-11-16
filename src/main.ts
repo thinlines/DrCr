@@ -28,10 +28,10 @@ import { db } from './db.ts';
 async function initApp() {
 	// Init router
 	const routes = [
-		{ path: '/', name: 'index', component: () => import('./HomeView.vue') },
-		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./GeneralLedgerView.vue') },
-		{ path: '/transactions/:account', name: 'transactions', component: () => import('./TransactionsView.vue') },
-		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./TrialBalanceView.vue') },
+		{ path: '/', name: 'index', component: () => import('./pages/HomeView.vue') },
+		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./pages/GeneralLedgerView.vue') },
+		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
+		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./pages/TrialBalanceView.vue') },
 	];
 	const router = createRouter({
 		history: createWebHistory(),

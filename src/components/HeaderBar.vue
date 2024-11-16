@@ -46,5 +46,5 @@
 </template>
 
 <script setup lang="ts">
-	import { db } from './db.js';
+	import { db } from '../db.js';
 </script>

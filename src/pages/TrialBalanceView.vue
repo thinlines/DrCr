@@ -51,8 +51,8 @@
 <script setup lang="ts">
 	import { computed, ref } from 'vue';
 	
-	import { db, totalBalances } from './db.ts';
-	import { pp } from './display.ts';
+	import { db, totalBalances } from '../db.ts';
+	import { pp } from '../display.ts';
 	
 	const accounts = ref([] as {account: string, quantity: number}[]);
 	

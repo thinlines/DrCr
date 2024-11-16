@@ -31,8 +31,8 @@
 </template>
 
 <script setup lang="ts">
-	import HeaderBar from './HeaderBar.vue';
-	import NoFileView from './NoFileView.vue';
+	import HeaderBar from './components/HeaderBar.vue';
+	import NoFileView from './pages/NoFileView.vue';
 	
 	import { db } from './db.js';
 </script>

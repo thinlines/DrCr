@@ -27,7 +27,7 @@
 <script setup lang="ts">
 	import { open } from '@tauri-apps/plugin-dialog';
 	
-	import { db } from './db.js';
+	import { db } from '../db.js';
 	
 	async function openFile() {
 		const file = await open({

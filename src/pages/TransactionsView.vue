@@ -61,9 +61,9 @@
 	import { onUnmounted } from 'vue';
 	import { useRoute } from 'vue-router';
 	
-	import { asCost } from './commodities.ts';
-	import { JoinedTransactionPosting, db, joinedToTransactions } from './db.ts';
-	import { pp } from './display.ts';
+	import { asCost } from '../commodities.ts';
+	import { JoinedTransactionPosting, db, joinedToTransactions } from '../db.ts';
+	import { pp } from '../display.ts';
 	
 	const route = useRoute();
 	let clusterize: Clusterize | null = null;

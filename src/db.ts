@@ -74,6 +74,8 @@ export async function totalBalances(session: Database): Promise<{account: string
 }
 
 export async function updateRunningBalances() {
+	// TODO: This is very slow - it would be faster to do this in Rust
+	
 	// Recompute any required running balances
 	const session = await db.load();
 	const staleAccountsRaw: {account: string}[] = await session.select('SELECT DISTINCT account FROM postings WHERE running_balance IS NULL');
@@ -87,7 +89,7 @@ export async function updateRunningBalances() {
 	// FIXME: Recompute balances only from the last non-stale balance to be more efficient
 	const arraySQL = '(?' + ', ?'.repeat(staleAccounts.length - 1) + ')';
 	const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-		`SELECT postings.id, account, quantity, commodity
+		`SELECT postings.id, account, quantity, commodity, running_balance
 		FROM transactions
 		JOIN postings ON transactions.id = postings.transaction_id
 		WHERE postings.account IN ${arraySQL}
@@ -99,15 +101,20 @@ export async function updateRunningBalances() {
 	for (const posting of joinedTransactionPostings) {
 		const openingBalance = runningBalances.get(posting.account) ?? 0;
 		const quantityCost = asCost(posting.quantity, posting.commodity);
-		runningBalances.set(posting.account, openingBalance + quantityCost);
+		const runningBalance = openingBalance + quantityCost;
+		
+		runningBalances.set(posting.account, runningBalance);
 		
 		// Update running balance of posting
-		await session.execute(
-			`UPDATE postings
-			SET running_balance = $1
-			WHERE id = $2`,
-			[openingBalance + quantityCost, posting.id]
-		);
+		// Only perform this update if required, to avoid expensive call to DB
+		if (posting.running_balance !== runningBalance) {
+			await session.execute(
+				`UPDATE postings
+				SET running_balance = $1
+				WHERE id = $2`,
+				[runningBalance, posting.id]
+			);
+		}
 	}
 }
 

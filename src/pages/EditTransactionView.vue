@@ -198,11 +198,6 @@
 		);
 		
 		for (const posting of transaction.value.postings) {
-			if (posting.id === null) {
-				error.value = 'Creating new postings is not yet implemented.';
-				return;
-			}
-			
 			const amount_abs = deserialiseAmount(posting.amount_abs);
 			
 			newTransaction.postings.push({
@@ -238,6 +233,40 @@
 				WHERE id = $5`,
 				[posting.description, posting.account, posting.quantity, posting.commodity, posting.id]
 			);
+		
+		let insertPostings = false;
+		
+		for (const posting of newTransaction.postings) {
+			if (posting.id === null) {
+				// When we encounter a new posting, delete and re-insert all subsequent postings to preserve the order
+				insertPostings = true;
+			}
+			
+			if (insertPostings) {
+				// Delete existing posting if required
+				if (posting.id !== null) {
+					await session.execute(
+						`DELETE FROM postings
+						WHERE id = $1`,
+						[posting.id]
+					);
+				}
+				
+				// Insert new posting
+				await session.execute(
+					`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
+					VALUES ($1, $2, $3, $4, $5, NULL)`,
+					[newTransaction.id, posting.description, posting.account, posting.quantity, posting.commodity]
+				);
+			} else {
+				// Update existing posting
+				await session.execute(
+					`UPDATE postings
+					SET description = $1, account = $2, quantity = $3, commodity = $4
+					WHERE id = $5`,
+					[posting.description, posting.account, posting.quantity, posting.commodity, posting.id]
+				);
+			}
 			
 			// Invalidate running balances
 			await session.execute(
@@ -249,7 +278,7 @@
 					JOIN postings ON transactions.id = postings.transaction_id
 					WHERE DATE(dt) >= DATE($1) AND account = $2
 				) p
-				WHERE postings.id = p.id;`,
+				WHERE postings.id = p.id`,
 				[newTransaction.dt, posting.account]
 			);
 		}

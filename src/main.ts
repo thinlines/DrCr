@@ -33,6 +33,7 @@ async function initApp() {
 		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./pages/GeneralLedgerView.vue') },
 		{ path: '/journal', name: 'journal', component: () => import('./pages/JournalView.vue') },
 		{ path: '/journal/edit-transaction/:id', name: 'journal-edit-transaction', component: () => import('./pages/EditTransactionView.vue') },
+		{ path: '/journal/new-transaction', name: 'journal-new-transaction', component: () => import('./pages/NewTransactionView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./pages/TrialBalanceView.vue') },
 	];

@@ -22,12 +22,11 @@
 	</h1>
 	
 	<div class="my-4 flex gap-x-2">
-		<!--<a href="{{ url_for('journal_new_transaction') }}" class="btn-primary pl-2">
-			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-			</svg>
+		<!-- Use a rather than RouterLink because RouterLink adds its own event handler -->
+		<a href="/journal/new-transaction" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
+			<PlusIcon class="w-4 h-4" />
 			New transaction
-		</a>-->
+		</a>
 		<button v-if="commodityDetail" class="btn-secondary" @click="commodityDetail = false">Hide commodity detail</button>
 		<button v-if="!commodityDetail" class="btn-secondary" @click="commodityDetail = true">Show commodity detail</button>
 	</div>
@@ -62,7 +61,7 @@
 	
 	import dayjs from 'dayjs';
 	
-	import { PencilIcon } from '@heroicons/vue/24/outline';
+	import { PencilIcon, PlusIcon } from '@heroicons/vue/24/outline';
 	
 	import { onUnmounted, ref, watch } from 'vue';
 	

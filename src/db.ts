@@ -202,9 +202,9 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 
 export class Transaction {
 	constructor(
-		public id: number = null!,
-		public dt: string = null!,
-		public description: string = null!,
+		public id: number | null = null,
+		public dt: string = '',
+		public description: string = '',
 		public postings: Posting[] = [],
 	) {}
 	
@@ -219,7 +219,7 @@ export class Transaction {
 }
 
 export interface Posting {
-	id: number,
+	id: number | null,
 	description: string | null,
 	account: string,
 	quantity: number,

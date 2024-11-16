@@ -22,6 +22,8 @@ import Database from '@tauri-apps/plugin-sql';
 
 import { reactive } from 'vue';
 
+import { asCost, Balance } from './amounts.ts';
+
 export const db = reactive({
 	filename: null as (string | null),
 	
@@ -56,6 +58,8 @@ export const db = reactive({
 });
 
 export async function totalBalances(session: Database): Promise<{account: string, quantity: number}[]> {
+	await updateRunningBalances();
+	
 	return await session.select(`
 		SELECT p3.account AS account, running_balance AS quantity FROM
 		(
@@ -69,18 +73,147 @@ export async function totalBalances(session: Database): Promise<{account: string
 	`);
 }
 
+export async function updateRunningBalances() {
+	// Recompute any required running balances
+	const session = await db.load();
+	const staleAccountsRaw: {account: string}[] = await session.select('SELECT DISTINCT account FROM postings WHERE running_balance IS NULL');
+	const staleAccounts: string[] = staleAccountsRaw.map((x) => x.account);
+	
+	if (staleAccounts.length === 0) {
+		return;
+	}
+	
+	// Get all relevant Postings in database in correct order
+	// FIXME: Recompute balances only from the last non-stale balance to be more efficient
+	const arraySQL = '(?' + ', ?'.repeat(staleAccounts.length - 1) + ')';
+	const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
+		`SELECT postings.id, account, quantity, commodity
+		FROM transactions
+		JOIN postings ON transactions.id = postings.transaction_id
+		WHERE postings.account IN ${arraySQL}
+		ORDER BY dt, transaction_id, postings.id`,
+		staleAccounts
+	);
+	
+	const runningBalances = new Map();
+	for (const posting of joinedTransactionPostings) {
+		const openingBalance = runningBalances.get(posting.account) ?? 0;
+		const quantityCost = asCost(posting.quantity, posting.commodity);
+		runningBalances.set(posting.account, openingBalance + quantityCost);
+		
+		// Update running balance of posting
+		await session.execute(
+			`UPDATE postings
+			SET running_balance = $1
+			WHERE id = $2`,
+			[openingBalance + quantityCost, posting.id]
+		);
+	}
+}
+
+export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {
+	// Group postings into transactions
+	const transactions: Transaction[] = [];
+	
+	for (const joinedTransactionPosting of joinedTransactionPostings) {
+		if (transactions.length === 0 || transactions.at(-1)!.id !== joinedTransactionPosting.transaction_id) {
+			transactions.push(new Transaction(
+				joinedTransactionPosting.transaction_id,
+				joinedTransactionPosting.dt,
+				joinedTransactionPosting.transaction_description,
+				[]
+			));
+		}
+		
+		transactions.at(-1)!.postings.push({
+			id: joinedTransactionPosting.id,
+			description: joinedTransactionPosting.description,
+			account: joinedTransactionPosting.account,
+			quantity: joinedTransactionPosting.quantity,
+			commodity: joinedTransactionPosting.commodity,
+			running_balance: joinedTransactionPosting.running_balance
+		});
+	}
+	
+	return transactions;
+}
+
+export function serialiseAmount(quantity: number, commodity: string): string {
+	// Pretty print the amount for an editable input
+	if (quantity < 0) {
+		return '-' + serialiseAmount(-quantity, commodity);
+	}
+	
+	// Scale quantity by decimal places
+	const factor = Math.pow(10, db.metadata.dps);
+	const wholePart = Math.floor(quantity / factor);
+	const fracPart = quantity % factor;
+	const quantityString = wholePart.toString() + '.' + fracPart.toString().padStart(db.metadata.dps, '0');
+	
+	if (commodity === db.metadata.reporting_commodity) {
+		return quantityString;
+	}
+	
+	if (commodity.length === 1) {
+		return commodity + quantityString;
+	}
+	
+	return quantityString + ' ' + commodity;
+}
+
+export function deserialiseAmount(amount: string): { quantity: number, commodity: string } {
+	const factor = Math.pow(10, db.metadata.dps);
+	
+	if (amount.indexOf(' ') < 0) {
+		// Default commodity
+		const quantity = Math.round(parseFloat(amount) * factor)
+		
+		if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
+		
+		return {
+			'quantity': quantity,
+			commodity: db.metadata.reporting_commodity
+		};
+	}
+	
+	// FIXME: Parse single letter commodities
+	
+	const quantityStr = amount.substring(0, amount.indexOf(' '));
+	const quantity = Math.round(parseFloat(quantityStr) * factor)
+	
+	if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
+	
+	const commodity = amount.substring(amount.indexOf(' ') + 1);
+	
+	return {
+		'quantity': quantity,
+		'commodity': commodity
+	};
+}
+
 // Type definitions
 
-export interface Transaction {
-	id: number,
-	dt: string,
-	description: string,
-	postings: Posting[]
+export class Transaction {
+	constructor(
+		public id: number = null!,
+		public dt: string = null!,
+		public description: string = null!,
+		public postings: Posting[] = [],
+	) {}
+	
+	doesBalance(): boolean {
+		const balance = new Balance();
+		for (const posting of this.postings) {
+			balance.add(posting.quantity, posting.commodity);
+		}
+		balance.clean();
+		return balance.amounts.length === 0;
+	}
 }
 
 export interface Posting {
 	id: number,
-	description: string,
+	description: string | null,
 	account: string,
 	quantity: number,
 	commodity: string,
@@ -97,31 +230,4 @@ export interface JoinedTransactionPosting {
 	quantity: number,
 	commodity: string,
 	running_balance?: number
-}
-
-export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {
-	// Group postings into transactions
-	const transactions: Transaction[] = [];
-	
-	for (const joinedTransactionPosting of joinedTransactionPostings) {
-		if (transactions.length === 0 || transactions.at(-1)!.id !== joinedTransactionPosting.transaction_id) {
-			transactions.push({
-				id: joinedTransactionPosting.transaction_id,
-				dt: joinedTransactionPosting.dt,
-				description: joinedTransactionPosting.transaction_description,
-				postings: []
-			});
-		}
-		
-		transactions.at(-1)!.postings.push({
-			id: joinedTransactionPosting.id,
-			description: joinedTransactionPosting.description,
-			account: joinedTransactionPosting.account,
-			quantity: joinedTransactionPosting.quantity,
-			commodity: joinedTransactionPosting.commodity,
-			running_balance: joinedTransactionPosting.running_balance
-		});
-	}
-	
-	return transactions;
 }

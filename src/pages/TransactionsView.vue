@@ -40,7 +40,7 @@
 	import { ref } from 'vue';
 	import { useRoute } from 'vue-router';
 	
-	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from '../db.ts';
+	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions, updateRunningBalances } from '../db.ts';
 	import TransactionsWithCommodityView from './TransactionsWithCommodityView.vue';
 	import TransactionsWithoutCommodityView from './TransactionsWithoutCommodityView.vue';
 	
@@ -51,6 +51,9 @@
 	
 	async function load() {
 		const session = await db.load();
+		
+		// Ensure running balances are up to date because we use these
+		await updateRunningBalances();
 		
 		const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
 			`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance

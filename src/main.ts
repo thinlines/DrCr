@@ -17,6 +17,7 @@
 */
 
 import { invoke } from '@tauri-apps/api/core';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 import { createApp } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
@@ -31,6 +32,7 @@ async function initApp() {
 		{ path: '/', name: 'index', component: () => import('./pages/HomeView.vue') },
 		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./pages/GeneralLedgerView.vue') },
 		{ path: '/journal', name: 'journal', component: () => import('./pages/JournalView.vue') },
+		{ path: '/journal/edit-transaction/:id', name: 'journal-edit-transaction', component: () => import('./pages/EditTransactionView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./pages/TrialBalanceView.vue') },
 	];
@@ -47,6 +49,16 @@ async function initApp() {
 	
 	// Create Vue app
 	createApp(App).use(router).mount('#app');
+}
+
+(window as any).openLinkInNewWindow = function(link: HTMLAnchorElement) {
+	const webview = new WebviewWindow('dialog' + +new Date(), {
+		url: link.href,
+	});
+	webview.once('tauri://error', function(e) {
+		console.error(e);
+	});
+	return false;
 }
 
 initApp();

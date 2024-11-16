@@ -1,4 +1,7 @@
 /** @type {import('tailwindcss').Config} */
+
+import tailwindcssforms from '@tailwindcss/forms';
+
 export default {
 	content: [
 		"./index.html",
@@ -10,5 +13,7 @@ export default {
 			"sans": ["Roboto Flex", "Helvetica", "Arial", "sans-serif"],
 		}
 	},
-	plugins: [],
+	plugins: [
+		tailwindcssforms,
+	],
 }

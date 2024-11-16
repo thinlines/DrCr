@@ -44,12 +44,15 @@
 	
 	import dayjs from 'dayjs';
 	
+	import { PencilIcon } from '@heroicons/vue/24/outline';
+	
 	import { onMounted, onUnmounted, watch } from 'vue';
 	import { useRoute } from 'vue-router';
 	
 	import { asCost } from '../amounts.ts';
 	import { Transaction } from '../db.ts';
 	import { pp } from '../display.ts';
+	import { renderComponent } from '../webutil.ts';
 	
 	const route = useRoute();
 	const { transactions } = defineProps<{ transactions: Transaction[] }>();
@@ -58,9 +61,15 @@
 	
 	function renderTable() {
 		// Render table
+		const PencilIconHTML = renderComponent(PencilIcon, { 'class': 'w-4 h-4 inline align-middle -mt-0.5' });  // Pre-render the pencil icon
 		const rows = [];
 		
 		for (const transaction of transactions) {
+			let editLink = '';
+			if (transaction.id !== null) {
+				editLink = `<a href="/journal/edit-transaction/${ transaction.id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+			}
+			
 			if (transaction.postings.length == 2) {
 				// Simple transaction
 				let thisAccountPosting, otherAccountPosting;
@@ -76,10 +85,7 @@
 				rows.push(
 					`<tr class="border-t border-gray-300">
 						<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ dayjs(transaction.dt).format('YYYY-MM-DD') }</td>
-						<td class="py-0.5 px-1 text-gray-900">
-							${ transaction.description }
-							<!-- TODO: Edit button -->
-						</td>
+						<td class="py-0.5 px-1 text-gray-900">${ transaction.description } ${ editLink }</td>
 						<td class="py-0.5 px-1 text-gray-900"><a href="/transactions/${ encodeURIComponent(otherAccountPosting!.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ otherAccountPosting!.account }</a></td>
 						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ thisAccountPosting!.quantity >= 0 ? pp(asCost(thisAccountPosting!.quantity, thisAccountPosting!.commodity)) : '' }</td>
 						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ thisAccountPosting!.quantity < 0 ? pp(asCost(-thisAccountPosting!.quantity, thisAccountPosting!.commodity)) : '' }</td>
@@ -92,10 +98,7 @@
 				rows.push(
 					`<tr class="border-t border-gray-300">
 						<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ dayjs(transaction.dt).format('YYYY-MM-DD') }</td>
-						<td colspan="2" class="py-0.5 px-1 text-gray-900">
-							${ transaction.description }
-							<!-- TODO: Edit button -->
-						</td>
+						<td colspan="2" class="py-0.5 px-1 text-gray-900">${ transaction.description } ${ editLink }</td>
 						<td></td>
 						<td></td>
 						<td></td>

@@ -18,10 +18,16 @@
 
 <template>
 	<h1 class="page-heading">
-		General ledger
+		Journal
 	</h1>
 	
-	<div class="my-4 flex">
+	<div class="my-4 flex gap-x-2">
+		<!--<a href="{{ url_for('journal_new_transaction') }}" class="btn-primary pl-2">
+			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+			</svg>
+			New transaction
+		</a>-->
 		<button v-if="commodityDetail" class="btn-secondary" @click="commodityDetail = false">Hide commodity detail</button>
 		<button v-if="!commodityDetail" class="btn-secondary" @click="commodityDetail = true">Show commodity detail</button>
 	</div>

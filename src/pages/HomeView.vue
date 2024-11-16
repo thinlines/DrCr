@@ -21,7 +21,7 @@
 		<div class="pr-4">
 			<h2 class="font-medium text-gray-700 mb-2">Data sources</h2>
 			<ul class="list-disc ml-6">
-				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Journal</a></li>-->
+				<li><RouterLink :to="{ name: 'journal' }" class="text-gray-900 hover:text-blue-700 hover:underline">Journal</RouterLink></li>
 				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Statement lines</a></li>-->
 				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</a></li>-->
 				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</a></li>-->

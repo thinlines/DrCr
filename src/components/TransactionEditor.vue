@@ -86,7 +86,7 @@
 	</table>
 	
 	<div class="flex justify-end mt-4 space-x-2">
-		<!--<button type="submit" name="action" value="delete" class="btn-secondary text-red-600 ring-red-500" onclick="return confirm('Are you sure you want to delete this transaction? This operation is irreversible.');">Delete</button>-->
+		<button class="btn-secondary text-red-600 ring-red-500" @click="deleteTransaction" v-if="transaction.id !== null">Delete</button>
 		<button class="btn-primary" @click="saveTransaction">Save</button>
 	</div>
 	
@@ -241,6 +241,38 @@
 				[newTransaction.dt, posting.account]
 			);
 		}
+		
+		await getCurrentWindow().close();
+	}
+	
+	async function deleteTransaction() {
+		if (!confirm('Are you sure you want to delete this transaction? This operation is irreversible.')) {
+			return;
+		}
+		
+		const session = await db.load();
+		
+		// Delete atomically
+		await session.execute(
+			`BEGIN;
+			
+			-- Cascade delete statement line reconciliations
+			DELETE FROM statement_line_reconciliations
+			WHERE posting_id IN (
+				SELECT postings.id FROM postings WHERE transaction_id = $1
+			);
+			
+			-- Delete postings
+			DELETE FROM postings
+			WHERE transaction_id = $1;
+			
+			-- Delete transaction
+			DELETE FROM transactions
+			WHERE id = $1;
+			
+			COMMIT;`,
+			[transaction.id]
+		);
 		
 		await getCurrentWindow().close();
 	}

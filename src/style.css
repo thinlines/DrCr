@@ -36,4 +36,8 @@
 	.page-heading {
 		@apply text-xl sm:text-base font-medium text-gray-700 print:text-xl print:text-gray-900;
 	}
+	.wk-aa {
+		/* When we use overflow: scroll, WebKit automatically disables antialiasing */
+		-webkit-font-smoothing: antialiased;
+	}
 }

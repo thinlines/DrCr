@@ -22,52 +22,39 @@
 	</h1>
 	
 	<div class="my-4 flex">
-		<button v-if="commodityDetail" class="btn-secondary" @click="commodityDetail = false">Hide commodity detail</button>
-		<button v-if="!commodityDetail" class="btn-secondary" @click="commodityDetail = true">Show commodity detail</button>
+		<button v-if="commodityDetail" class="btn-secondary" @click="commodityDetail = false; renderTable();">Hide commodity detail</button>
+		<button v-if="!commodityDetail" class="btn-secondary" @click="commodityDetail = true; renderTable();">Show commodity detail</button>
 	</div>
 	
-	<table class="min-w-full" ref="table">
-		<thead>
-			<tr>
-				<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">Date</th>
-				<th class="py-0.5 px-1 text-gray-900 font-semibold text-start" colspan="3">Description</th>
-				<th class="py-0.5 px-1 text-gray-900 font-semibold text-end">Dr</th>
-				<th class="py-0.5 pl-1 text-gray-900 font-semibold text-end">Cr</th>
-			</tr>
-		</thead>
-		<tbody id="transaction-list">
-			<template v-for="transaction in transactions" :key="transaction.id">
-				<tr class="border-t border-gray-300">
-					<td class="py-0.5 pr-1 text-gray-900">{{ transaction.dt.split(' ')[0] }}</td>
-					<td class="py-0.5 px-1 text-gray-900" colspan="3">{{ transaction.description }}</td>
-					<td></td>
-					<td></td>
+	<div id="transaction-list" class="max-h-[100vh] overflow-y-scroll wk-aa">
+		<table class="min-w-full">
+			<thead>
+				<tr>
+					<th class="py-0.5 pr-1 text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>
+					<th class="py-0.5 px-1 text-gray-900 font-semibold text-start" colspan="3">Description</th>
+					<template v-if="commodityDetail">
+						<th class="py-0.5 px-1 text-gray-900 font-semibold text-end">Dr</th>
+						<th class="py-0.5 pl-1 text-gray-900 font-semibold text-end">Cr</th>
+					</template>
+					<template v-if="!commodityDetail">
+						<th class="py-0.5 px-1 text-gray-900 font-semibold lg:w-[12ex] text-end">Dr</th>
+						<th class="py-0.5 pl-1 text-gray-900 font-semibold lg:w-[12ex] text-end">Cr</th>
+					</template>
 				</tr>
-				<template v-for="posting in transaction.postings" :key="posting.id">
-					<tr>
-						<td></td>
-						<td class="py-0.5 px-1 text-gray-900">{{ posting.description }}</td>
-						<td class="py-0.5 px-1 text-gray-900 text-end"><i>{{ posting.quantity >= 0 ? 'Dr' : 'Cr' }}</i></td>
-						<td class="py-0.5 px-1 text-gray-900">{{ posting.account }}</td>
-						<td class="py-0.5 px-1 text-gray-900 text-end">
-							{{ posting.quantity >= 0 ? (commodityDetail ? ppWithCommodity(posting.quantity, posting.commodity) : pp(asCost(posting.quantity, posting.commodity))) : '' }}
-						</td>
-						<td class="py-0.5 pl-1 text-gray-900 text-end">
-							{{ posting.quantity < 0 ? (commodityDetail ? ppWithCommodity(-posting.quantity, posting.commodity) : pp(asCost(-posting.quantity, posting.commodity))) : '' }}
-						</td>
-					</tr>
-				</template>
-			</template>
-		</tbody>
-	</table>
-	
-	<div class="my-4 flex" v-if="transactionsOffset !== null">
-		<button class="btn-secondary" @click="load()">Load more…</button>
+			</thead>
+			<tbody>
+				<tr>
+					<td colspan="4">Loading data…</td>
+				</tr>
+			</tbody>
+		</table>
 	</div>
 </template>
 
 <script setup lang="ts">
-	import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
+	import Clusterize from 'clusterize.js';
+	
+	import { onUnmounted, ref } from 'vue';
 	
 	import { asCost } from './commodities.ts';
 	import { db } from './db.ts';
@@ -90,29 +77,18 @@
 		commodity: string
 	}
 	
-	const transactions = ref([] as _Transaction[]);
-	const transactionsOffset = ref(0 as number | null);
+	const transactions: _Transaction[] = [];
+	let clusterize: Clusterize | null = null;
 	
 	async function load() {
-		if (transactionsOffset.value === null) {
-			// No more entries
-			return;
-		}
-		
 		const session = await db.load();
 		
-		const transactionsRaw: {transaction_id: number, dt: string, transaction_description: string, id: number, description: string, account: string, quantity: number, commodity: string}[] = await session.select('SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity FROM transactions LEFT JOIN postings ON transactions.id = postings.transaction_id ORDER BY dt DESC, transaction_id DESC, postings.id LIMIT 200 OFFSET ?', [transactionsOffset.value]);
-		
-		if (transactionsRaw.length === 0) {
-			// No more entries
-			transactionsOffset.value = null;
-			return;
-		}
+		const transactionsRaw: {transaction_id: number, dt: string, transaction_description: string, id: number, description: string, account: string, quantity: number, commodity: string}[] = await session.select('SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity FROM transactions LEFT JOIN postings ON transactions.id = postings.transaction_id ORDER BY dt DESC, transaction_id DESC, postings.id');
 		
 		// Group postings into transactions
 		for (const transactionRaw of transactionsRaw) {
-			if (transactions.value.length === 0 || transactions.value.at(-1)!.id !== transactionRaw.transaction_id) {
-				transactions.value.push({
+			if (transactions.length === 0 || transactions.at(-1)!.id !== transactionRaw.transaction_id) {
+				transactions.push({
 					id: transactionRaw.transaction_id,
 					dt: transactionRaw.dt,
 					description: transactionRaw.transaction_description,
@@ -120,7 +96,7 @@
 				});
 			}
 			
-			transactions.value.at(-1)!.postings.push({
+			transactions.at(-1)!.postings.push({
 				id: transactionRaw.id,
 				description: transactionRaw.description,
 				account: transactionRaw.account,
@@ -129,7 +105,72 @@
 			});
 		}
 		
-		transactionsOffset.value += transactionsRaw.length;
+		renderTable();
 	}
+	
+	function renderTable() {
+		const rows = [];
+		
+		for (const transaction of transactions) {
+			rows.push(
+				`<tr class="border-t border-gray-300">
+					<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ transaction.dt.split(' ')[0] }</td>
+					<td class="py-0.5 px-1 text-gray-900" colspan="3">${ transaction.description }</td>
+					<td></td>
+					<td></td>
+				</tr>`
+			);
+			for (const posting of transaction.postings) {
+				if (commodityDetail.value) {
+					rows.push(
+						`<tr>
+							<td class=""></td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.description || '' }</td>
+							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.account }</td>
+							<td class="py-0.5 px-1 text-gray-900 text-end">
+								${ posting.quantity >= 0 ? ppWithCommodity(posting.quantity, posting.commodity) : '' }
+							</td>
+							<td class="py-0.5 pl-1 text-gray-900 text-end">
+								${ posting.quantity < 0 ? ppWithCommodity(-posting.quantity, posting.commodity) : '' }
+							</td>
+						</tr>`
+					);
+				} else {
+					rows.push(
+						`<tr>
+							<td class=""></td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.description || '' }</td>
+							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]">${ posting.account }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">
+								${ posting.quantity >= 0 ? pp(asCost(posting.quantity, posting.commodity)) : '' }
+							</td>
+							<td class="py-0.5 pl-1 text-gray-900 lg:w-[12ex] text-end">
+								${ posting.quantity < 0 ? pp(asCost(-posting.quantity, posting.commodity)) : '' }
+							</td>
+						</tr>`
+					);
+				}
+			}
+		}
+		
+		if (clusterize === null) {
+			clusterize = new Clusterize({
+				'rows': rows,
+				scrollElem: document.getElementById('transaction-list')!,
+				contentElem: document.querySelector('#transaction-list tbody')!
+			});
+		} else {
+			clusterize.update(rows);
+		}
+	}
+	
 	load();
+	
+	onUnmounted(() => {
+		if (clusterize !== null) {
+			clusterize.destroy();
+		}
+	});
 </script>

@@ -927,14 +927,17 @@ dependencies = [
 name = "drcr"
 version = "0.1.0"
 dependencies = [
+ "indexmap 2.6.0",
  "serde",
  "serde_json",
+ "sqlx",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-shell",
  "tauri-plugin-sql",
  "tauri-plugin-store",
+ "tokio",
 ]
 
 [[package]]

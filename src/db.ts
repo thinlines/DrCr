@@ -23,6 +23,7 @@ import Database from '@tauri-apps/plugin-sql';
 import { reactive } from 'vue';
 
 import { asCost, Balance } from './amounts.ts';
+import { ExtendedDatabase } from './dbutil.ts';
 
 export const db = reactive({
 	filename: null as (string | null),
@@ -35,7 +36,7 @@ export const db = reactive({
 		dps: null! as number,
 	},
 	
-	init: async function(filename: string) {
+	init: async function(filename: string): Promise<void> {
 		// Set the DB filename and initialise cached data
 		this.filename = filename;
 		
@@ -52,13 +53,13 @@ export const db = reactive({
 		this.metadata.dps = parseInt(metadataObject.amount_dps);
 	},
 	
-	load: async function() {
-		return await Database.load('sqlite:' + this.filename);
+	load: async function(): Promise<ExtendedDatabase> {
+		return new ExtendedDatabase(await Database.load('sqlite:' + this.filename));
 	},
 });
 
-export async function totalBalances(session: Database): Promise<{account: string, quantity: number}[]> {
-	await updateRunningBalances();
+export async function totalBalances(session: ExtendedDatabase): Promise<{account: string, quantity: number}[]> {
+	await updateRunningBalances(session);
 	
 	return await session.select(`
 		SELECT p3.account AS account, running_balance AS quantity FROM
@@ -73,11 +74,10 @@ export async function totalBalances(session: Database): Promise<{account: string
 	`);
 }
 
-export async function updateRunningBalances() {
+export async function updateRunningBalances(session: ExtendedDatabase) {
 	// TODO: This is very slow - it would be faster to do this in Rust
 	
 	// Recompute any required running balances
-	const session = await db.load();
 	const staleAccountsRaw: {account: string}[] = await session.select('SELECT DISTINCT account FROM postings WHERE running_balance IS NULL');
 	const staleAccounts: string[] = staleAccountsRaw.map((x) => x.account);
 	
@@ -97,6 +97,9 @@ export async function updateRunningBalances() {
 		staleAccounts
 	);
 	
+	// Update running balances atomically
+	const dbTransaction = await session.begin();
+	
 	const runningBalances = new Map();
 	for (const posting of joinedTransactionPostings) {
 		const openingBalance = runningBalances.get(posting.account) ?? 0;
@@ -108,7 +111,7 @@ export async function updateRunningBalances() {
 		// Update running balance of posting
 		// Only perform this update if required, to avoid expensive call to DB
 		if (posting.running_balance !== runningBalance) {
-			await session.execute(
+			await dbTransaction.execute(
 				`UPDATE postings
 				SET running_balance = $1
 				WHERE id = $2`,
@@ -116,6 +119,8 @@ export async function updateRunningBalances() {
 			);
 		}
 	}
+	
+	await dbTransaction.commit();
 }
 
 export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {

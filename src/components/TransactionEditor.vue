@@ -201,12 +201,12 @@
 			}
 		}
 		
-		// Save changes to database
-		// FIXME: Use transactions
+		// Save changes to database atomically
+		const dbTransaction = await session.begin();
 		
 		if (newTransaction.id === null) {
 			// Insert new transaction
-			const result = await session.execute(
+			const result = await dbTransaction.execute(
 				`INSERT INTO transactions (dt, description)
 				VALUES ($1, $2)`,
 				[newTransaction.dt, newTransaction.description]
@@ -214,7 +214,7 @@
 			newTransaction.id = result.lastInsertId;
 		} else {
 			// Update existing transaction
-			await session.execute(
+			await dbTransaction.execute(
 				`UPDATE transactions
 				SET dt = $1, description = $2
 				WHERE id = $3`,
@@ -233,7 +233,7 @@
 			if (insertPostings) {
 				// Delete existing posting if required
 				if (posting.id !== null) {
-					await session.execute(
+					await dbTransaction.execute(
 						`DELETE FROM postings
 						WHERE id = $1`,
 						[posting.id]
@@ -241,7 +241,7 @@
 				}
 				
 				// Insert new posting
-				const result = await session.execute(
+				const result = await dbTransaction.execute(
 					`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
 					VALUES ($1, $2, $3, $4, $5, NULL)`,
 					[newTransaction.id, posting.description, posting.account, posting.quantity, posting.commodity]
@@ -250,7 +250,7 @@
 				// Fixup reconciliation if required
 				const joinedReconciliation = postingsToReconciliations.get(posting);
 				if (joinedReconciliation) {
-					await session.execute(
+					await dbTransaction.execute(
 						`UPDATE statement_line_reconciliations
 						SET posting_id = $1
 						WHERE id = $2`,
@@ -259,7 +259,7 @@
 				}
 			} else {
 				// Update existing posting
-				await session.execute(
+				await dbTransaction.execute(
 					`UPDATE postings
 					SET description = $1, account = $2, quantity = $3, commodity = $4
 					WHERE id = $5`,
@@ -268,7 +268,7 @@
 			}
 			
 			// Invalidate running balances
-			await session.execute(
+			await dbTransaction.execute(
 				`UPDATE postings
 				SET running_balance = NULL
 				FROM (
@@ -282,6 +282,8 @@
 			);
 		}
 		
+		await dbTransaction.commit();
+		
 		await getCurrentWindow().close();
 	}
 	
@@ -290,29 +292,34 @@
 			return;
 		}
 		
-		const session = await db.load();
-		
 		// Delete atomically
-		await session.execute(
-			`BEGIN;
-			
-			-- Cascade delete statement line reconciliations
-			DELETE FROM statement_line_reconciliations
+		const session = await db.load();
+		const dbTransaction = await session.begin();
+		
+		// Cascade delete statement line reconciliations
+		await dbTransaction.execute(
+			`DELETE FROM statement_line_reconciliations
 			WHERE posting_id IN (
 				SELECT postings.id FROM postings WHERE transaction_id = $1
-			);
-			
-			-- Delete postings
-			DELETE FROM postings
-			WHERE transaction_id = $1;
-			
-			-- Delete transaction
-			DELETE FROM transactions
-			WHERE id = $1;
-			
-			COMMIT;`,
+			)`,
 			[transaction.id]
 		);
+		
+		// Delete postings
+		await dbTransaction.execute(
+			`DELETE FROM postings
+			WHERE transaction_id = $1`,
+			[transaction.id]
+		)
+		
+		// Delete transaction
+		await dbTransaction.execute(
+			`DELETE FROM transactions
+			WHERE id = $1`,
+			[transaction.id]
+		)
+		
+		await dbTransaction.commit();
 		
 		await getCurrentWindow().close();
 	}

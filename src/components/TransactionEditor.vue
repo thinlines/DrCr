@@ -165,15 +165,44 @@
 			});
 		}
 		
+		// Validate transaction
 		if (!newTransaction.doesBalance()) {
 			error.value = 'Debits and credits do not balance.';
 			return;
 		}
 		
+		const session = await db.load();
+		
+		// Validate statement line reconciliations
+		// Keep track of mapping, so we can fix up the reconciliation posting_id if renumbering occurs
+		const postingsToReconciliations = new Map();
+		
+		if (newTransaction.id !== null) {
+			// Get statement line reconciliations affected by this transaction
+			const joinedReconciliations: any[] = await session.select(
+				`SELECT statement_line_reconciliations.id, postings.id AS posting_id, source_account, statement_lines.quantity, statement_lines.commodity
+				FROM statement_line_reconciliations
+				JOIN postings ON statement_line_reconciliations.posting_id = postings.id
+				JOIN statement_lines ON statement_line_reconciliations.statement_line_id = statement_lines.id
+				WHERE postings.transaction_id = $1`,
+				[newTransaction.id]
+			);
+			
+			for (const joinedReconciliation of joinedReconciliations) {
+				for (const posting of newTransaction.postings) {
+					if (posting.id === joinedReconciliation.posting_id) {
+						if (posting.account !== joinedReconciliation.source_account || posting.quantity !== joinedReconciliation.quantity || posting.commodity !== joinedReconciliation.commodity) {
+							error.value = 'Edit would break reconciled statement line.';
+							return;
+						}
+						postingsToReconciliations.set(posting, joinedReconciliation);
+					}
+				}
+			}
+		}
+		
 		// Save changes to database
 		// FIXME: Use transactions
-		
-		const session = await db.load();
 		
 		if (newTransaction.id === null) {
 			// Insert new transaction
@@ -212,11 +241,22 @@
 				}
 				
 				// Insert new posting
-				await session.execute(
+				const result = await session.execute(
 					`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
 					VALUES ($1, $2, $3, $4, $5, NULL)`,
 					[newTransaction.id, posting.description, posting.account, posting.quantity, posting.commodity]
 				);
+				
+				// Fixup reconciliation if required
+				const joinedReconciliation = postingsToReconciliations.get(posting);
+				if (joinedReconciliation) {
+					await session.execute(
+						`UPDATE statement_line_reconciliations
+						SET posting_id = $1
+						WHERE id = $2`,
+						[result.lastInsertId, joinedReconciliation.id]
+					);
+				}
 			} else {
 				// Update existing posting
 				await session.execute(

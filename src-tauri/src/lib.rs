@@ -16,8 +16,10 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use tauri::{Builder, Manager, State};
+use tauri::{AppHandle, Builder, Manager, State};
+use tauri_plugin_store::StoreExt;
 
+use std::fs;
 use std::sync::Mutex;
 
 struct AppState {
@@ -31,24 +33,44 @@ fn get_open_filename(state: State<'_, Mutex<AppState>>) -> Option<String> {
 }
 
 #[tauri::command]
-fn set_open_filename(state: State<'_, Mutex<AppState>>, filename: Option<String>) {
+fn set_open_filename(state: State<'_, Mutex<AppState>>, app: AppHandle, filename: Option<String>) {
 	let mut state = state.lock().unwrap();
-	state.db_filename = filename;
+	state.db_filename = filename.clone();
+	
+	// Persist in store
+	let store = app.store("store.json").expect("Error opening store");
+	store.set("db_filename", filename);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
 	Builder::default()
 		.setup(|app| {
+			// Get open filename
+			let store = app.store("store.json")?;
+			let db_filename = match store.get("db_filename") {
+				None => None,
+				Some(serde_json::Value::String(s)) => {
+					if fs::exists(&s)? {
+						Some(s)
+					} else {
+						None
+					}
+				},
+				_ => panic!("Unexpected db_filename in store")
+			};
+			
 			app.manage(Mutex::new(AppState {
-				db_filename: None
+				db_filename: db_filename
 			}));
+			
 			Ok(())
 		})
 		.plugin(tauri_plugin_dialog::init())
 		.plugin(tauri_plugin_shell::init())
 		.plugin(tauri_plugin_sql::Builder::new().build())
+		.plugin(tauri_plugin_store::Builder::new().build())
 		.invoke_handler(tauri::generate_handler![get_open_filename, set_open_filename])
 		.run(tauri::generate_context!())
-		.expect("error while running tauri application");
+		.expect("Error while running tauri application");
 }

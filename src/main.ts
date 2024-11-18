@@ -35,6 +35,7 @@ async function initApp() {
 		{ path: '/journal/edit-transaction/:id', name: 'journal-edit-transaction', component: () => import('./pages/EditTransactionView.vue') },
 		{ path: '/journal/new-transaction', name: 'journal-new-transaction', component: () => import('./pages/NewTransactionView.vue') },
 		{ path: '/statement-lines', name: 'statement-lines', component: () => import('./pages/StatementLinesView.vue') },
+		{ path: '/statement-lines/import', name: 'import-statement', component: () => import('./pages/ImportStatementView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./pages/TrialBalanceView.vue') },
 	];

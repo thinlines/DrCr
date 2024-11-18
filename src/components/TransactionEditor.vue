@@ -111,7 +111,7 @@
 	
 	import { ref } from 'vue';
 	
-	import { Transaction, db, deserialiseAmount } from '../db.ts';
+	import { DT_FORMAT, Transaction, db, deserialiseAmount } from '../db.ts';
 	
 	interface EditingPosting {
 		id: number | null,
@@ -148,7 +148,7 @@
 		// Prepare transaction for save
 		const newTransaction = new Transaction(
 			transaction.id,
-			dayjs(transaction.dt).format('YYYY-MM-DD HH:mm:ss.SSS000'),
+			dayjs(transaction.dt).format(DT_FORMAT),
 			transaction.description,
 			[]
 		);

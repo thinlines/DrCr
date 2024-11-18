@@ -25,6 +25,8 @@ import { reactive } from 'vue';
 import { asCost, Balance } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 
+export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
+
 export const db = reactive({
 	filename: null as (string | null),
 	
@@ -242,4 +244,14 @@ export interface JoinedTransactionPosting {
 	quantity: number,
 	commodity: string,
 	running_balance?: number
+}
+
+export interface StatementLine {
+	id: number | null,
+	source_account: string,
+	dt: string,
+	description: string,
+	quantity: number,
+	balance: number | null,
+	commodity: string
 }

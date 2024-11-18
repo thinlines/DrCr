@@ -25,11 +25,11 @@
 		<div class="grow flex gap-x-2 items-baseline">
 			<!--<button class="btn-secondary text-emerald-700 ring-emerald-600">
 				Reconcile selected as transfer
-			</button>
-			<a href="#" class="btn-secondary">
+			</button>-->
+			<RouterLink :to="{ name: 'import-statement' }" class="btn-secondary">
 				Import statement
-			</a>
-			<a href="{{ url_for('statement_lines', **dict(request.args, unclassified=1)) }}" class="btn-secondary">
+			</RouterLink>
+			<!--<a href="{{ url_for('statement_lines', **dict(request.args, unclassified=1)) }}" class="btn-secondary">
 				Show only unclassified lines
 			</a>-->
 		</div>

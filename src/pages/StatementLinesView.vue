@@ -206,6 +206,20 @@
 			[statementLine.id, accountPostingId]
 		);
 		
+		// Invalidate running balances
+		await dbTransaction.execute(
+			`UPDATE postings
+			SET running_balance = NULL
+			FROM (
+				SELECT postings.id
+				FROM transactions
+				JOIN postings ON transactions.id = postings.transaction_id
+				WHERE DATE(dt) >= DATE($1) AND account IN ($2, $3)
+			) p
+			WHERE postings.id = p.id`,
+			[statementLine.dt, statementLine.source_account, chargeAccount]
+		);
+		
 		dbTransaction.commit();
 		
 		// Reload transactions and re-render the table

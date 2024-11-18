@@ -64,13 +64,13 @@
 	
 	import dayjs from 'dayjs';
 	
-	import { PencilIcon } from '@heroicons/vue/24/outline';
+	import { CheckIcon, PencilIcon } from '@heroicons/vue/24/outline';
 	
 	import { onUnmounted, ref, watch } from 'vue';
 	
 	import { db } from '../db.ts';
 	import { renderComponent } from '../webutil.ts';
-import { ppWithCommodity } from '../display.ts';
+	import { ppWithCommodity } from '../display.ts';
 	
 	interface StatementLine {
 		id: number,
@@ -125,6 +125,91 @@ import { ppWithCommodity } from '../display.ts';
 		statementLines.value = newStatementLines;
 	}
 	
+	// TODO: Could probably avoid polluting global scope by using clusterize clusterChanged callback
+	(window as any).showClassifyLinePanel = function(el: HTMLAnchorElement) {
+		const CheckIconHTML = renderComponent(CheckIcon, { 'class': 'w-5 h-5' });
+		
+		const td = el.closest('td')!;
+		td.className = 'relative';  // CSS trickery so as to not expand the height of the tr
+		td.innerHTML =
+			`<div class="flex items-stretch absolute top-[-4px]">
+				<input type="text" class="bordered-field">
+				<button type="button" class="relative -ml-px inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 bg-white hover:bg-gray-50">${ CheckIconHTML }</button>
+			</div>`;
+		
+		td.querySelector('input')!.addEventListener('keydown', async function(event: KeyboardEvent) {
+			if (event.key === 'Enter') {
+				await onLineClassified(event);
+			}
+		})
+		td.querySelector('button')!.addEventListener('click', onLineClassified);
+		
+		td.querySelector('input')!.focus();
+		
+		return false;
+	};
+	
+	async function onLineClassified(event: Event) {
+		// Callback when clicking OK or pressing enter to classify a statement line
+		if ((event.target as HTMLInputElement).disabled) {
+			return;
+		}
+		
+		const td = (event.target as Element).closest('td')!;
+		const tr = td.closest('tr')!;
+		const lineId = parseInt(tr.dataset.lineId!);
+		const chargeAccount = (td.querySelector('input')! as HTMLInputElement).value;
+		
+		if (!chargeAccount) {
+			return;
+		}
+		
+		// Disable further submissions
+		td.querySelector('input')!.disabled = true;
+		td.querySelector('button')!.disabled = true;
+		
+		const statementLine = statementLines.value.find((l) => l.id === lineId)!;
+		
+		// Insert transaction and statement line reconciliation atomically
+		const session = await db.load();
+		const dbTransaction = await session.begin();
+		
+		// Insert transaction
+		const transactionResult = await dbTransaction.execute(
+			`INSERT INTO transactions (dt, description)
+			VALUES ($1, $2)`,
+			[statementLine.dt, statementLine.description]
+		);
+		const transactionId = transactionResult.lastInsertId;
+		
+		// Insert posting for this account
+		const accountPostingResult = await dbTransaction.execute(
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
+			VALUES ($1, NULL, $2, $3, $4, NULL)`,
+			[transactionId, statementLine.source_account, statementLine.quantity, statementLine.commodity]
+		);
+		const accountPostingId = accountPostingResult.lastInsertId;
+		
+		// Insert posting for the charge account - no need to remember this ID
+		await dbTransaction.execute(
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
+			VALUES ($1, NULL, $2, $3, $4, NULL)`,
+			[transactionId, chargeAccount, -statementLine.quantity, statementLine.commodity]
+		);
+		
+		// Insert statement line reconciliation
+		await dbTransaction.execute(
+			`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
+			VALUES ($1, $2)`,
+			[statementLine.id, accountPostingId]
+		);
+		
+		dbTransaction.commit();
+		
+		// Reload transactions and re-render the table
+		await load();
+	}
+	
 	function renderTable() {
 		const PencilIconHTML = renderComponent(PencilIcon, { 'class': 'w-4 h-4 inline align-middle -mt-0.5' });  // Pre-render the pencil icon
 		const rows = [];
@@ -134,13 +219,12 @@ import { ppWithCommodity } from '../display.ts';
 			if (line.posting_accounts.length === 0) {
 				// Unreconciled
 				reconciliationCell =
-					`<a href="#" class="text-red-500 hover:text-red-600 hover:underline" onclick="return classifyLine(this);">Unclassified</a>
-					<a href="/journal/edit-transaction/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+					`<a href="#" class="classify-link text-red-500 hover:text-red-600 hover:underline" onclick="return showClassifyLinePanel(this);">Unclassified</a>`;
 			} else if (line.posting_accounts.length === 2) {
 				// Simple reconciliation
 				const otherAccount = line.posting_accounts.find((a) => a !== line.source_account);
 				reconciliationCell =
-					`<a href="#" class="hover:text-blue-700 hover:underline" onclick="return classifyLine(this);">${ otherAccount }</a>
+					`<span>${ otherAccount }</span>
 					<a href="/journal/edit-transaction/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
 			} else {
 				// Complex reconciliation
@@ -150,7 +234,7 @@ import { ppWithCommodity } from '../display.ts';
 			}
 			
 			rows.push(
-				`<tr data-line-id="{{ line.id }}">
+				`<tr data-line-id="${ line.id }">
 					<td class="py-0.5 pr-1 align-baseline"><input class="checkbox-primary" type="checkbox" name="sel-line-id" value="${ line.id }"></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="#" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex]">${ dayjs(line.dt).format('YYYY-MM-DD') }</td>

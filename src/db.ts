@@ -60,10 +60,10 @@ export const db = reactive({
 	},
 });
 
-export async function totalBalances(session: ExtendedDatabase): Promise<{account: string, quantity: number}[]> {
+export async function totalBalances(session: ExtendedDatabase): Promise<Map<string, number>> {
 	await updateRunningBalances(session);
 	
-	return await session.select(`
+	const resultsRaw: {account: string, quantity: number}[] = await session.select(`
 		SELECT p3.account AS account, running_balance AS quantity FROM
 		(
 			SELECT p1.account, max(p2.transaction_id) AS max_tid FROM
@@ -74,6 +74,8 @@ export async function totalBalances(session: ExtendedDatabase): Promise<{account
 		) p3
 		JOIN postings p4 ON p3.account = p4.account AND p3.max_tid = p4.transaction_id ORDER BY account
 	`);
+	
+	return new Map(resultsRaw.map((x) => [x.account, x.quantity]));
 }
 
 export async function updateRunningBalances(session: ExtendedDatabase) {

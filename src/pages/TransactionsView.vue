@@ -41,7 +41,8 @@
 	import { ref } from 'vue';
 	import { useRoute } from 'vue-router';
 	
-	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions, updateRunningBalances } from '../db.ts';
+	import { Transaction, db } from '../db.ts';
+	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
 	import TransactionsWithCommodityView from './TransactionsWithCommodityView.vue';
 	import TransactionsWithoutCommodityView from './TransactionsWithoutCommodityView.vue';
 	
@@ -52,20 +53,17 @@
 	
 	async function load() {
 		const session = await db.load();
+		const reportingWorkflow = new ReportingWorkflow();
+		await reportingWorkflow.generate(session);  // This also ensures running balances are up to date
 		
-		// Ensure running balances are up to date because we use these
-		await updateRunningBalances(session);
+		const transactionsRaw = reportingWorkflow.getTransactionsAtStage(ReportingStage.OrdinaryAPITransactions);
 		
-		const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-			`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance
-			FROM transactions
-			JOIN postings ON transactions.id = postings.transaction_id
-			WHERE transactions.id IN (SELECT transaction_id FROM postings WHERE postings.account = $1)
-			ORDER by dt DESC, transaction_id DESC, postings.id`,
-			[route.params.account]
-		);
+		// Filter only transactions affecting this account
+		transactions.value = transactionsRaw.filter((t) => t.postings.some((p) => p.account === route.params.account));
 		
-		transactions.value = joinedToTransactions(joinedTransactionPostings);
+		// Display transactions in reverse chronological order
+		// We must sort here because they are returned by reportingWorkflow in order of ReportingStage
+		transactions.value.sort((a, b) => (b.dt.localeCompare(a.dt)) || ((b.id ?? 0) - (a.id ?? 0)));
 	}
 	load();
 </script>

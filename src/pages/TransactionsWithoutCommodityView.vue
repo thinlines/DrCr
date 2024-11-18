@@ -60,6 +60,19 @@
 	let clusterize: Clusterize | null = null;
 	
 	function renderTable() {
+		// Recompute running balances
+		// This is necessary because running_balance is cached only considering database transactions
+		let balance = 0;
+		for (let i = transactions.length - 1; i >= 0; i--) {
+			const transaction = transactions[i];
+			for (const posting of transaction.postings) {
+				if (posting.account === route.params.account) {
+					balance += asCost(posting.quantity, posting.commodity);
+					posting.running_balance = balance;  // We should absolutely not commit this to the database!
+				}
+			}
+		}
+		
 		// Render table
 		const PencilIconHTML = renderComponent(PencilIcon, { 'class': 'w-4 h-4 inline align-middle -mt-0.5' });  // Pre-render the pencil icon
 		const rows = [];

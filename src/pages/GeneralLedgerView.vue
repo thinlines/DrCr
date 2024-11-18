@@ -66,8 +66,9 @@
 	import { onUnmounted, ref, watch } from 'vue';
 	
 	import { asCost } from '../amounts.ts';
-	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from '../db.ts';
+	import { Transaction, db } from '../db.ts';
 	import { pp, ppWithCommodity } from '../display.ts';
+	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
 	import { renderComponent } from '../webutil.ts';
 	
 	const commodityDetail = ref(false);
@@ -77,15 +78,14 @@
 	
 	async function load() {
 		const session = await db.load();
+		const reportingWorkflow = new ReportingWorkflow();
+		await reportingWorkflow.generate(session);
 		
-		const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-			`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity
-			FROM transactions
-			JOIN postings ON transactions.id = postings.transaction_id
-			ORDER BY dt DESC, transaction_id DESC, postings.id`
-		);
+		transactions.value = reportingWorkflow.getTransactionsAtStage(ReportingStage.OrdinaryAPITransactions);
 		
-		transactions.value = joinedToTransactions(joinedTransactionPostings);
+		// Display transactions in reverse chronological order
+		// We must sort here because they are returned by reportingWorkflow in order of ReportingStage
+		transactions.value.sort((a, b) => (b.dt.localeCompare(a.dt)) || ((b.id ?? 0) - (a.id ?? 0)));
 	}
 	
 	function renderTable() {

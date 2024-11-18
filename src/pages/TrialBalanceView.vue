@@ -21,7 +21,7 @@
 		Trial balance
 	</h1>
 	
-	<table class="min-w-full">
+	<table class="min-w-full" v-if="report">
 		<thead>
 			<tr class="border-b border-gray-300">
 				<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">Account</th>
@@ -30,19 +30,19 @@
 			</tr>
 		</thead>
 		<tbody>
-			<tr v-for="account in accounts">
-				<td class="py-0.5 pr-1 text-gray-900"><RouterLink :to="{ name: 'transactions', params: { 'account': account.account } }" class="hover:text-blue-700 hover:underline">{{ account.account }}</RouterLink></td>
+			<tr v-for="[account, quantity] in report.balances.entries()">
+				<td class="py-0.5 pr-1 text-gray-900"><RouterLink :to="{ name: 'transactions', params: { account: account } }" class="hover:text-blue-700 hover:underline">{{ account }}</RouterLink></td>
 				<td class="py-0.5 px-1 text-gray-900 text-end">
-					<template v-if="account.quantity >= 0">{{ pp(account.quantity) }}</template>
+					<template v-if="quantity >= 0">{{ pp(quantity) }}</template>
 				</td>
 				<td class="py-0.5 pl-1 text-gray-900 text-end">
-					<template v-if="account.quantity < 0">{{ pp(-account.quantity) }}</template>
+					<template v-if="quantity < 0">{{ pp(-quantity) }}</template>
 				</td>
 			</tr>
 			<tr>
 				<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">Total</th>
-				<th class="py-0.5 px-1 text-gray-900 text-end">{{ pp(total_dr) }}</th>
-				<th class="py-0.5 pl-1 text-gray-900 text-end">{{ pp(-total_cr) }}</th>
+				<th class="py-0.5 px-1 text-gray-900 text-end">{{ pp(total_dr!) }}</th>
+				<th class="py-0.5 pl-1 text-gray-900 text-end">{{ pp(-total_cr!) }}</th>
 			</tr>
 		</tbody>
 	</table>
@@ -51,17 +51,28 @@
 <script setup lang="ts">
 	import { computed, ref } from 'vue';
 	
-	import { db, totalBalances } from '../db.ts';
+	import { db } from '../db.ts';
 	import { pp } from '../display.ts';
+	import { ReportingStage, ReportingWorkflow, TrialBalanceReport } from '../reporting.ts';
 	
-	const accounts = ref([] as {account: string, quantity: number}[]);
+	const report = ref(null as TrialBalanceReport | null);
 	
-	const total_dr = computed(() => accounts.value.reduce((acc, x) => x.quantity > 0 ? acc + x.quantity : acc, 0));
-	const total_cr = computed(() => accounts.value.reduce((acc, x) => x.quantity < 0 ? acc + x.quantity : acc, 0));
+	// WebKit: Iterator.reduce not supported - https://bugs.webkit.org/show_bug.cgi?id=248650
+	const total_dr = computed(() => report.value ?
+		[...report.value.balances.values()].reduce((acc, x) => x > 0 ? acc + x : acc, 0)
+		: 0
+	);
+	const total_cr = computed(() => report.value ?
+		[...report.value.balances.values()].reduce((acc, x) => x < 0 ? acc + x : acc, 0)
+		: 0
+	);
 	
 	async function load() {
 		const session = await db.load();
-		accounts.value = await totalBalances(session);
+		const reportingWorkflow = new ReportingWorkflow();
+		await reportingWorkflow.generate(session);
+		
+		report.value = reportingWorkflow.getReportAtStage(ReportingStage.OrdinaryAPITransactions, TrialBalanceReport) as TrialBalanceReport;
 	}
 	load();
 </script>

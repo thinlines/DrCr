@@ -91,7 +91,7 @@ import { ppWithCommodity } from '../display.ts';
 		const session = await db.load();
 		
 		const joinedStatementLines: any[] = await session.select(
-			`SELECT statement_lines.id, source_account, statement_lines.dt, statement_lines.description, statement_lines.quantity, statement_lines.balance, statement_lines.commodity, p2.transaction_id, p2.account AS posting_account
+			`SELECT statement_lines.*, p2.transaction_id, p2.account AS posting_account
 			FROM statement_lines
 			LEFT JOIN statement_line_reconciliations ON statement_lines.id = statement_line_reconciliations.statement_line_id
 			LEFT JOIN postings ON statement_line_reconciliations.posting_id = postings.id

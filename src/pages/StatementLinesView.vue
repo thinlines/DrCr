@@ -29,9 +29,10 @@
 			<RouterLink :to="{ name: 'import-statement' }" class="btn-secondary">
 				Import statement
 			</RouterLink>
-			<!--<a href="{{ url_for('statement_lines', **dict(request.args, unclassified=1)) }}" class="btn-secondary">
-				Show only unclassified lines
-			</a>-->
+			<div class="flex items-baseline">
+				<input id="only-unclassified" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="showOnlyUnclassified">
+				<label for="only-unclassified" class="text-gray-900">Show only unclassified lines</label>
+			</div>
 		</div>
 	</div>
 	
@@ -84,6 +85,7 @@
 		posting_accounts: string[]
 	}
 	
+	const showOnlyUnclassified = ref(false);
 	const statementLines = ref([] as StatementLine[]);
 	let clusterize: Clusterize | null = null;
 	
@@ -226,11 +228,15 @@
 				reconciliationCell =
 					`<span>${ otherAccount }</span>
 					<a href="/journal/edit-transaction/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				
+				if (showOnlyUnclassified.value) { continue; }
 			} else {
 				// Complex reconciliation
 				reconciliationCell =
 					`<i>(Complex)</i>
 					<a href="/journal/edit-transaction/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				
+				if (showOnlyUnclassified.value) { continue; }
 			}
 			
 			rows.push(
@@ -251,13 +257,15 @@
 			clusterize = new Clusterize({
 				'rows': rows,
 				scrollElem: document.getElementById('statement-line-list')!,
-				contentElem: document.querySelector('#statement-line-list tbody')!
+				contentElem: document.querySelector('#statement-line-list tbody')!,
+				show_no_data_row: false,
 			});
 		} else {
 			clusterize.update(rows);
 		}
 	}
 	
+	watch(showOnlyUnclassified, renderTable);
 	watch(statementLines, renderTable);
 	
 	load();

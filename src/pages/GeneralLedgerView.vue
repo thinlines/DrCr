@@ -21,14 +21,16 @@
 		General ledger
 	</h1>
 	
-	<div class="my-4 flex gap-x-2">
+	<div class="my-4 flex gap-x-2 items-center">
 		<!-- Use a rather than RouterLink because RouterLink adds its own event handler -->
 		<a href="/journal/new-transaction" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
 			<PlusIcon class="w-4 h-4" />
 			New transaction
 		</a>
-		<button v-if="commodityDetail" class="btn-secondary" @click="commodityDetail = false">Hide commodity detail</button>
-		<button v-if="!commodityDetail" class="btn-secondary" @click="commodityDetail = true">Show commodity detail</button>
+		<div class="flex items-baseline">
+			<input id="only-unclassified" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="commodityDetail">
+			<label for="only-unclassified" class="text-gray-900">Show commodity detail</label>
+		</div>
 	</div>
 	
 	<div id="transaction-list" class="max-h-[100vh] overflow-y-scroll wk-aa">
@@ -145,7 +147,8 @@
 			clusterize = new Clusterize({
 				'rows': rows,
 				scrollElem: document.getElementById('transaction-list')!,
-				contentElem: document.querySelector('#transaction-list tbody')!
+				contentElem: document.querySelector('#transaction-list tbody')!,
+				show_no_data_row: false,
 			});
 		} else {
 			clusterize.update(rows);

@@ -83,7 +83,7 @@
 <script setup lang="ts">
 	import dayjs from 'dayjs';
 	
-	import { defineModel, ref, useTemplateRef } from 'vue';
+	import { ref, useTemplateRef } from 'vue';
 	import { useRouter } from 'vue-router';
 	
 	import { StatementLine, db } from '../db.ts';
@@ -92,8 +92,8 @@
 	
 	const fileInput = useTemplateRef('file');
 	
-	const selectedFilename = defineModel('selectedFilename', { default: '' });
-	const sourceAccount = defineModel('sourceAccount', { default: '' });
+	const selectedFilename = ref('');
+	const sourceAccount = ref('');
 	
 	const router = useRouter();
 	

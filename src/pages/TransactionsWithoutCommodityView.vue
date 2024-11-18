@@ -139,7 +139,8 @@
 			clusterize = new Clusterize({
 				'rows': rows,
 				scrollElem: document.getElementById('transaction-list')!,
-				contentElem: document.querySelector('#transaction-list tbody')!
+				contentElem: document.querySelector('#transaction-list tbody')!,
+				show_no_data_row: false,
 			});
 		} else {
 			clusterize.update(rows);

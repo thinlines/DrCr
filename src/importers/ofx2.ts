@@ -32,7 +32,11 @@ export default function import_ofx2(sourceAccount: string, content: string): Sta
 	const statementLines: StatementLine[] = [];
 	
 	for (const transaction of tree.querySelectorAll('BANKMSGSRSV1 STMTTRNRS STMTRS BANKTRANLIST STMTTRN')) {
-		const dateRaw = transaction.querySelector('DTPOSTED')!.textContent;
+		let dateRaw = transaction.querySelector('DTPOSTED')!.textContent;
+		if (dateRaw && dateRaw.indexOf('[') >= 0) {
+			// Ignore time zone
+			dateRaw = dateRaw?.substring(0, dateRaw.indexOf('['));
+		}
 		const date = dayjs(dateRaw, 'YYYYMMDDHHmmss').hour(0).minute(0).second(0).millisecond(0).format(DT_FORMAT);
 		const description = transaction.querySelector('NAME')!.textContent;
 		const amount = transaction.querySelector('TRNAMT')!.textContent;

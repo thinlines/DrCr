@@ -24,9 +24,9 @@
 	<div class="grid grid-cols-[max-content_1fr] space-y-2 mb-4 items-baseline">
 		<label for="format" class="block text-gray-900 pr-4">File type</label>
 		<div>
-			<select class="bordered-field" id="format">
-				<!--<option value="ofx1">OFX 1.x</option>-->
+			<select class="bordered-field" id="format" v-model="format">
 				<option value="ofx2">OFX 2.x</option>
+				<option value="ofx1">OFX 1.x</option>
 			</select>
 		</div>
 		<label for="account" class="block text-gray-900 pr-4">Source account</label>
@@ -85,10 +85,13 @@
 	import { StatementLine, db } from '../db.ts';
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { ppWithCommodity } from '../display.ts';
+	
+	import import_ofx1 from '../importers/ofx1.ts';
 	import import_ofx2 from '../importers/ofx2.ts';
 	
 	const fileInput = useTemplateRef('file');
 	
+	const format = ref('ofx2');
 	const selectedFilename = ref('');
 	const sourceAccount = ref('');
 	
@@ -112,7 +115,13 @@
 		
 		const content = await file.text();
 		
-		statementLines.value = import_ofx2(sourceAccount.value, content);
+		if (format.value === 'ofx2') {
+			statementLines.value = import_ofx2(sourceAccount.value, content);
+		} else if (format.value === 'ofx1') {
+			statementLines.value = import_ofx1(sourceAccount.value, content);
+		} else {
+			throw new Error('Unexpected import format');
+		}
 	}
 	
 	async function doImport() {

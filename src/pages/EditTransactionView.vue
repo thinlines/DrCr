@@ -30,7 +30,7 @@
 	import { ref } from 'vue';
 	import { useRoute } from 'vue-router';
 	
-	import { JoinedTransactionPosting, Posting, db, joinedToTransactions, serialiseAmount } from '../db.ts';
+	import { JoinedTransactionPosting, db, joinedToTransactions, serialiseAmount } from '../db.ts';
 	import TransactionEditor, { EditingTransaction } from '../components/TransactionEditor.vue';
 	
 	const route = useRoute();
@@ -56,16 +56,18 @@
 		
 		const transactions = joinedToTransactions(joinedTransactionPostings);
 		if (transactions.length !== 1) { throw new Error('Unexpected number of transactions returned from SQL'); }
-		transaction.value = transactions[0] as unknown as EditingTransaction;
+		const rawTransaction = transactions[0] as any;
 		
 		// Format dt
-		transaction.value.dt = dayjs(transaction.value.dt).format('YYYY-MM-DD')
+		rawTransaction.dt = dayjs(rawTransaction.dt).format('YYYY-MM-DD');
 		
 		// Initialise sign and amount_abs
-		for (const posting of transaction.value.postings) {
-			posting.sign = (posting as unknown as Posting).quantity! >= 0 ? 'dr' : 'cr';
-			posting.amount_abs = serialiseAmount(Math.abs((posting as unknown as Posting).quantity), (posting as unknown as Posting).commodity);
+		for (const posting of rawTransaction.postings) {
+			posting.sign = posting.quantity >= 0 ? 'dr' : 'cr';
+			posting.amount_abs = serialiseAmount(Math.abs(posting.quantity), posting.commodity);
 		}
+		
+		transaction.value = rawTransaction as EditingTransaction;
 	}
 	load();
 </script>

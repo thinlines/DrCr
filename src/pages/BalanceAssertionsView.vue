@@ -22,12 +22,10 @@
 	</h1>
 	
 	<div class="my-4 flex gap-x-2">
-		<!--<a href="{{ url_for('balance_assertions_new') }}" class="btn-primary pl-2">
-			<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-			</svg>
+		<a href="/balance-assertions/new" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
+			<PlusIcon class="w-4 h-4" />
 			New assertion
-		</a>-->
+		</a>
 	</div>
 	
 	<table class="min-w-full">
@@ -54,10 +52,8 @@
 					<XMarkIcon class="w-4 h-4 text-red-500" v-if="!assertion.isValid" />
 				</td>
 				<td class="py-0.5 pl-1 text-gray-900 text-end">
-					<a href="#" class="text-gray-500 hover:text-gray-700">
-						<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 inline align-middle -mt-0.5">
-							<path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-						</svg>
+					<a :href="'/balance-assertions/edit/' + assertion.id" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">
+						<PencilIcon class="w-4 h-4" />
 					</a>
 				</td>
 			</tr>
@@ -72,7 +68,8 @@
 	
 	import { db, totalBalancesAtDate } from '../db.ts';
 	import { pp } from '../display.ts';
-	import { CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+	import { PlusIcon } from '@heroicons/vue/16/solid';
 	
 	const balanceAssertions = ref([] as ValidatedBalanceAssertion[]);
 	

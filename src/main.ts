@@ -31,6 +31,8 @@ async function initApp() {
 	const routes = [
 		{ path: '/', name: 'index', component: () => import('./pages/HomeView.vue') },
 		{ path: '/balance-assertions', name: 'balance-assertions', component: () => import('./pages/BalanceAssertionsView.vue') },
+		{ path: '/balance-assertions/edit/:id', name: 'balance-assertions-edit', component: () => import('./pages/EditBalanceAssertionView.vue') },
+		{ path: '/balance-assertions/new', name: 'balance-assertions-new', component: () => import('./pages/NewBalanceAssertionView.vue') },
 		{ path: '/chart-of-accounts', name: 'chart-of-accounts', component: () => import('./pages/ChartOfAccountsView.vue') },
 		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./pages/GeneralLedgerView.vue') },
 		{ path: '/journal', name: 'journal', component: () => import('./pages/JournalView.vue') },

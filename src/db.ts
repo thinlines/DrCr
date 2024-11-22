@@ -180,6 +180,18 @@ export function joinedToTransactions(joinedTransactionPostings: JoinedTransactio
 	return transactions;
 }
 
+export async function getAccountsForKind(session: ExtendedDatabase, kind: string): Promise<string[]> {
+	const rawAccountsForKind: {account: string}[] = await session.select(
+		`SELECT account
+		FROM account_configurations
+		WHERE kind = $1
+		ORDER BY account`,
+		[kind]
+	);
+	const accountsForKind = rawAccountsForKind.map((a) => a.account);
+	return accountsForKind;
+}
+
 export function serialiseAmount(quantity: number, commodity: string): string {
 	// Pretty print the amount for an editable input
 	if (quantity < 0) {

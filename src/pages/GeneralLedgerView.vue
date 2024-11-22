@@ -83,7 +83,7 @@
 		const reportingWorkflow = new ReportingWorkflow();
 		await reportingWorkflow.generate(session);
 		
-		transactions.value = reportingWorkflow.getTransactionsAtStage(ReportingStage.OrdinaryAPITransactions);
+		transactions.value = reportingWorkflow.getTransactionsAtStage(ReportingStage.FINAL_STAGE);
 		
 		// Display transactions in reverse chronological order
 		// We must sort here because they are returned by reportingWorkflow in order of ReportingStage

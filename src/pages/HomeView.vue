@@ -34,7 +34,7 @@
 				<li><RouterLink :to="{ name: 'general-ledger' }" class="text-gray-900 hover:text-blue-700 hover:underline">General ledger</RouterLink></li>
 				<li><RouterLink :to="{ name: 'trial-balance' }" class="text-gray-900 hover:text-blue-700 hover:underline">Trial balance</RouterLink></li>
 				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Balance sheet</a></li>-->
-				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Income statement</a></li>-->
+				<li><RouterLink :to="{ name: 'income-statement' }" class="text-gray-900 hover:text-blue-700 hover:underline">Income statement</RouterLink></li>
 			</ul>
 		</div>
 		<div class="pl-4">

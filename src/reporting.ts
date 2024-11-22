@@ -16,9 +16,15 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import dayjs from 'dayjs';
+
 import { asCost } from './amounts.ts';
-import { JoinedTransactionPosting, StatementLine, Transaction, joinedToTransactions, totalBalances, totalBalancesAtDate } from './db.ts';
+import { DT_FORMAT, JoinedTransactionPosting, StatementLine, Transaction, db, getAccountsForKind, joinedToTransactions, totalBalances, totalBalancesAtDate } from './db.ts';
 import { ExtendedDatabase } from './dbutil.ts';
+
+import { DrcrReport } from './reports/base.ts';
+import TrialBalanceReport from './reports/TrialBalanceReport.ts';
+import { IncomeStatementReport } from './reports/IncomeStatementReport.vue';
 
 export enum ReportingStage {
 	// Load transactions from database
@@ -26,11 +32,28 @@ export enum ReportingStage {
 	
 	// Load unreconciled statement lines and other ordinary API transactions
 	OrdinaryAPITransactions = 200,
+	
+	// Recognise accumulated surplus as equity
+	AccumulatedSurplusToEquity = 300,
+	
+	// Interim income statement considering only DB and ordinary API transactions
+	InterimIncomeStatement = 400,
+	
+	// Income tax estimation
+	//Tax = 500,
+	
+	// Final income statement
+	//IncomeStatement = 600,
+	
+	// Final balance sheet
+	//BalanceSheet = 700,
+	
+	FINAL_STAGE = InterimIncomeStatement
 }
 
 export class ReportingWorkflow {
 	transactionsForStage: Map<ReportingStage, Transaction[]> = new Map();
-	reportsForStage: Map<ReportingStage, Report[]> = new Map();
+	reportsForStage: Map<ReportingStage, DrcrReport[]> = new Map();
 	
 	async generate(session: ExtendedDatabase, dt?: string) {
 		// ------------------------
@@ -123,9 +146,71 @@ export class ReportingWorkflow {
 			balances = applyTransactionsToBalances(balances, transactions);
 			this.reportsForStage.set(ReportingStage.OrdinaryAPITransactions, [new TrialBalanceReport(balances)]);
 		}
+		
+		// --------------------------
+		// AccumulatedSurplusToEquity
+		
+		{
+			// Compute balances at end of last financial year
+			const last_eofy_date = dayjs(db.metadata.eofy_date).subtract(1, 'year');
+			const balancesLastEofy = await totalBalancesAtDate(session, last_eofy_date.format('YYYY-MM-DD'));
+			
+			// Get income and expense accounts
+			const incomeAccounts = await getAccountsForKind(session, 'drcr.income');
+			const expenseAccounts = await getAccountsForKind(session, 'drcr.expense');
+			const pandlAccounts = [...incomeAccounts, ...expenseAccounts];
+			pandlAccounts.sort();
+			
+			// Prepare transactions
+			const transactions = [];
+			for (const account of pandlAccounts) {
+				if (balancesLastEofy.has(account)) {
+					const balanceLastEofy = balancesLastEofy.get(account)!;
+					if (balanceLastEofy === 0) {
+						continue;
+					}
+					
+					transactions.push(new Transaction(
+						null,
+						last_eofy_date.format(DT_FORMAT),
+						'Accumulated surplus/deficit',
+						[
+							{
+								id: null,
+								description: null,
+								account: account,
+								quantity: -balanceLastEofy,
+								commodity: db.metadata.reporting_commodity
+							},
+							{
+								id: null,
+								description: null,
+								account: 'Accumulated surplus (deficit)',
+								quantity: balanceLastEofy,
+								commodity: db.metadata.reporting_commodity
+							},
+						]
+					));
+				}
+			}
+			this.transactionsForStage.set(ReportingStage.AccumulatedSurplusToEquity, transactions);
+			
+			// Recompute balances
+			balances = applyTransactionsToBalances(balances, transactions);
+			this.reportsForStage.set(ReportingStage.AccumulatedSurplusToEquity, [new TrialBalanceReport(balances)]);
+		}
+		
+		// ---------------
+		// InterimIncomeStatement
+		
+		{
+			const incomeStatementReport = new IncomeStatementReport();
+			await incomeStatementReport.generate(balances);
+			this.reportsForStage.set(ReportingStage.InterimIncomeStatement, [incomeStatementReport, new TrialBalanceReport(balances)]);
+		}
 	}
 	
-	getReportAtStage(stage: ReportingStage, reportType: any): Report {
+	getReportAtStage(stage: ReportingStage, reportType: any): DrcrReport {
 		// TODO: This function needs generics
 		const reportsForTheStage = this.reportsForStage.get(stage);
 		if (!reportsForTheStage) {
@@ -149,15 +234,6 @@ export class ReportingWorkflow {
 		}
 		return transactions;
 	}
-}
-
-interface Report {
-}
-
-export class TrialBalanceReport implements Report {
-	constructor(
-		public balances: Map<string, number>
-	) {}
 }
 
 function applyTransactionsToBalances(balances: Map<string, number>, transactions: Transaction[]): Map<string, number> {

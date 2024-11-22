@@ -53,7 +53,8 @@
 	
 	import { db } from '../db.ts';
 	import { pp } from '../display.ts';
-	import { ReportingStage, ReportingWorkflow, TrialBalanceReport } from '../reporting.ts';
+	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
+	import TrialBalanceReport from '../reports/TrialBalanceReport.ts';
 	
 	const report = ref(null as TrialBalanceReport | null);
 	
@@ -72,7 +73,7 @@
 		const reportingWorkflow = new ReportingWorkflow();
 		await reportingWorkflow.generate(session);
 		
-		report.value = reportingWorkflow.getReportAtStage(ReportingStage.OrdinaryAPITransactions, TrialBalanceReport) as TrialBalanceReport;
+		report.value = reportingWorkflow.getReportAtStage(ReportingStage.FINAL_STAGE, TrialBalanceReport) as TrialBalanceReport;
 	}
 	load();
 </script>

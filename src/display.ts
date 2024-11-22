@@ -39,3 +39,22 @@ export function ppWithCommodity(quantity: number, commodity: string): string {
 		return pp(quantity) + ' ' + commodity;
 	}
 }
+
+export function ppBracketed(quantity: number, link?: string): string {
+	// Pretty print the quantity with brackets for negative numbers
+	let text, space;
+	if (quantity >= 0) {
+		text = pp(quantity);
+		space = '&nbsp;';
+	} else {
+		text = '(' + pp(-quantity) + ')';
+		space = '';
+	}
+	
+	if (link) {
+		// Put the space outside of the hyperlink so it is not underlined
+		return '<a href="' + encodeURIComponent(link) + '">' + text + '</a>' + space;
+	} else {
+		return text + space;
+	}
+}

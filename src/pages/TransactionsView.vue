@@ -58,14 +58,20 @@
 		const reportingWorkflow = new ReportingWorkflow();
 		await reportingWorkflow.generate(session);  // This also ensures running balances are up to date
 		
-		const transactionsRaw = reportingWorkflow.getTransactionsAtStage(ReportingStage.OrdinaryAPITransactions);
+		const transactionsRaw = reportingWorkflow.getTransactionsAtStage(ReportingStage.FINAL_STAGE);
 		
 		// Filter only transactions affecting this account
-		transactions.value = transactionsRaw.filter((t) => t.postings.some((p) => p.account === route.params.account));
+		const filteredTransactions = transactionsRaw.filter((t) => t.postings.some((p) => p.account === route.params.account));
 		
-		// Display transactions in reverse chronological order
+		// In order to correctly sort API transactions, we need to remember their indexes
+		const filteredTxnsWithIndexes = filteredTransactions.map((t, index) => [t, index] as [Transaction, number]);
+		
+		// Sort transactions in reverse chronological order
 		// We must sort here because they are returned by reportingWorkflow in order of ReportingStage
-		transactions.value.sort((a, b) => (b.dt.localeCompare(a.dt)) || ((b.id ?? 0) - (a.id ?? 0)));
+		// Use Number.MAX_SAFE_INTEGER as ID for API transactions
+		filteredTxnsWithIndexes.sort(([t1, i1], [t2, i2]) => (t2.dt.localeCompare(t1.dt)) || ((t2.id ?? Number.MAX_SAFE_INTEGER) - (t1.id ?? Number.MAX_SAFE_INTEGER) || (i2 - i1)));
+		
+		transactions.value = filteredTxnsWithIndexes.map(([t, _idx]) => t);
 	}
 	load();
 </script>

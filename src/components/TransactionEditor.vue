@@ -288,7 +288,7 @@
 	}
 	
 	async function deleteTransaction() {
-		if (!confirm('Are you sure you want to delete this transaction? This operation is irreversible.')) {
+		if (!await confirm('Are you sure you want to delete this transaction? This operation is irreversible.')) {
 			return;
 		}
 		
@@ -310,14 +310,14 @@
 			`DELETE FROM postings
 			WHERE transaction_id = $1`,
 			[transaction.id]
-		)
+		);
 		
 		// Delete transaction
 		await dbTransaction.execute(
 			`DELETE FROM transactions
 			WHERE id = $1`,
 			[transaction.id]
-		)
+		);
 		
 		await dbTransaction.commit();
 		

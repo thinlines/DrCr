@@ -23,7 +23,7 @@
 			<ul class="list-disc ml-6">
 				<li><RouterLink :to="{ name: 'journal' }" class="text-gray-900 hover:text-blue-700 hover:underline">Journal</RouterLink></li>
 				<li><RouterLink :to="{ name: 'statement-lines' }" class="text-gray-900 hover:text-blue-700 hover:underline">Statement lines</RouterLink></li>
-				<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</a></li>-->
+				<li><RouterLink :to="{ name: 'balance-assertions' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</RouterLink></li>
 				<li><RouterLink :to="{ name: 'chart-of-accounts' }" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</RouterLink></li>
 				<!-- TODO: Plugin reports -->
 			</ul>

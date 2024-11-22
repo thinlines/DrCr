@@ -30,6 +30,7 @@ async function initApp() {
 	// Init router
 	const routes = [
 		{ path: '/', name: 'index', component: () => import('./pages/HomeView.vue') },
+		{ path: '/balance-assertions', name: 'balance-assertions', component: () => import('./pages/BalanceAssertionsView.vue') },
 		{ path: '/chart-of-accounts', name: 'chart-of-accounts', component: () => import('./pages/ChartOfAccountsView.vue') },
 		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./pages/GeneralLedgerView.vue') },
 		{ path: '/journal', name: 'journal', component: () => import('./pages/JournalView.vue') },

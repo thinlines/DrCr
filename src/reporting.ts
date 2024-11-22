@@ -17,7 +17,7 @@
 */
 
 import { asCost } from './amounts.ts';
-import { JoinedTransactionPosting, StatementLine, Transaction, joinedToTransactions, totalBalances } from './db.ts';
+import { JoinedTransactionPosting, StatementLine, Transaction, joinedToTransactions, totalBalances, totalBalancesAtDate } from './db.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 
 export enum ReportingStage {
@@ -32,7 +32,7 @@ export class ReportingWorkflow {
 	transactionsForStage: Map<ReportingStage, Transaction[]> = new Map();
 	reportsForStage: Map<ReportingStage, Report[]> = new Map();
 	
-	async generate(session: ExtendedDatabase) {
+	async generate(session: ExtendedDatabase, dt?: string) {
 		// ------------------------
 		// TransactionsFromDatabase
 		
@@ -40,16 +40,32 @@ export class ReportingWorkflow {
 		
 		{
 			// Load balances from database
-			balances = await totalBalances(session);
+			if (dt) {
+				balances = await totalBalancesAtDate(session, dt);
+			} else {
+				balances = await totalBalances(session);
+			}
 			this.reportsForStage.set(ReportingStage.TransactionsFromDatabase, [new TrialBalanceReport(balances)]);
 			
 			// Load transactions from database
-			const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-				`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance
-				FROM transactions
-				JOIN postings ON transactions.id = postings.transaction_id
-				ORDER BY dt, transaction_id, postings.id`
-			);
+			let joinedTransactionPostings: JoinedTransactionPosting[];
+			if (dt) {
+				joinedTransactionPostings = await session.select(
+					`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance
+					FROM transactions
+					JOIN postings ON transactions.id = postings.transaction_id
+					WHERE DATE(dt) <= DATE($1)
+					ORDER BY dt, transaction_id, postings.id`,
+					[dt]
+				);
+			} else {
+				joinedTransactionPostings = await session.select(
+					`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance
+					FROM transactions
+					JOIN postings ON transactions.id = postings.transaction_id
+					ORDER BY dt, transaction_id, postings.id`
+				);
+			}
 			const transactions = joinedToTransactions(joinedTransactionPostings);
 			this.transactionsForStage.set(ReportingStage.TransactionsFromDatabase, transactions);
 		}
@@ -59,12 +75,22 @@ export class ReportingWorkflow {
 		
 		{
 			// Get unreconciled statement lines
-			const unreconciledStatementLines: StatementLine[] = await session.select(
-				// On testing, JOIN is much faster than WHERE NOT EXISTS
-				`SELECT statement_lines.* FROM statement_lines
-				LEFT JOIN statement_line_reconciliations ON statement_lines.id = statement_line_reconciliations.statement_line_id
-				WHERE statement_line_reconciliations.id IS NULL`
-			);
+			let unreconciledStatementLines: StatementLine[];
+			if (dt) {
+				unreconciledStatementLines = await session.select(
+					// On testing, JOIN is much faster than WHERE NOT EXISTS
+					`SELECT statement_lines.* FROM statement_lines
+					LEFT JOIN statement_line_reconciliations ON statement_lines.id = statement_line_reconciliations.statement_line_id
+					WHERE statement_line_reconciliations.id IS NULL AND DATE(dt) <= DATE($1)`,
+					[dt]
+				);
+			} else {
+				unreconciledStatementLines = await session.select(
+					`SELECT statement_lines.* FROM statement_lines
+					LEFT JOIN statement_line_reconciliations ON statement_lines.id = statement_line_reconciliations.statement_line_id
+					WHERE statement_line_reconciliations.id IS NULL`
+				);
+			}
 			
 			const transactions = [];
 			for (const line of unreconciledStatementLines) {

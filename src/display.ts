@@ -53,7 +53,7 @@ export function ppBracketed(quantity: number, link?: string): string {
 	
 	if (link) {
 		// Put the space outside of the hyperlink so it is not underlined
-		return '<a href="' + encodeURIComponent(link) + '">' + text + '</a>' + space;
+		return '<a href="' + encodeURIComponent(link) + '" class="hover:text-blue-700 hover:underline">' + text + '</a>' + space;
 	} else {
 		return text + space;
 	}

@@ -22,6 +22,8 @@
 			{{ report.title }}
 		</h1>
 		
+		<slot />
+		
 		<table class="min-w-full">
 			<thead>
 				<tr class="border-b border-gray-300">

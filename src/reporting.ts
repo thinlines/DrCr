@@ -22,6 +22,7 @@ import { asCost } from './amounts.ts';
 import { DT_FORMAT, JoinedTransactionPosting, StatementLine, Transaction, db, getAccountsForKind, joinedToTransactions, totalBalances, totalBalancesAtDate } from './db.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 
+import { BalanceSheetReport } from './reports/BalanceSheetReport.vue';
 import { DrcrReport } from './reports/base.ts';
 import TrialBalanceReport from './reports/TrialBalanceReport.ts';
 import { IncomeStatementReport } from './reports/IncomeStatementReport.vue';
@@ -46,9 +47,9 @@ export enum ReportingStage {
 	//IncomeStatement = 600,
 	
 	// Final balance sheet
-	//BalanceSheet = 700,
+	BalanceSheet = 700,
 	
-	FINAL_STAGE = InterimIncomeStatement
+	FINAL_STAGE = BalanceSheet
 }
 
 export class ReportingWorkflow {
@@ -203,10 +204,20 @@ export class ReportingWorkflow {
 		// ---------------
 		// InterimIncomeStatement
 		
+		let incomeStatementReport;
 		{
-			const incomeStatementReport = new IncomeStatementReport();
+			incomeStatementReport = new IncomeStatementReport();
 			await incomeStatementReport.generate(balances);
-			this.reportsForStage.set(ReportingStage.InterimIncomeStatement, [incomeStatementReport, new TrialBalanceReport(balances)]);
+			this.reportsForStage.set(ReportingStage.InterimIncomeStatement, [incomeStatementReport]);
+		}
+		
+		// ------------
+		// BalanceSheet
+		
+		{
+			const balanceSheetReport = new BalanceSheetReport();
+			await balanceSheetReport.generate(balances, incomeStatementReport);
+			this.reportsForStage.set(ReportingStage.BalanceSheet, [balanceSheetReport]);
 		}
 	}
 	
@@ -218,11 +229,24 @@ export class ReportingWorkflow {
 		}
 		
 		const report = reportsForTheStage.find((r) => r instanceof reportType);
-		if (!report) {
-			throw new Error('Report does not exist');
+		if (report) {
+			return report;
 		}
 		
-		return report;
+		// Recurse earlier stages
+		const stages = [...this.reportsForStage.keys()];
+		stages.reverse();
+		for (const earlierStage of stages) {
+			if (earlierStage >= stage) {
+				continue;
+			}
+			const report = this.reportsForStage.get(earlierStage)!.find((r) => r instanceof reportType);
+			if (report) {
+				return report;
+			}
+		}
+		
+		throw new Error('Report does not exist at requested stage or any earlier stage');
 	}
 	
 	getTransactionsAtStage(stage: ReportingStage): Transaction[] {

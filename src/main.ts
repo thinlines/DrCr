@@ -33,6 +33,7 @@ async function initApp() {
 		{ path: '/balance-assertions', name: 'balance-assertions', component: () => import('./pages/BalanceAssertionsView.vue') },
 		{ path: '/balance-assertions/edit/:id', name: 'balance-assertions-edit', component: () => import('./pages/EditBalanceAssertionView.vue') },
 		{ path: '/balance-assertions/new', name: 'balance-assertions-new', component: () => import('./pages/NewBalanceAssertionView.vue') },
+		{ path: '/balance-sheet', name: 'balance-sheet', component: () => import('./reports/BalanceSheetReport.vue') },
 		{ path: '/chart-of-accounts', name: 'chart-of-accounts', component: () => import('./pages/ChartOfAccountsView.vue') },
 		{ path: '/general-ledger', name: 'general-ledger', component: () => import('./pages/GeneralLedgerView.vue') },
 		{ path: '/income-statement', name: 'income-statement', component: () => import('./reports/IncomeStatementReport.vue') },

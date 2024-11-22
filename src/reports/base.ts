@@ -71,6 +71,10 @@ export class DynamicReport implements DrcrReport {
 				entries.push(new Entry(
 					account,
 					negate ? -quantity : quantity,
+					null /* id */,
+					true /* visible */,
+					false /* autoHide */,
+					'/transactions/' + account
 				));
 			}
 		}
@@ -171,7 +175,7 @@ export class Subtotal extends Entry {
 		
 		this.quantity = 0;
 		for (const entry of parent.entries) {
-			if (entry instanceof Entry) {
+			if (entry instanceof Entry && entry !== this) {
 				this.quantity += entry.quantity;
 			}
 		}

@@ -30,11 +30,7 @@
 			</select>
 		</div>
 		<label for="account" class="block text-gray-900 pr-4">Source account</label>
-		<div class="relative combobox">
-			<!-- WebKit bug: Does not align baseline correctly unless some text or placeholder is present -->
-			<input type="text" class="bordered-field peer" id="account" placeholder=" " autocomplete="off" v-model="sourceAccount">
-			<!--{% include 'components/accounts_combobox_inner.html' %}-->
-		</div>
+		<ComboBoxAccounts v-model="sourceAccount" />
 		<label for="file" class="block text-gray-900 pr-4">File</label>
 		<div class="flex grow">
 			<!-- WebKit: file:hidden hides the filename as well so we have a dummy text input -->
@@ -87,6 +83,7 @@
 	import { useRouter } from 'vue-router';
 	
 	import { StatementLine, db } from '../db.ts';
+	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { ppWithCommodity } from '../display.ts';
 	import import_ofx2 from '../importers/ofx2.ts';
 	

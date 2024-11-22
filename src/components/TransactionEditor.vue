@@ -49,10 +49,7 @@
 									<option value="cr">Cr</option>
 								</select>
 							</div>
-							<div class="relative combobox w-full">
-								<input type="text" class="bordered-field pl-16 peer" v-model="posting.account">
-								<!-- TODO: Accounts combobox -->
-							</div>
+							<ComboBoxAccounts v-model="posting.account" class="w-full" inputClass="pl-16" />
 						</div>
 						<button class="relative -ml-px px-2 py-2 text-gray-500 hover:text-gray-700" @click="addPosting(posting)">
 							<PlusIcon class="w-4 h-4" />
@@ -112,6 +109,7 @@
 	import { ref } from 'vue';
 	
 	import { DT_FORMAT, Transaction, db, deserialiseAmount } from '../db.ts';
+	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	
 	interface EditingPosting {
 		id: number | null,

@@ -27,10 +27,7 @@
 			<input type="text" class="bordered-field" id="description" v-model="assertion.description" placeholder=" ">
 		</div>
 		<label for="account" class="block text-gray-900 pr-4">Account</label>
-		<div class="relative combobox">
-			<input type="text" class="bordered-field peer" id="account" v-model="assertion.account" placeholder=" " autocomplete="off">
-			<!--{% include 'components/accounts_combobox_inner.html' %}-->
-		</div>
+		<ComboBoxAccounts v-model="assertion.account" />
 		<label for="amount" class="block text-gray-900 pr-4">Balance</label>
 		<div class="relative shadow-sm">
 			<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -61,6 +58,7 @@
 	import { defineProps } from 'vue';
 	
 	import { DT_FORMAT, db, deserialiseAmount } from '../db.ts';
+	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	
 	export interface EditingAssertion {
 		id: number | null,

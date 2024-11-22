@@ -63,7 +63,8 @@
 	
 	import dayjs from 'dayjs';
 	
-	import { PencilIcon, PlusIcon } from '@heroicons/vue/24/outline';
+	import { PencilIcon } from '@heroicons/vue/24/outline';
+	import { PlusIcon } from '@heroicons/vue/16/solid';
 	
 	import { onUnmounted, ref, watch } from 'vue';
 	

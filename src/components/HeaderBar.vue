@@ -29,14 +29,20 @@
 					
 					<!-- Menu items -->
 					<div v-if="db.filename !== null" class="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-4">
-						<!--<a href="#" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+						<RouterLink :to="{ name: 'journal' }" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Journal
-						</a>-->
-						<!--<a href="#" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+						</RouterLink>
+						<RouterLink :to="{ name: 'statement-lines' }" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Statement lines
-						</a>-->
-						<RouterLink to="/trial-balance" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+						</RouterLink>
+						<RouterLink :to="{ name: 'trial-balance'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Trial balance
+						</RouterLink>
+						<RouterLink :to="{ name: 'balance-sheet'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+							Balance sheet
+						</RouterLink>
+						<RouterLink :to="{ name: 'income-statement'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+							Income statement
 						</RouterLink>
 					</div>
 				</div>

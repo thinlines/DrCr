@@ -36,7 +36,7 @@
 		});
 		
 		if (file !== null) {
-			db.init(file);
+			await db.init(file);
 		}
 	}
 </script>

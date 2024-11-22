@@ -19,8 +19,8 @@
 <template>
 	<nav class="border-b border-gray-200 bg-white print:hidden" v-if="isMainWindow">
 		<div class="mx-auto max-w-7xl px-6 lg:px-8">
-			<div class="flex h-12 justify-between ml-[-0.25rem]"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
-				<div class="flex">
+			<div class="flex h-12 justify-between ml-[-0.25rem] w-full"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
+				<div class="flex w-full">
 					<div class="flex flex-shrink-0">
 						<RouterLink to="/" class="border-transparent text-gray-900 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
 							DrCr
@@ -28,7 +28,7 @@
 					</div>
 					
 					<!-- Menu items -->
-					<div v-if="db.filename !== null" class="hidden sm:-my-px sm:ml-6 sm:flex sm:space-x-4">
+					<div v-if="db.filename !== null" class="hidden sm:-my-px sm:ml-6 sm:flex sm:gap-4 w-full">
 						<RouterLink :to="{ name: 'journal' }" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Journal
 						</RouterLink>
@@ -44,6 +44,10 @@
 						<RouterLink :to="{ name: 'income-statement'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Income statement
 						</RouterLink>
+						
+						<a href="#" @click="closeFile" class="ml-auto border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+							Close file
+						</a>
 					</div>
 				</div>
 			</div>
@@ -54,8 +58,17 @@
 <script setup lang="ts">
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	
+	import { useRouter } from 'vue-router';
+	
 	import { db } from '../db.js';
 	
 	// Only display header bar in main window
 	const isMainWindow = getCurrentWindow().label === 'main';
+	
+	const router = useRouter();
+	
+	async function closeFile() {
+		await db.init(null);
+		router.push({ name: 'index' });
+	}
 </script>

@@ -38,21 +38,28 @@ export const db = reactive({
 		dps: null! as number,
 	},
 	
-	init: async function(filename: string): Promise<void> {
+	init: async function(filename: string | null): Promise<void> {
 		// Set the DB filename and initialise cached data
 		this.filename = filename;
 		
 		await invoke('set_open_filename', { 'filename': filename });
-		await getCurrentWindow().setTitle('DrCr – ' + filename.replaceAll('\\', '/').split('/').at(-1));
 		
-		// Initialise cached data
-		const session = await this.load();
-		const metadataRaw: {key: string, value: string}[] = await session.select("SELECT * FROM metadata");
-		const metadataObject = Object.fromEntries(metadataRaw.map((x) => [x.key, x.value]));
-		this.metadata.version = parseInt(metadataObject.version);
-		this.metadata.eofy_date = metadataObject.eofy_date;
-		this.metadata.reporting_commodity = metadataObject.reporting_commodity;
-		this.metadata.dps = parseInt(metadataObject.amount_dps);
+		if (filename !== null) {
+			await getCurrentWindow().setTitle('DrCr – ' + filename?.replaceAll('\\', '/').split('/').at(-1));
+		} else {
+			await getCurrentWindow().setTitle('DrCr');
+		}
+		
+		if (filename !== null) {
+			// Initialise cached data
+			const session = await this.load();
+			const metadataRaw: {key: string, value: string}[] = await session.select("SELECT * FROM metadata");
+			const metadataObject = Object.fromEntries(metadataRaw.map((x) => [x.key, x.value]));
+			this.metadata.version = parseInt(metadataObject.version);
+			this.metadata.eofy_date = metadataObject.eofy_date;
+			this.metadata.reporting_commodity = metadataObject.reporting_commodity;
+			this.metadata.dps = parseInt(metadataObject.amount_dps);
+		}
 	},
 	
 	load: async function(): Promise<ExtendedDatabase> {

@@ -241,14 +241,14 @@
 				const otherAccount = line.posting_accounts.find((a) => a !== line.source_account);
 				reconciliationCell =
 					`<span>${ otherAccount }</span>
-					<a href="/journal/edit-transaction/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+					<a href="/journal/edit/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
 				
 				if (showOnlyUnclassified.value) { continue; }
 			} else {
 				// Complex reconciliation
 				reconciliationCell =
 					`<i>(Complex)</i>
-					<a href="/journal/edit-transaction/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+					<a href="/journal/edit/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
 				
 				if (showOnlyUnclassified.value) { continue; }
 			}

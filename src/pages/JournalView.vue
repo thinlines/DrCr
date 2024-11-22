@@ -100,7 +100,7 @@
 					<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ dayjs(transaction.dt).format('YYYY-MM-DD') }</td>
 					<td class="py-0.5 px-1 text-gray-900" colspan="3">
 						${ transaction.description }
-						<a href="/journal/edit-transaction/${ transaction.id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>
+						<a href="/journal/edit/${ transaction.id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>
 					</td>
 					<td></td>
 					<td></td>

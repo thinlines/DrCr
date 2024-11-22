@@ -80,7 +80,7 @@
 		for (const transaction of transactions) {
 			let editLink = '';
 			if (transaction.id !== null) {
-				editLink = `<a href="/journal/edit-transaction/${ transaction.id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				editLink = `<a href="/journal/edit/${ transaction.id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
 			}
 			
 			if (transaction.postings.length == 2) {

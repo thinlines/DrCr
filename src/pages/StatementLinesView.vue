@@ -23,9 +23,9 @@
 	
 	<div class="my-2 py-2 flex bg-white sticky top-0">
 		<div class="grow flex gap-x-2 items-baseline">
-			<!--<button class="btn-secondary text-emerald-700 ring-emerald-600">
+			<button @click="reconcileAsTransfer" class="btn-secondary text-emerald-700 ring-emerald-600">
 				Reconcile selected as transfer
-			</button>-->
+			</button>
 			<RouterLink :to="{ name: 'import-statement' }" class="btn-secondary">
 				Import statement
 			</RouterLink>
@@ -172,6 +172,11 @@
 		
 		const statementLine = statementLines.value.find((l) => l.id === lineId)!;
 		
+		if (statementLine.posting_accounts.length !== 0) {
+			await alert('Cannot reconcile already reconciled statement line');
+			return;
+		}
+		
 		// Insert transaction and statement line reconciliation atomically
 		const session = await db.load();
 		const dbTransaction = await session.begin();
@@ -226,22 +231,109 @@
 		await load();
 	}
 	
+	async function reconcileAsTransfer() {
+		const selectedCheckboxes = document.querySelectorAll('.statement-line-checkbox:checked');
+		
+		if (selectedCheckboxes.length !== 2) {
+			await alert('Must select exactly 2 statement lines');
+			return;
+		}
+		
+		const selectedLineIds = [...selectedCheckboxes].map((el) => parseInt(el.closest('tr')?.dataset.lineId!));
+		
+		const line1 = statementLines.value.find((l) => l.id === selectedLineIds[0])!;
+		const line2 = statementLines.value.find((l) => l.id === selectedLineIds[1])!;
+		
+		// Sanity checks
+		if (line1.quantity + line2.quantity !== 0 || line1.commodity !== line2.commodity) {
+			await alert('Selected statement line debits/credits must equal');
+			return;
+		}
+		if (line1.posting_accounts.length !== 0 || line2.posting_accounts.length !== 0) {
+			await alert('Cannot reconcile already reconciled statement lines');
+			return;
+		}
+		
+		// Insert transaction and statement line reconciliation atomically
+		const session = await db.load();
+		const dbTransaction = await session.begin();
+		
+		// Insert transaction
+		const transactionResult = await dbTransaction.execute(
+			`INSERT INTO transactions (dt, description)
+			VALUES ($1, $2)`,
+			[line1.dt, line1.description]
+		);
+		const transactionId = transactionResult.lastInsertId;
+		
+		// Insert posting for line1
+		const postingResult1 = await dbTransaction.execute(
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
+			VALUES ($1, $2, $3, $4, $5, NULL)`,
+			[transactionId, line1.description, line1.source_account, line1.quantity, line1.commodity]
+		);
+		const postingId1 = postingResult1.lastInsertId;
+		
+		// Insert statement line reconciliation
+		await dbTransaction.execute(
+			`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
+			VALUES ($1, $2)`,
+			[line1.id, postingId1]
+		);
+		
+		// Insert posting for line2
+		const postingResult2 = await dbTransaction.execute(
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
+			VALUES ($1, $2, $3, $4, $5, NULL)`,
+			[transactionId, line2.description, line2.source_account, line2.quantity, line2.commodity]
+		);
+		const postingId2 = postingResult2.lastInsertId;
+		
+		// Insert statement line reconciliation
+		await dbTransaction.execute(
+			`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
+			VALUES ($1, $2)`,
+			[line2.id, postingId2]
+		);
+		
+		// Invalidate running balances
+		await dbTransaction.execute(
+			`UPDATE postings
+			SET running_balance = NULL
+			FROM (
+				SELECT postings.id
+				FROM transactions
+				JOIN postings ON transactions.id = postings.transaction_id
+				WHERE DATE(dt) >= DATE($1) AND account IN ($2, $3)
+			) p
+			WHERE postings.id = p.id`,
+			[line1.dt, line1.source_account, line2.source_account]
+		);
+		
+		dbTransaction.commit();
+		
+		// Reload transactions and re-render the table
+		await load();
+	}
+	
 	function renderTable() {
 		const PencilIconHTML = renderComponent(PencilIcon, { 'class': 'w-4 h-4 inline align-middle -mt-0.5' });  // Pre-render the pencil icon
 		const rows = [];
 		
 		for (const line of statementLines.value) {
-			let reconciliationCell;
+			let reconciliationCell, checkboxCell;
 			if (line.posting_accounts.length === 0) {
 				// Unreconciled
 				reconciliationCell =
 					`<a href="#" class="classify-link text-red-500 hover:text-red-600 hover:underline" onclick="return showClassifyLinePanel(this);">Unclassified</a>`;
+				checkboxCell = `<input class="checkbox-primary statement-line-checkbox" type="checkbox">`;  // Only show checkbox for unreconciled lines
 			} else if (line.posting_accounts.length === 2) {
 				// Simple reconciliation
 				const otherAccount = line.posting_accounts.find((a) => a !== line.source_account);
 				reconciliationCell =
 					`<span>${ otherAccount }</span>
 					<a href="/journal/edit/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				checkboxCell = '';
 				
 				if (showOnlyUnclassified.value) { continue; }
 			} else {
@@ -249,13 +341,14 @@
 				reconciliationCell =
 					`<i>(Complex)</i>
 					<a href="/journal/edit/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				checkboxCell = '';
 				
 				if (showOnlyUnclassified.value) { continue; }
 			}
 			
 			rows.push(
 				`<tr data-line-id="${ line.id }">
-					<td class="py-0.5 pr-1 align-baseline"><input class="checkbox-primary" type="checkbox" name="sel-line-id" value="${ line.id }"></td>
+					<td class="py-0.5 pr-1 align-baseline">${ checkboxCell }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="#" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex]">${ dayjs(line.dt).format('YYYY-MM-DD') }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900">${ line.description }</td>

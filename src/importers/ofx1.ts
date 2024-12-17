@@ -73,8 +73,8 @@ function getNodeText(node: Node | null): string {
 	}
 	
 	for (const child of node.childNodes) {
-		if (child.nodeType === Node.TEXT_NODE && child.nodeValue !== null && child.nodeValue.length > 0) {
-			return child.nodeValue;
+		if (child.nodeType === Node.TEXT_NODE && child.nodeValue !== null && child.nodeValue.trim().length > 0) {
+			return child.nodeValue.trim();
 		}
 		if (child.nodeType === Node.ELEMENT_NODE) {
 			break;

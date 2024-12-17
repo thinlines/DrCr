@@ -39,8 +39,8 @@
 			</tr>
 			<tr v-for="posting in transaction.postings">
 				<td></td>
-				<!-- TODO: Posting description -->
-				<td class="py-1 px-1" colspan="2">
+				<td class="py-1 px-1">{{ posting.description }}</td>
+				<td class="py-1 px-1">
 					<div class="relative flex">
 						<div class="relative flex flex-grow items-stretch shadow-sm">
 							<div class="absolute inset-y-0 left-0 flex items-center z-10">

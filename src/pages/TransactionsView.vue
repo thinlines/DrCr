@@ -23,7 +23,7 @@
 	
 	<div class="my-4 flex gap-x-2 items-center">
 		<!-- Use a rather than RouterLink because RouterLink adds its own event handler -->
-		<a href="/journal/new-transaction" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
+		<a :href="$router.resolve({name: 'journal-new-transaction'}).fullPath" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
 			<PlusIcon class="w-4 h-4" />
 			New transaction
 		</a>

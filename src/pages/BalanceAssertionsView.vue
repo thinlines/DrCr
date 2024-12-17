@@ -22,7 +22,7 @@
 	</h1>
 	
 	<div class="my-4 flex gap-x-2">
-		<a href="/balance-assertions/new" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
+		<a :href="$router.resolve({name: 'balance-assertions-new'}).fullPath" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
 			<PlusIcon class="w-4 h-4" />
 			New assertion
 		</a>

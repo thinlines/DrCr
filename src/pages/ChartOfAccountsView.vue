@@ -73,13 +73,17 @@
 	async function load() {
 		const session = await db.load();
 		
-		const accountKindsRaw: {account: string, kind: string}[] = await session.select(
-			`SELECT account, kind FROM account_configurations ORDER BY account, kind`
+		const accountKindsRaw: {account: string, kind: string | null}[] = await session.select(
+			`SELECT q1.account, q2.kind FROM
+			(SELECT account FROM account_configurations UNION SELECT account FROM postings ORDER BY account) q1
+			LEFT JOIN account_configurations q2 ON q1.account = q2.account`
 		);
 		
 		for (const accountKindRaw of accountKindsRaw) {
 			const kinds = accounts.value.get(accountKindRaw.account) ?? [];
-			kinds.push(accountKindRaw.kind);
+			if (accountKindRaw.kind !== null) {
+				kinds.push(accountKindRaw.kind);
+			}
 			accounts.value.set(accountKindRaw.account, kinds);
 		}
 	}

@@ -135,7 +135,7 @@
 		td.className = 'relative';  // CSS trickery so as to not expand the height of the tr
 		td.innerHTML =
 			`<div class="flex items-stretch absolute top-[-4px]">
-				<input type="text" class="bordered-field">
+				<input type="text" class="bordered-field min-w-[8em]">
 				<button type="button" class="relative -ml-px inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 bg-white hover:bg-gray-50">${ CheckIconHTML }</button>
 			</div>`;
 		

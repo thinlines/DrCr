@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -20,7 +20,7 @@ import dayjs from 'dayjs';
 
 import { DT_FORMAT, StatementLine, db } from '../db.ts';
 
-export default function import_ofx2(sourceAccount: string, content: string): StatementLine[] {
+export default function importOfx2(sourceAccount: string, content: string): StatementLine[] {
 	// Import an OFX2 XML file
 	
 	// Convert OFX header to XML and parse

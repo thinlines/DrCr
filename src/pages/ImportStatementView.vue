@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -25,8 +25,7 @@
 		<label for="format" class="block text-gray-900 pr-4">File type</label>
 		<div>
 			<select class="bordered-field" id="format" v-model="format">
-				<option value="ofx2">OFX 2.x</option>
-				<option value="ofx1">OFX 1.x</option>
+				<option value="ofx">OFX (1.x/2.x)</option>
 			</select>
 		</div>
 		<label for="account" class="block text-gray-900 pr-4">Source account</label>
@@ -86,12 +85,11 @@
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { ppWithCommodity } from '../display.ts';
 	
-	import import_ofx1 from '../importers/ofx1.ts';
-	import import_ofx2 from '../importers/ofx2.ts';
+	import importOfxAutodetectVersion from '../importers/ofx.ts';
 	
 	const fileInput = useTemplateRef('file');
 	
-	const format = ref('ofx2');
+	const format = ref('ofx');
 	const selectedFilename = ref('');
 	const sourceAccount = ref('');
 	
@@ -115,10 +113,8 @@
 		
 		const content = await file.text();
 		
-		if (format.value === 'ofx2') {
-			statementLines.value = import_ofx2(sourceAccount.value, content);
-		} else if (format.value === 'ofx1') {
-			statementLines.value = import_ofx1(sourceAccount.value, content);
+		if (format.value === 'ofx') {
+			statementLines.value = importOfxAutodetectVersion(sourceAccount.value, content);
 		} else {
 			throw new Error('Unexpected import format');
 		}

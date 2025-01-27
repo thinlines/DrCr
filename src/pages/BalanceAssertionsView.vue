@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -66,8 +66,10 @@
 	
 	import { ref } from 'vue';
 	
-	import { db, totalBalancesAtDate } from '../db.ts';
+	import { asCost } from '../amounts.ts';
+	import { db } from '../db.ts';
 	import { pp } from '../display.ts';
+	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
 	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 	import { PlusIcon } from '@heroicons/vue/16/solid';
 	
@@ -92,34 +94,27 @@
 			ORDER BY dt DESC, id DESC`
 		);
 		
-		/*
-		// Cache trial balances in case there are multiple assertions per date
-		const trialBalanceForDate = new Map<string, TrialBalanceReport>();
+		// Get transactions
+		const reportingWorkflow = new ReportingWorkflow();
+		await reportingWorkflow.generate(session);
+		const transactions = reportingWorkflow.getTransactionsAtStage(ReportingStage.OrdinaryAPITransactions);
 		
 		for (const balanceAssertion of rawBalanceAssertions) {
 			// Check assertion status
-			// TODO: This is very inefficient because API transactions are generated multiple times
-			if (!trialBalanceForDate.has(balanceAssertion.dt)) {
-				const reportingWorkflow = new ReportingWorkflow();
-				await reportingWorkflow.generate(session, balanceAssertion.dt);
-				const trialBalance = reportingWorkflow.getReportAtStage(ReportingStage.OrdinaryAPITransactions, TrialBalanceReport) as TrialBalanceReport;
-				trialBalanceForDate.set(balanceAssertion.dt, trialBalance);
+			const balanceAssertionDt = dayjs(balanceAssertion.dt);
+			
+			let accountBalance = 0;
+			for (const transaction of transactions) {
+				if (dayjs(transaction.dt) <= balanceAssertionDt) {
+					for (const posting of transaction.postings) {
+						if (posting.account === balanceAssertion.account) {
+							accountBalance += asCost(posting.quantity, posting.commodity);
+						}
+					}
+				}
 			}
 			
-			const trialBalance = trialBalanceForDate.get(balanceAssertion.dt)!;
-			balanceAssertion.isValid = balanceAssertion.quantity === trialBalance.balances.get(balanceAssertion.account) && balanceAssertion.commodity === db.metadata.reporting_commodity;
-		}
-		*/
-		
-		// Check assertion status
-		const balancesForDate = new Map<string, Map<string, number>>();
-		
-		for (const balanceAssertion of rawBalanceAssertions) {
-			if (!balancesForDate.has(balanceAssertion.dt)) {
-				// FIXME: This is quite slow
-				balancesForDate.set(balanceAssertion.dt, await totalBalancesAtDate(session, balanceAssertion.dt));
-			}
-			balanceAssertion.isValid = balanceAssertion.quantity === balancesForDate.get(balanceAssertion.dt)!.get(balanceAssertion.account) && balanceAssertion.commodity === db.metadata.reporting_commodity;
+			balanceAssertion.isValid = balanceAssertion.quantity === accountBalance && balanceAssertion.commodity === db.metadata.reporting_commodity;
 		}
 		
 		balanceAssertions.value = rawBalanceAssertions as ValidatedBalanceAssertion[];

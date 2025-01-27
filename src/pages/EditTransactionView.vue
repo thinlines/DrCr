@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -61,8 +61,9 @@
 		// Format dt
 		rawTransaction.dt = dayjs(rawTransaction.dt).format('YYYY-MM-DD');
 		
-		// Initialise sign and amount_abs
+		// Initialise originalAccount, sign and amount_abs
 		for (const posting of rawTransaction.postings) {
+			posting.originalAccount = posting.account;
 			posting.sign = posting.quantity >= 0 ? 'dr' : 'cr';
 			posting.amount_abs = serialiseAmount(Math.abs(posting.quantity), posting.commodity);
 		}

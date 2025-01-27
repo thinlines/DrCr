@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -108,13 +108,14 @@
 	
 	import { ref } from 'vue';
 	
-	import { DT_FORMAT, Transaction, db, deserialiseAmount } from '../db.ts';
+	import { DT_FORMAT, Posting, Transaction, db, deserialiseAmount } from '../db.ts';
 	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	
 	interface EditingPosting {
 		id: number | null,
 		description: string | null,
 		account: string,
+		originalAccount: string | null,
 		sign: string,  // Keep track of Dr/Cr status so this can be independently changed in the UI
 		amount_abs: string,
 	}
@@ -135,6 +136,7 @@
 			id: null,
 			description: null,
 			account: '',
+			originalAccount: null,
 			sign: posting.sign,  // Create the new posting with the same sign as the entry clicked on
 			amount_abs: ''
 		});
@@ -158,9 +160,10 @@
 				id: posting.id,
 				description: posting.description,
 				account: posting.account,
+				originalAccount: posting.originalAccount,
 				quantity: posting.sign === 'dr' ? amount_abs.quantity : -amount_abs.quantity,
 				commodity: amount_abs.commodity
-			});
+			} as Posting);
 		}
 		
 		// Validate transaction
@@ -278,6 +281,23 @@
 				WHERE postings.id = p.id`,
 				[newTransaction.dt, posting.account]
 			);
+			
+			// Must also invalidate running balance of original account, if the account has changed
+			const originalAccount = (posting as unknown as EditingPosting).originalAccount;
+			if (originalAccount && originalAccount !== posting.account) {
+				await dbTransaction.execute(
+					`UPDATE postings
+					SET running_balance = NULL
+					FROM (
+						SELECT postings.id
+						FROM transactions
+						JOIN postings ON transactions.id = postings.transaction_id
+						WHERE DATE(dt) >= DATE($1) AND account = $2
+					) p
+					WHERE postings.id = p.id`,
+					[newTransaction.dt, (posting as unknown as EditingPosting).originalAccount]
+				);
+			}
 		}
 		
 		await dbTransaction.commit();

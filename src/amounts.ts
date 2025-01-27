@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -58,7 +58,10 @@ export function asCost(quantity: number, commodity: string): number {
 	if (commodity.indexOf('{{') >= 0) {
 		// Total price
 		const price = parseFloat(commodity.substring(commodity.indexOf('{{') + 2, commodity.indexOf('}}', commodity.indexOf('{{'))));
-		return Math.round(price * Math.pow(10, db.metadata.dps));
+		
+		// Multiply by Math.sign(quantity) in case the quantity is negative
+		// FIXME: This yields unexpected results when trying to deduct a partial amount from a commodity specified in total price terms
+		return Math.round(Math.sign(quantity) * price * Math.pow(10, db.metadata.dps));
 	}
 	if (commodity.indexOf('{') >= 0) {
 		// Unit price

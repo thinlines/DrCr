@@ -361,7 +361,7 @@
 			rows.push(
 				`<tr data-line-id="${ line.id }">
 					<td class="py-0.5 pr-1 align-baseline">${ checkboxCell }</td>
-					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="#" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
+					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="/transactions/${ encodeURIComponent(line.source_account) }" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex]">${ dayjs(line.dt).format('YYYY-MM-DD') }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900">${ line.description }</td>
 					<td class="charge-account py-0.5 px-1 align-baseline text-gray-900">${ reconciliationCell }</td>

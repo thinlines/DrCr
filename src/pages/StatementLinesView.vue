@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -177,8 +177,20 @@
 			return;
 		}
 		
-		// Insert transaction and statement line reconciliation atomically
+		// Check if account exists
 		const session = await db.load();
+		const countResult = await session.select('SELECT COUNT(*) FROM postings WHERE account = $1', [chargeAccount]) as any[];
+		const doesAccountExist = countResult[0]['COUNT(*)'] > 0;
+		if (!doesAccountExist) {
+			// Prompt for confirmation
+			if (!await confirm('Account "' + chargeAccount + '" does not exist. Continue to reconcile this transaction and create a new account?')) {
+				td.querySelector('input')!.disabled = false;
+				td.querySelector('button')!.disabled = false;
+				return;
+			}
+		}
+		
+		// Insert transaction and statement line reconciliation atomically
 		const dbTransaction = await session.begin();
 		
 		// Insert transaction

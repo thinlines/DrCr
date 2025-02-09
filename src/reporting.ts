@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -56,7 +56,7 @@ export class ReportingWorkflow {
 	transactionsForStage: Map<ReportingStage, Transaction[]> = new Map();
 	reportsForStage: Map<ReportingStage, DrcrReport[]> = new Map();
 	
-	async generate(session: ExtendedDatabase, dt?: string) {
+	async generate(session: ExtendedDatabase, dt?: string, dtStart?: string) {
 		// ------------------------
 		// TransactionsFromDatabase
 		
@@ -152,9 +152,23 @@ export class ReportingWorkflow {
 		// AccumulatedSurplusToEquity
 		
 		{
-			// Compute balances at end of last financial year
-			const last_eofy_date = dayjs(db.metadata.eofy_date).subtract(1, 'year');
-			const balancesLastEofy = await totalBalancesAtDate(session, last_eofy_date.format('YYYY-MM-DD'));
+			// Compute balances at period start for TransactionsFromDatabase
+			let dayBeforePeriodStart;
+			if (dtStart) {
+				dayBeforePeriodStart = dayjs(dtStart).subtract(1, 'day');
+			} else {
+				dayBeforePeriodStart = dayjs(db.metadata.eofy_date).subtract(1, 'year');
+			}
+			const balancesAtPeriodStart = await totalBalancesAtDate(session, dayBeforePeriodStart.format('YYYY-MM-DD'));
+			
+			// Add balances at period start for OrdinaryAPITransactions
+			for (const transaction of this.transactionsForStage.get(ReportingStage.OrdinaryAPITransactions)!) {
+				if (!dayjs(transaction.dt).isAfter(dayBeforePeriodStart)) {
+					for (const posting of transaction.postings) {
+						balancesAtPeriodStart.set(posting.account, (balancesAtPeriodStart.get(posting.account) ?? 0) + asCost(posting.quantity, posting.commodity));
+					}
+				}
+			}
 			
 			// Get income and expense accounts
 			const incomeAccounts = await getAccountsForKind(session, 'drcr.income');
@@ -165,29 +179,29 @@ export class ReportingWorkflow {
 			// Prepare transactions
 			const transactions = [];
 			for (const account of pandlAccounts) {
-				if (balancesLastEofy.has(account)) {
-					const balanceLastEofy = balancesLastEofy.get(account)!;
-					if (balanceLastEofy === 0) {
+				if (balancesAtPeriodStart.has(account)) {
+					const balanceAtPeriodStart = balancesAtPeriodStart.get(account)!;
+					if (balanceAtPeriodStart === 0) {
 						continue;
 					}
 					
 					transactions.push(new Transaction(
 						null,
-						last_eofy_date.format(DT_FORMAT),
+						dayBeforePeriodStart.format(DT_FORMAT),
 						'Accumulated surplus/deficit',
 						[
 							{
 								id: null,
 								description: null,
 								account: account,
-								quantity: -balanceLastEofy,
+								quantity: -balanceAtPeriodStart,
 								commodity: db.metadata.reporting_commodity
 							},
 							{
 								id: null,
 								description: null,
 								account: 'Accumulated surplus (deficit)',
-								quantity: balanceLastEofy,
+								quantity: balanceAtPeriodStart,
 								commodity: db.metadata.reporting_commodity
 							},
 						]

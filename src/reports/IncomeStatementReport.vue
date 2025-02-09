@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -57,25 +57,53 @@
 <!-- Report display -->
 
 <template>
-	<DynamicReportComponent :report="report" />
+	<DynamicReportComponent :report="report">
+		<div class="my-2 py-2 flex">
+			<div class="grow flex gap-x-2 items-baseline">
+				<input type="date" class="bordered-field" v-model="dtStart">
+				<span>to</span>
+				<input type="date" class="bordered-field" v-model="dt">
+			</div>
+		</div>
+	</DynamicReportComponent>
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { ref, watch } from 'vue';
+	import dayjs from 'dayjs';
 	
 	import { Computed, DynamicReport, Section, Spacer, Subtotal } from './base.ts';
 	import { db } from '../db.ts';
+	import { ExtendedDatabase } from '../dbutil.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
 	
 	const report = ref(null as IncomeStatementReport | null);
 	
+	const dt = ref(null as string | null);
+	const dtStart = ref(null as string | null);
+	
 	async function load() {
 		const session = await db.load();
+		
+		dt.value = db.metadata.eofy_date;
+		dtStart.value = dayjs(db.metadata.eofy_date).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');
+		
+		await updateReport(session);
+	}
+	
+	async function updateReport(session: ExtendedDatabase) {
 		const reportingWorkflow = new ReportingWorkflow();
-		await reportingWorkflow.generate(session);
+		await reportingWorkflow.generate(session, dt.value!, dtStart.value!);
 		
 		report.value = reportingWorkflow.getReportAtStage(ReportingStage.InterimIncomeStatement, IncomeStatementReport) as IncomeStatementReport;
 	}
+	
+	// Update report when dates etc. changed
+	watch([dt, dtStart], async () => {
+		const session = await db.load();
+		updateReport(session);
+	});
+	
 	load();
 </script>

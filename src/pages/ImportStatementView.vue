@@ -26,6 +26,7 @@
 		<div>
 			<select class="bordered-field" id="format" v-model="format">
 				<option value="ofx">OFX (1.x/2.x)</option>
+				<option value="csv">CSV</option>
 			</select>
 		</div>
 		<label for="account" class="block text-gray-900 pr-4">Source account</label>
@@ -85,6 +86,7 @@
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { ppWithCommodity } from '../display.ts';
 	
+	import importCsv from '../importers/csv.ts';
 	import importOfxAutodetectVersion from '../importers/ofx.ts';
 	
 	const fileInput = useTemplateRef('file');
@@ -113,7 +115,9 @@
 		
 		const content = await file.text();
 		
-		if (format.value === 'ofx') {
+		if (format.value === 'csv') {
+			statementLines.value = importCsv(sourceAccount.value, content);
+		} else if (format.value === 'ofx') {
 			statementLines.value = importOfxAutodetectVersion(sourceAccount.value, content);
 		} else {
 			throw new Error('Unexpected import format');

@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -53,7 +53,7 @@ export function ppBracketed(quantity: number, link?: string): string {
 	
 	if (link) {
 		// Put the space outside of the hyperlink so it is not underlined
-		return '<a href="' + encodeURIComponent(link) + '" class="hover:text-blue-700 hover:underline">' + text + '</a>' + space;
+		return '<a href="' + encodeURI(link) + '" class="hover:text-blue-700 hover:underline">' + text + '</a>' + space;
 	} else {
 		return text + space;
 	}

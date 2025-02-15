@@ -90,6 +90,13 @@
 		dtStart.value = dayjs(db.metadata.eofy_date).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');
 		
 		await updateReport(session);
+		
+		// Update report when dates etc. changed
+		// We initialise the watcher here only after dt and dtStart are initialised above
+		watch([dt, dtStart], async () => {
+			const session = await db.load();
+			await updateReport(session);
+		});
 	}
 	
 	async function updateReport(session: ExtendedDatabase) {
@@ -98,12 +105,6 @@
 		
 		report.value = reportingWorkflow.getReportAtStage(ReportingStage.InterimIncomeStatement, IncomeStatementReport) as IncomeStatementReport;
 	}
-	
-	// Update report when dates etc. changed
-	watch([dt, dtStart], async () => {
-		const session = await db.load();
-		updateReport(session);
-	});
 	
 	load();
 </script>

@@ -243,8 +243,8 @@
 				
 				// Insert new posting
 				const result = await dbTransaction.execute(
-					`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
-					VALUES ($1, $2, $3, $4, $5, NULL)`,
+					`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+					VALUES ($1, $2, $3, $4, $5)`,
 					[newTransaction.id, posting.description, posting.account, posting.quantity, posting.commodity]
 				);
 				
@@ -265,37 +265,6 @@
 					SET description = $1, account = $2, quantity = $3, commodity = $4
 					WHERE id = $5`,
 					[posting.description, posting.account, posting.quantity, posting.commodity, posting.id]
-				);
-			}
-			
-			// Invalidate running balances
-			await dbTransaction.execute(
-				`UPDATE postings
-				SET running_balance = NULL
-				FROM (
-					SELECT postings.id
-					FROM transactions
-					JOIN postings ON transactions.id = postings.transaction_id
-					WHERE DATE(dt) >= DATE($1) AND account = $2
-				) p
-				WHERE postings.id = p.id`,
-				[newTransaction.dt, posting.account]
-			);
-			
-			// Must also invalidate running balance of original account, if the account has changed
-			const originalAccount = (posting as unknown as EditingPosting).originalAccount;
-			if (originalAccount && originalAccount !== posting.account) {
-				await dbTransaction.execute(
-					`UPDATE postings
-					SET running_balance = NULL
-					FROM (
-						SELECT postings.id
-						FROM transactions
-						JOIN postings ON transactions.id = postings.transaction_id
-						WHERE DATE(dt) >= DATE($1) AND account = $2
-					) p
-					WHERE postings.id = p.id`,
-					[newTransaction.dt, (posting as unknown as EditingPosting).originalAccount]
 				);
 			}
 		}

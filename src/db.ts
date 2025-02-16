@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -22,7 +22,7 @@ import Database from '@tauri-apps/plugin-sql';
 
 import { reactive } from 'vue';
 
-import { asCost, Balance } from './amounts.ts';
+import { Balance } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
@@ -68,96 +68,51 @@ export const db = reactive({
 });
 
 export async function totalBalances(session: ExtendedDatabase): Promise<Map<string, number>> {
-	await updateRunningBalances(session);
-	
-	const resultsRaw: {account: string, quantity: number}[] = await session.select(`
-		SELECT p3.account AS account, running_balance AS quantity FROM
-		(
-			SELECT p1.account, max(p2.transaction_id) AS max_tid FROM
-			(
-				SELECT account, max(dt) AS max_dt
-				FROM postings
-				JOIN transactions ON postings.transaction_id = transactions.id
-				GROUP BY account
-			) p1
-			JOIN postings p2 ON p1.account = p2.account AND p1.max_dt = transactions.dt JOIN transactions ON p2.transaction_id = transactions.id GROUP BY p2.account
-		) p3
-		JOIN postings p4 ON p3.account = p4.account AND p3.max_tid = p4.transaction_id ORDER BY account
-	`);
+	const resultsRaw: {account: string, quantity: number}[] = await session.select(
+		`-- Get last transaction for each account
+		WITH max_dt_by_account AS (
+			SELECT account, max(dt) AS max_dt
+			FROM joined_transactions
+			GROUP BY account
+		),
+		max_tid_by_account AS (
+			SELECT max_dt_by_account.account, max(transaction_id) AS max_tid
+			FROM max_dt_by_account
+			JOIN joined_transactions ON max_dt_by_account.account = joined_transactions.account AND max_dt_by_account.max_dt = joined_transactions.dt
+			GROUP BY max_dt_by_account.account
+		)
+		-- Get running balance at last transaction for each account
+		SELECT max_tid_by_account.account, running_balance AS quantity
+		FROM max_tid_by_account
+		JOIN transactions_with_running_balances ON max_tid = transactions_with_running_balances.transaction_id AND max_tid_by_account.account = transactions_with_running_balances.account`
+	);
 	
 	return new Map(resultsRaw.map((x) => [x.account, x.quantity]));
 }
 
 export async function totalBalancesAtDate(session: ExtendedDatabase, dt: string): Promise<Map<string, number>> {
-	await updateRunningBalances(session);
-	
 	const resultsRaw: {account: string, quantity: number}[] = await session.select(
-		`SELECT p3.account AS account, running_balance AS quantity FROM
-		(
-			SELECT p1.account, max(p2.transaction_id) AS max_tid FROM
-			(
-				SELECT account, max(dt) AS max_dt
-				FROM postings
-				JOIN transactions ON postings.transaction_id = transactions.id
-				WHERE DATE(dt) <= DATE($1)
-				GROUP BY account
-			) p1
-			JOIN postings p2 ON p1.account = p2.account AND p1.max_dt = transactions.dt JOIN transactions ON p2.transaction_id = transactions.id GROUP BY p2.account
-		) p3
-		JOIN postings p4 ON p3.account = p4.account AND p3.max_tid = p4.transaction_id ORDER BY account`,
+		`-- Get last transaction for each account
+		WITH max_dt_by_account AS (
+			SELECT account, max(dt) AS max_dt
+			FROM joined_transactions
+			WHERE DATE(dt) <= DATE($1)
+			GROUP BY account
+		),
+		max_tid_by_account AS (
+			SELECT max_dt_by_account.account, max(transaction_id) AS max_tid
+			FROM max_dt_by_account
+			JOIN joined_transactions ON max_dt_by_account.account = joined_transactions.account AND max_dt_by_account.max_dt = joined_transactions.dt
+			GROUP BY max_dt_by_account.account
+		)
+		-- Get running balance at last transaction for each account
+		SELECT max_tid_by_account.account, running_balance AS quantity
+		FROM max_tid_by_account
+		JOIN transactions_with_running_balances ON max_tid = transactions_with_running_balances.transaction_id AND max_tid_by_account.account = transactions_with_running_balances.account`,
 		[dt]
 	);
 	
 	return new Map(resultsRaw.map((x) => [x.account, x.quantity]));
-}
-
-export async function updateRunningBalances(session: ExtendedDatabase) {
-	// TODO: This is very slow - it would be faster to do this in Rust
-	
-	// Recompute any required running balances
-	const staleAccountsRaw: {account: string}[] = await session.select('SELECT DISTINCT account FROM postings WHERE running_balance IS NULL');
-	const staleAccounts: string[] = staleAccountsRaw.map((x) => x.account);
-	
-	if (staleAccounts.length === 0) {
-		return;
-	}
-	
-	// Get all relevant Postings in database in correct order
-	// FIXME: Recompute balances only from the last non-stale balance to be more efficient
-	const arraySQL = '(?' + ', ?'.repeat(staleAccounts.length - 1) + ')';
-	const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-		`SELECT postings.id, account, quantity, commodity, running_balance
-		FROM transactions
-		JOIN postings ON transactions.id = postings.transaction_id
-		WHERE postings.account IN ${arraySQL}
-		ORDER BY dt, transaction_id, postings.id`,
-		staleAccounts
-	);
-	
-	// Update running balances atomically
-	const dbTransaction = await session.begin();
-	
-	const runningBalances = new Map();
-	for (const posting of joinedTransactionPostings) {
-		const openingBalance = runningBalances.get(posting.account) ?? 0;
-		const quantityCost = asCost(posting.quantity, posting.commodity);
-		const runningBalance = openingBalance + quantityCost;
-		
-		runningBalances.set(posting.account, runningBalance);
-		
-		// Update running balance of posting
-		// Only perform this update if required, to avoid expensive call to DB
-		if (posting.running_balance !== runningBalance) {
-			await dbTransaction.execute(
-				`UPDATE postings
-				SET running_balance = $1
-				WHERE id = $2`,
-				[runningBalance, posting.id]
-			);
-		}
-	}
-	
-	await dbTransaction.commit();
 }
 
 export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {

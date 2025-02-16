@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -68,7 +68,7 @@
 			for (const posting of transaction.postings) {
 				if (posting.account === route.params.account) {
 					balance += asCost(posting.quantity, posting.commodity);
-					posting.running_balance = balance;  // We should absolutely not commit this to the database!
+					posting.running_balance = balance;
 				}
 			}
 		}

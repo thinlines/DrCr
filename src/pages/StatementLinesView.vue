@@ -203,16 +203,16 @@
 		
 		// Insert posting for this account
 		const accountPostingResult = await dbTransaction.execute(
-			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
-			VALUES ($1, NULL, $2, $3, $4, NULL)`,
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+			VALUES ($1, NULL, $2, $3, $4)`,
 			[transactionId, statementLine.source_account, statementLine.quantity, statementLine.commodity]
 		);
 		const accountPostingId = accountPostingResult.lastInsertId;
 		
 		// Insert posting for the charge account - no need to remember this ID
 		await dbTransaction.execute(
-			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
-			VALUES ($1, NULL, $2, $3, $4, NULL)`,
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+			VALUES ($1, NULL, $2, $3, $4)`,
 			[transactionId, chargeAccount, -statementLine.quantity, statementLine.commodity]
 		);
 		
@@ -221,20 +221,6 @@
 			`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
 			VALUES ($1, $2)`,
 			[statementLine.id, accountPostingId]
-		);
-		
-		// Invalidate running balances
-		await dbTransaction.execute(
-			`UPDATE postings
-			SET running_balance = NULL
-			FROM (
-				SELECT postings.id
-				FROM transactions
-				JOIN postings ON transactions.id = postings.transaction_id
-				WHERE DATE(dt) >= DATE($1) AND account IN ($2, $3)
-			) p
-			WHERE postings.id = p.id`,
-			[statementLine.dt, statementLine.source_account, chargeAccount]
 		);
 		
 		dbTransaction.commit();
@@ -280,8 +266,8 @@
 		
 		// Insert posting for line1
 		const postingResult1 = await dbTransaction.execute(
-			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
-			VALUES ($1, $2, $3, $4, $5, NULL)`,
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+			VALUES ($1, $2, $3, $4, $5)`,
 			[transactionId, line1.description, line1.source_account, line1.quantity, line1.commodity]
 		);
 		const postingId1 = postingResult1.lastInsertId;
@@ -295,8 +281,8 @@
 		
 		// Insert posting for line2
 		const postingResult2 = await dbTransaction.execute(
-			`INSERT INTO postings (transaction_id, description, account, quantity, commodity, running_balance)
-			VALUES ($1, $2, $3, $4, $5, NULL)`,
+			`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+			VALUES ($1, $2, $3, $4, $5)`,
 			[transactionId, line2.description, line2.source_account, line2.quantity, line2.commodity]
 		);
 		const postingId2 = postingResult2.lastInsertId;
@@ -306,20 +292,6 @@
 			`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
 			VALUES ($1, $2)`,
 			[line2.id, postingId2]
-		);
-		
-		// Invalidate running balances
-		await dbTransaction.execute(
-			`UPDATE postings
-			SET running_balance = NULL
-			FROM (
-				SELECT postings.id
-				FROM transactions
-				JOIN postings ON transactions.id = postings.transaction_id
-				WHERE DATE(dt) >= DATE($1) AND account IN ($2, $3)
-			) p
-			WHERE postings.id = p.id`,
-			[line1.dt, line1.source_account, line2.source_account]
 		);
 		
 		dbTransaction.commit();

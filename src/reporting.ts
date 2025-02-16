@@ -75,19 +75,17 @@ export class ReportingWorkflow {
 			let joinedTransactionPostings: JoinedTransactionPosting[];
 			if (dt) {
 				joinedTransactionPostings = await session.select(
-					`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance
-					FROM transactions
-					JOIN postings ON transactions.id = postings.transaction_id
+					`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, running_balance
+					FROM transactions_with_running_balances
 					WHERE DATE(dt) <= DATE($1)
-					ORDER BY dt, transaction_id, postings.id`,
+					ORDER BY dt, transaction_id, id`,
 					[dt]
 				);
 			} else {
 				joinedTransactionPostings = await session.select(
-					`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity, running_balance
-					FROM transactions
-					JOIN postings ON transactions.id = postings.transaction_id
-					ORDER BY dt, transaction_id, postings.id`
+					`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, running_balance
+					FROM transactions_with_running_balances
+					ORDER BY dt, transaction_id, id`
 				);
 			}
 			const transactions = joinedToTransactions(joinedTransactionPostings);

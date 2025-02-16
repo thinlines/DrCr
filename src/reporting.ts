@@ -75,7 +75,7 @@ export class ReportingWorkflow {
 			let joinedTransactionPostings: JoinedTransactionPosting[];
 			if (dt) {
 				joinedTransactionPostings = await session.select(
-					`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, running_balance
+					`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, quantity_ascost, running_balance
 					FROM transactions_with_running_balances
 					WHERE DATE(dt) <= DATE($1)
 					ORDER BY dt, transaction_id, id`,
@@ -83,7 +83,7 @@ export class ReportingWorkflow {
 				);
 			} else {
 				joinedTransactionPostings = await session.select(
-					`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, running_balance
+					`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, quantity_ascost, running_balance
 					FROM transactions_with_running_balances
 					ORDER BY dt, transaction_id, id`
 				);
@@ -127,14 +127,16 @@ export class ReportingWorkflow {
 							description: null,
 							account: line.source_account,
 							quantity: line.quantity,
-							commodity: line.commodity
+							commodity: line.commodity,
+							quantity_ascost: asCost(line.quantity, line.commodity),
 						},
 						{
 							id: null,
 							description: null,
 							account: unclassifiedAccount,
 							quantity: -line.quantity,
-							commodity: line.commodity
+							commodity: line.commodity,
+							quantity_ascost: asCost(-line.quantity, line.commodity),
 						}
 					]
 				));
@@ -163,7 +165,7 @@ export class ReportingWorkflow {
 			for (const transaction of this.transactionsForStage.get(ReportingStage.OrdinaryAPITransactions)!) {
 				if (!dayjs(transaction.dt).isAfter(dayBeforePeriodStart)) {
 					for (const posting of transaction.postings) {
-						balancesAtPeriodStart.set(posting.account, (balancesAtPeriodStart.get(posting.account) ?? 0) + asCost(posting.quantity, posting.commodity));
+						balancesAtPeriodStart.set(posting.account, (balancesAtPeriodStart.get(posting.account) ?? 0) + posting.quantity_ascost!);
 					}
 				}
 			}
@@ -193,14 +195,16 @@ export class ReportingWorkflow {
 								description: null,
 								account: account,
 								quantity: -balanceAtPeriodStart,
-								commodity: db.metadata.reporting_commodity
+								commodity: db.metadata.reporting_commodity,
+								quantity_ascost: asCost(-balanceAtPeriodStart, db.metadata.reporting_commodity),
 							},
 							{
 								id: null,
 								description: null,
 								account: 'Accumulated surplus (deficit)',
 								quantity: balanceAtPeriodStart,
-								commodity: db.metadata.reporting_commodity
+								commodity: db.metadata.reporting_commodity,
+								quantity_ascost: asCost(balanceAtPeriodStart, db.metadata.reporting_commodity),
 							},
 						]
 					));
@@ -280,9 +284,7 @@ function applyTransactionsToBalances(balances: Map<string, number>, transactions
 	for (const transaction of transactions) {
 		for (const posting of transaction.postings) {
 			const openingBalance = newBalances.get(posting.account) ?? 0;
-			const quantityCost = asCost(posting.quantity, posting.commodity);
-			const runningBalance = openingBalance + quantityCost;
-			
+			const runningBalance = openingBalance + posting.quantity_ascost!;
 			newBalances.set(posting.account, runningBalance);
 		}
 	}

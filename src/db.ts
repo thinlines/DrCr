@@ -135,6 +135,7 @@ export function joinedToTransactions(joinedTransactionPostings: JoinedTransactio
 			account: joinedTransactionPosting.account,
 			quantity: joinedTransactionPosting.quantity,
 			commodity: joinedTransactionPosting.commodity,
+			quantity_ascost: joinedTransactionPosting.quantity_ascost,
 			running_balance: joinedTransactionPosting.running_balance
 		});
 	}
@@ -233,6 +234,7 @@ export interface Posting {
 	account: string,
 	quantity: number,
 	commodity: string,
+	quantity_ascost?: number,
 	running_balance?: number
 }
 
@@ -245,6 +247,7 @@ export interface JoinedTransactionPosting {
 	account: string,
 	quantity: number,
 	commodity: string,
+	quantity_ascost?: number,
 	running_balance?: number
 }
 

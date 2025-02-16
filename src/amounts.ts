@@ -51,6 +51,7 @@ export class Balance {
 
 export function asCost(quantity: number, commodity: string): number {
 	// Convert the amount to cost price in the reporting commodity
+	// NB: This function is rarely used - most conversions are performed in SQL via the transactions_with_quantity_ascost view
 	
 	if (commodity === db.metadata.reporting_commodity) {
 		return quantity;

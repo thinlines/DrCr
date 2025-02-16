@@ -46,11 +46,10 @@
 		const session = await db.load();
 		
 		const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-			`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity
-			FROM transactions
-			JOIN postings ON transactions.id = postings.transaction_id
-			WHERE transactions.id = $1
-			ORDER BY postings.id`,
+			`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity
+			FROM joined_transactions
+			WHERE transaction_id = $1
+			ORDER BY id`,
 			[route.params.id]
 		);
 		

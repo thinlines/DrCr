@@ -66,7 +66,6 @@
 	
 	import { ref } from 'vue';
 	
-	import { asCost } from '../amounts.ts';
 	import { db } from '../db.ts';
 	import { pp } from '../display.ts';
 	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
@@ -108,7 +107,7 @@
 				if (dayjs(transaction.dt) <= balanceAssertionDt) {
 					for (const posting of transaction.postings) {
 						if (posting.account === balanceAssertion.account) {
-							accountBalance += asCost(posting.quantity, posting.commodity);
+							accountBalance += posting.quantity_ascost!;
 						}
 					}
 				}

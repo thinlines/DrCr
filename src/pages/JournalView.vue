@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -68,7 +68,6 @@
 	
 	import { onUnmounted, ref, watch } from 'vue';
 	
-	import { asCost } from '../amounts.ts';
 	import { JoinedTransactionPosting, Transaction, db, joinedToTransactions } from '../db.ts';
 	import { pp, ppWithCommodity } from '../display.ts';
 	import { renderComponent } from '../webutil.ts';
@@ -82,10 +81,9 @@
 		const session = await db.load();
 		
 		const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
-			`SELECT transaction_id, dt, transactions.description AS transaction_description, postings.id, postings.description, account, quantity, commodity
-			FROM transactions
-			JOIN postings ON transactions.id = postings.transaction_id
-			ORDER BY dt DESC, transaction_id DESC, postings.id`
+			`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, quantity_ascost
+			FROM transactions_with_quantity_ascost
+			ORDER BY dt DESC, transaction_id DESC, id`
 		);
 		
 		transactions.value = joinedToTransactions(joinedTransactionPostings);
@@ -131,10 +129,10 @@
 							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
 							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]"><a href="/transactions/${ encodeURIComponent(posting.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ posting.account }</a></td>
 							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">
-								${ posting.quantity >= 0 ? pp(asCost(posting.quantity, posting.commodity)) : '' }
+								${ posting.quantity >= 0 ? pp(posting.quantity_ascost!) : '' }
 							</td>
 							<td class="py-0.5 pl-1 text-gray-900 lg:w-[12ex] text-end">
-								${ posting.quantity < 0 ? pp(asCost(-posting.quantity, posting.commodity)) : '' }
+								${ posting.quantity < 0 ? pp(-posting.quantity_ascost!) : '' }
 							</td>
 						</tr>`
 					);

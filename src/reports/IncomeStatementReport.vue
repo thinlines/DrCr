@@ -60,11 +60,11 @@
 	<ComparativeDynamicReportComponent :reports="reports" :labels="reportLabels">
 		<div class="my-2 py-2 flex">
 			<div class="grow flex gap-x-2 items-baseline">
-				<input type="date" class="bordered-field" v-model="dtStart">
+				<input type="date" class="bordered-field" v-model.lazy="dtStart">
 				<span>to</span>
-				<input type="date" class="bordered-field" v-model="dt">
+				<input type="date" class="bordered-field" v-model.lazy="dt">
 				<span>Compare</span>
-				<input type="number" class="bordered-field w-[4em]" v-model="compareMonths">
+				<input type="number" class="bordered-field w-[4em]" v-model.lazy="compareMonths">
 				<span>months</span>
 			</div>
 		</div>

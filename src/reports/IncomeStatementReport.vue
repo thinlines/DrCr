@@ -65,7 +65,7 @@
 				<input type="date" class="bordered-field" v-model.lazy="dt">
 				<span>Compare</span>
 				<div class="relative flex flex-grow items-stretch shadow-sm">
-					<input type="number" class="bordered-field w-[9.5em] pr-[6em]" v-model.lazy="comparePeriods">
+					<input type="number" min="1" class="bordered-field w-[9.5em] pr-[6em]" v-model.lazy="comparePeriods">
 					<div class="absolute inset-y-0 right-0 flex items-center z-10">
 						<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600" v-model="compareUnit">
 							<option value="years">years</option>

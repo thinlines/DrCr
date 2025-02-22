@@ -64,8 +64,15 @@
 				<span>to</span>
 				<input type="date" class="bordered-field" v-model.lazy="dt">
 				<span>Compare</span>
-				<input type="number" class="bordered-field w-[4em]" v-model.lazy="compareMonths">
-				<span>months</span>
+				<div class="relative flex flex-grow items-stretch shadow-sm">
+					<input type="number" class="bordered-field w-[9.5em] pr-[6em]" v-model.lazy="comparePeriods">
+					<div class="absolute inset-y-0 right-0 flex items-center z-10">
+						<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600" v-model="compareUnit">
+							<option value="years">years</option>
+							<option value="months">months</option>
+						</select>
+					</div>
+				</div>
 			</div>
 		</div>
 	</ComparativeDynamicReportComponent>
@@ -86,7 +93,9 @@
 	
 	const dt = ref(null as string | null);
 	const dtStart = ref(null as string | null);
-	const compareMonths = ref(1);
+	
+	const comparePeriods = ref(1);
+	const compareUnit = ref('years');
 	
 	async function load() {
 		const session = await db.load();
@@ -98,7 +107,7 @@
 		
 		// Update report when dates etc. changed
 		// We initialise the watcher here only after dt and dtStart are initialised above
-		watch([dt, dtStart, compareMonths], async () => {
+		watch([dt, dtStart, comparePeriods, compareUnit], async () => {
 			const session = await db.load();
 			await updateReport(session);
 		});
@@ -107,9 +116,20 @@
 	async function updateReport(session: ExtendedDatabase) {
 		const newReportPromises = [];
 		const newReportLabels = [];
-		for (let i = 0; i < compareMonths.value; i++) {
-			const thisReportDt = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM-DD');
-			const thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+		for (let i = 0; i < comparePeriods.value; i++) {
+			let thisReportDt, thisReportDtStart, thisReportLabel;
+			
+			if (compareUnit.value === 'years') {
+				thisReportDt = dayjs(dt.value!).subtract(i, 'year').format('YYYY-MM-DD');
+				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'year').format('YYYY-MM-DD');
+				thisReportLabel = dayjs(dt.value!).subtract(i, 'year').format('YYYY');
+			} else if (compareUnit.value === 'months') {
+				thisReportDt = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM-DD');
+				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+				thisReportLabel = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM');
+			} else {
+				throw new Error('Unexpected compareUnit');
+			}
 			
 			// Generate reports asynchronously
 			newReportPromises.push((async () => {
@@ -118,7 +138,12 @@
 				return reportingWorkflow.getReportAtStage(ReportingStage.InterimIncomeStatement, IncomeStatementReport) as IncomeStatementReport;
 			})());
 			
-			newReportLabels.push('$');
+			if (comparePeriods.value === 1) {
+				// If only 1 report, the heading is simply "$"
+				newReportLabels.push(db.metadata.reporting_commodity);
+			} else {
+				newReportLabels.push(thisReportLabel);
+			}
 		}
 		
 		reports.value = await Promise.all(newReportPromises);

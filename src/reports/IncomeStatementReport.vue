@@ -119,18 +119,19 @@
 		for (let i = 0; i < comparePeriods.value; i++) {
 			let thisReportDt, thisReportDtStart, thisReportLabel;
 			
+			// Get period start and end dates
 			if (compareUnit.value === 'years') {
-				thisReportDt = dayjs(dt.value!).subtract(i, 'year').format('YYYY-MM-DD');
-				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'year').format('YYYY-MM-DD');
+				thisReportDt = dayjs(dt.value!).subtract(i, 'year');
+				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'year');
 				thisReportLabel = dayjs(dt.value!).subtract(i, 'year').format('YYYY');
 			} else if (compareUnit.value === 'months') {
 				if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
 					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
-					thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day').format('YYYY-MM-DD');
-					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+					thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
+					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month');
 				} else {
-					thisReportDt = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM-DD');
-					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+					thisReportDt = dayjs(dt.value!).subtract(i, 'month');
+					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month');
 				}
 				thisReportLabel = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM');
 			} else {
@@ -140,7 +141,7 @@
 			// Generate reports asynchronously
 			newReportPromises.push((async () => {
 				const reportingWorkflow = new ReportingWorkflow();
-				await reportingWorkflow.generate(session, thisReportDt, thisReportDtStart);
+				await reportingWorkflow.generate(session, thisReportDt.format('YYYY-MM-DD'), thisReportDtStart.format('YYYY-MM-DD'));
 				return reportingWorkflow.getReportAtStage(ReportingStage.InterimIncomeStatement, IncomeStatementReport) as IncomeStatementReport;
 			})());
 			

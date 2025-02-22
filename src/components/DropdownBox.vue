@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -26,7 +26,7 @@
 		</button>
 		<ul class="absolute z-20 mt-1 max-h-60 w-full overflow-auto bg-white py-1 text-sm shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none" :class="isOpen ? 'block' : 'hidden'">
 			<template v-for="([categoryName, categoryItems], index) in values">
-				<li class="relative cursor-default select-none py-1 pl-3 pr-9 text-gray-500 border-b border-gray-300" :class="{ 'pt-4': index > 0 }">
+				<li class="relative cursor-default select-none py-1 pl-3 pr-9 text-gray-500 border-b border-gray-300" :class="{ 'pt-4': index > 0 }" v-if="categoryName">
 					<span class="block truncate text-xs font-bold uppercase">{{ categoryName }}</span>
 				</li>
 				<li v-for="item in categoryItems" class="group relative cursor-default select-none py-1 pl-3 pr-9 text-gray-900 hover:text-white hover:bg-emerald-600" :data-selected="item[0] === selectedValue[0] ? 'selected' : null" @click="selectedValue = item; isOpen = false">
@@ -45,7 +45,7 @@
 	
 	import { defineModel, defineProps, ref } from 'vue';
 	
-	const { values } = defineProps<{ values: [string, [string, string][]][] }>();  // Array of [category name, [internal identifier, pretty name]]
+	const { values } = defineProps<{ values: [string | null, [string, string][]][] }>();  // Array of [category name, [internal identifier, pretty name]]
 	
 	const selectedValue = defineModel({ default: null! as [string, string] });  // Vue bug: Compiler produces broken code if setting default directly here
 	if (selectedValue.value === null) {

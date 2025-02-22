@@ -124,8 +124,14 @@
 				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'year').format('YYYY-MM-DD');
 				thisReportLabel = dayjs(dt.value!).subtract(i, 'year').format('YYYY');
 			} else if (compareUnit.value === 'months') {
-				thisReportDt = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM-DD');
-				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+				if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
+					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
+					thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day').format('YYYY-MM-DD');
+					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+				} else {
+					thisReportDt = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM-DD');
+					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month').format('YYYY-MM-DD');
+				}
 				thisReportLabel = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM');
 			} else {
 				throw new Error('Unexpected compareUnit');

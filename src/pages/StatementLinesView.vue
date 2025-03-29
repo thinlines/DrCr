@@ -36,7 +36,7 @@
 		</div>
 	</div>
 	
-	<div id="statement-line-list" class="max-h-[100vh] overflow-y-scroll wk-aa">
+	<div id="statement-line-list" class="max-h-[100vh] overflow-y-scroll wk-aa relative">
 		<table class="min-w-full">
 			<thead>
 				<tr class="border-b border-gray-300">
@@ -50,13 +50,23 @@
 					<th class="py-0.5 pl-1 align-bottom text-gray-900 font-semibold text-end">Balance</th>
 				</tr>
 			</thead>
-			<tbody>
+			<tbody @click="onClickTableElement">
 				<tr>
 					<td></td>
 					<td class="py-0.5 px-1" colspan="7">Loading data…</td>
 				</tr>
 			</tbody>
 		</table>
+		
+		<!-- Component for reconciling statement lines -->
+		<div id="statement-line-classifier" class="hidden absolute">
+			<div class="flex items-stretch">
+				<ComboBoxAccounts v-model="classificationAccount" class="statement-line-classifier-input" />
+				<button @click="onLineClassified" id="statement-line-classifier-button" type="button" class="relative -ml-px inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 bg-white hover:bg-gray-50">
+					<CheckIcon class="w-5 h-5" />
+				</button>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -69,6 +79,7 @@
 	
 	import { onUnmounted, ref, watch } from 'vue';
 	
+	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { db } from '../db.ts';
 	import { renderComponent } from '../webutil.ts';
 	import { ppWithCommodity } from '../display.ts';
@@ -87,6 +98,10 @@
 	
 	const showOnlyUnclassified = ref(false);
 	const statementLines = ref([] as StatementLine[]);
+	
+	const classificationLineId = ref(0);
+	const classificationAccount = ref('');
+	
 	let clusterize: Clusterize | null = null;
 	
 	async function load() {
@@ -127,48 +142,59 @@
 		statementLines.value = newStatementLines;
 	}
 	
-	// TODO: Could probably avoid polluting global scope by using clusterize clusterChanged callback
-	(window as any).showClassifyLinePanel = function(el: HTMLAnchorElement) {
-		const CheckIconHTML = renderComponent(CheckIcon, { 'class': 'w-5 h-5' });
-		
-		const td = el.closest('td')!;
-		td.className = 'relative';  // CSS trickery so as to not expand the height of the tr
-		td.innerHTML =
-			`<div class="flex items-stretch absolute top-[-4px]">
-				<input type="text" class="bordered-field min-w-[8em]">
-				<button type="button" class="relative -ml-px inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 bg-white hover:bg-gray-50">${ CheckIconHTML }</button>
-			</div>`;
-		
-		td.querySelector('input')!.addEventListener('keydown', async function(event: KeyboardEvent) {
-			if (event.key === 'Enter') {
-				await onLineClassified(event);
+	function onClickTableElement(event: MouseEvent) {
+		// Use event delegation to avoid polluting global scope with the event listener
+		if (event.target && (event.target as Element).classList.contains('classify-link')) {
+			// ------------------------
+			// Show classify line panel
+			
+			// Prevent selecting a different line when already classifying one line
+			if ((document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled) {
+				return;
 			}
-		})
-		td.querySelector('button')!.addEventListener('click', onLineClassified);
-		
-		td.querySelector('input')!.focus();
-		
-		return false;
-	};
+			
+			// Set global state
+			const td = (event.target as Element).closest('td')!;  // Reconciliation cell
+			const tr = td.closest('tr')!;
+			classificationLineId.value = parseInt(tr.dataset.lineId!);
+			
+			// Show all other reconciliation cells
+			for (const el of document.querySelectorAll('#statement-line-list .charge-account > span')) {
+				el.classList.remove('invisible');
+			}
+			
+			// Hide contents of the cell
+			const span = td.querySelector('span')!;  // Span wrapper for reconciliation cell content
+			span.classList.add('invisible');
+			
+			// Position the classify line panel in place (relative to #statement-line-list)
+			const outerDiv = document.getElementById('statement-line-list')!;
+			const divReconciler = document.getElementById('statement-line-classifier')!;
+			divReconciler.classList.remove('hidden');
+			divReconciler.style.top = (td.getBoundingClientRect().y - outerDiv.getBoundingClientRect().y - 4) + 'px';
+			divReconciler.style.left = (td.getBoundingClientRect().x - outerDiv.getBoundingClientRect().x) + 'px';
+			
+			// Focus classify line panel
+			divReconciler.querySelector('input')!.focus();
+		}
+	}
 	
 	async function onLineClassified(event: Event) {
-		// Callback when clicking OK or pressing enter to classify a statement line
-		if ((event.target as HTMLInputElement).disabled) {
+		// Callback when clicking OK to classify a statement line
+		if ((event.target! as any).disabled) {
 			return;
 		}
 		
-		const td = (event.target as Element).closest('td')!;
-		const tr = td.closest('tr')!;
-		const lineId = parseInt(tr.dataset.lineId!);
-		const chargeAccount = (td.querySelector('input')! as HTMLInputElement).value;
+		const lineId = classificationLineId.value;
+		const chargeAccount = classificationAccount.value;
 		
 		if (!chargeAccount) {
 			return;
 		}
 		
 		// Disable further submissions
-		td.querySelector('input')!.disabled = true;
-		td.querySelector('button')!.disabled = true;
+		(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = true;
+		(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = true;
 		
 		const statementLine = statementLines.value.find((l) => l.id === lineId)!;
 		
@@ -184,8 +210,8 @@
 		if (!doesAccountExist) {
 			// Prompt for confirmation
 			if (!await confirm('Account "' + chargeAccount + '" does not exist. Continue to reconcile this transaction and create a new account?')) {
-				td.querySelector('input')!.disabled = false;
-				td.querySelector('button')!.disabled = false;
+				(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
+				(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
 				return;
 			}
 		}
@@ -224,6 +250,14 @@
 		);
 		
 		dbTransaction.commit();
+		
+		// Reset statement line classifier state
+		classificationAccount.value = '';
+		(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
+		(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
+		
+		// Hide the statement line classifier
+		document.getElementById('statement-line-classifier')!.classList.add('hidden');
 		
 		// Reload transactions and re-render the table
 		await load();
@@ -309,7 +343,7 @@
 			if (line.posting_accounts.length === 0) {
 				// Unreconciled
 				reconciliationCell =
-					`<a href="#" class="classify-link text-red-500 hover:text-red-600 hover:underline" onclick="return showClassifyLinePanel(this);">Unclassified</a>`;
+					`<a href="#" class="classify-link text-red-500 hover:text-red-600 hover:underline" onclick="return false;">Unclassified</a>`;
 				checkboxCell = `<input class="checkbox-primary statement-line-checkbox" type="checkbox">`;  // Only show checkbox for unreconciled lines
 			} else if (line.posting_accounts.length === 2) {
 				// Simple reconciliation
@@ -336,7 +370,7 @@
 					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="/transactions/${ encodeURIComponent(line.source_account) }" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex]">${ dayjs(line.dt).format('YYYY-MM-DD') }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900">${ line.description }</td>
-					<td class="charge-account py-0.5 px-1 align-baseline text-gray-900">${ reconciliationCell }</td>
+					<td class="charge-account py-0.5 px-1 align-baseline text-gray-900"><span>${ reconciliationCell }</span></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }</td>
 					<td class="py-0.5 pl-1 align-baseline text-gray-900 text-end">${ line.balance ?? '' }</td>
@@ -349,11 +383,14 @@
 				'rows': rows,
 				scrollElem: document.getElementById('statement-line-list')!,
 				contentElem: document.querySelector('#statement-line-list tbody')!,
-				show_no_data_row: false,
+				show_no_data_row: false
 			});
 		} else {
 			clusterize.update(rows);
 		}
+		
+		// Hide the statement line classifier
+		document.getElementById('statement-line-classifier')!.classList.add('hidden');
 	}
 	
 	watch(showOnlyUnclassified, renderTable);

@@ -36,7 +36,7 @@
 		</div>
 	</div>
 	
-	<div id="statement-line-list" class="max-h-[100vh] overflow-y-scroll wk-aa relative">
+	<div id="statement-line-list" class="min-h-[50vh] max-h-[100vh] overflow-y-scroll wk-aa relative">
 		<table class="min-w-full">
 			<thead>
 				<tr class="border-b border-gray-300">

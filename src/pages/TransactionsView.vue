@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -40,7 +40,9 @@
 <script setup lang="ts">
 	import { PlusIcon } from '@heroicons/vue/24/outline';
 	
-	import { ref } from 'vue';
+	import { UnlistenFn, listen } from '@tauri-apps/api/event';
+	
+	import { onUnmounted, ref } from 'vue';
 	import { useRoute } from 'vue-router';
 	
 	import { Transaction, db } from '../db.ts';
@@ -74,4 +76,16 @@
 		transactions.value = filteredTxnsWithIndexes.map(([t, _idx]) => t);
 	}
 	load();
+	
+	// Refresh transaction list when transaction updated
+	let unlistenTransactionUpdated: UnlistenFn | null = null;
+	(async () => {
+		// Cannot await at top level without <Suspense> therefore do this in an async function
+		unlistenTransactionUpdated = await listen('transaction-updated', async (_event) => { await load(); });
+	})();
+	onUnmounted(() => {
+		if (unlistenTransactionUpdated !== null) {
+			unlistenTransactionUpdated();
+		}
+	});
 </script>

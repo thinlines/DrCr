@@ -104,6 +104,7 @@
 	
 	import { PlusIcon, XCircleIcon } from '@heroicons/vue/24/solid';
 	
+	import { emit } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	
 	import { ref } from 'vue';
@@ -271,6 +272,7 @@
 		
 		await dbTransaction.commit();
 		
+		await emit('transaction-updated', {id: newTransaction.id});
 		await getCurrentWindow().close();
 	}
 	

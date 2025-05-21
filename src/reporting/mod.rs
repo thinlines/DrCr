@@ -31,7 +31,10 @@ pub mod steps;
 
 pub struct ReportingContext {
 	_eofy_date: NaiveDate,
-	step_lookup_fn: HashMap<(&'static str, &'static [ReportingProductKind]), ReportingStepLookupFn>,
+	step_lookup_fn: HashMap<
+		(&'static str, &'static [ReportingProductKind]),
+		(ReportingStepTakesArgsFn, ReportingStepFromArgsFn),
+	>,
 	step_dynamic_builders: Vec<ReportingStepDynamicBuilder>,
 }
 
@@ -48,9 +51,11 @@ impl ReportingContext {
 		&mut self,
 		name: &'static str,
 		product_kinds: &'static [ReportingProductKind],
-		builder: ReportingStepLookupFn,
+		takes_args_fn: ReportingStepTakesArgsFn,
+		from_args_fn: ReportingStepFromArgsFn,
 	) {
-		self.step_lookup_fn.insert((name, product_kinds), builder);
+		self.step_lookup_fn
+			.insert((name, product_kinds), (takes_args_fn, from_args_fn));
 	}
 
 	fn register_dynamic_builder(&mut self, builder: ReportingStepDynamicBuilder) {
@@ -121,18 +126,24 @@ pub trait ReportingStep: Debug + Downcast {
 	fn id(&self) -> ReportingStepId;
 
 	// Methods
+	fn requires(&self) -> Vec<ReportingProductId> {
+		vec![]
+	}
+
 	fn init_graph(
 		&self,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &mut ReportingGraphDependencies,
 	) {
 	}
+
 	fn after_init_graph(
 		&self,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &mut ReportingGraphDependencies,
 	) {
 	}
+
 	//fn execute(&self, _context: &ReportingContext, _products: &mut ReportingProducts) {
 	//	todo!();
 	//}
@@ -146,7 +157,8 @@ downcast_rs::impl_downcast!(ReportingStepArgs);
 dyn_clone::clone_trait_object!(ReportingStepArgs);
 dyn_eq::eq_trait_object!(ReportingStepArgs);
 
-pub type ReportingStepLookupFn = fn(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep>;
+pub type ReportingStepTakesArgsFn = fn(args: &Box<dyn ReportingStepArgs>) -> bool;
+pub type ReportingStepFromArgsFn = fn(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DateArgs {

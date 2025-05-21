@@ -30,6 +30,12 @@ pub fn register_dynamic_builders(context: &mut ReportingContext) {
 	});
 
 	context.register_dynamic_builder(ReportingStepDynamicBuilder {
+		name: "GenerateBalances",
+		can_build: GenerateBalances::can_build,
+		build: GenerateBalances::build,
+	});
+
+	context.register_dynamic_builder(ReportingStepDynamicBuilder {
 		name: "UpdateBalancesBetween",
 		can_build: UpdateBalancesBetween::can_build,
 		build: UpdateBalancesBetween::build,
@@ -55,11 +61,15 @@ impl BalancesAtToBalancesBetween {
 	) -> bool {
 		// Check for BalancesAt, BalancesAt -> BalancesBetween
 		if kind == ReportingProductKind::BalancesBetween {
+			let args = args.downcast_ref::<DateStartDateEndArgs>().unwrap();
+
 			match has_step_or_can_build(
 				&ReportingProductId {
 					name,
 					kind: ReportingProductKind::BalancesAt,
-					args: args.clone(),
+					args: Box::new(DateArgs {
+						date: args.date_start.clone(),
+					}),
 				},
 				steps,
 				dependencies,
@@ -100,14 +110,9 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		}
 	}
 
-	fn init_graph(
-		&self,
-		_steps: &Vec<Box<dyn ReportingStep>>,
-		dependencies: &mut ReportingGraphDependencies,
-	) {
+	fn requires(&self) -> Vec<ReportingProductId> {
 		// BalancesAtToBalancesBetween depends on BalancesAt at both time points
-		dependencies.add_dependency(
-			self.id(),
+		vec![
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
@@ -115,9 +120,6 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 					date: self.args.date_start.clone(),
 				}),
 			},
-		);
-		dependencies.add_dependency(
-			self.id(),
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
@@ -125,7 +127,89 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 					date: self.args.date_end.clone(),
 				}),
 			},
-		);
+		]
+	}
+}
+
+#[derive(Debug)]
+pub struct GenerateBalances {
+	step_name: &'static str,
+	args: DateArgs,
+}
+
+impl GenerateBalances {
+	// Implements (() -> Transactions) -> BalancesAt
+
+	fn can_build(
+		name: &'static str,
+		kind: ReportingProductKind,
+		args: &Box<dyn ReportingStepArgs>,
+		steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		context: &ReportingContext,
+	) -> bool {
+		// Check for Transactions -> BalancesAt
+		if kind == ReportingProductKind::BalancesAt {
+			match has_step_or_can_build(
+				&ReportingProductId {
+					name,
+					kind: ReportingProductKind::Transactions,
+					args: args.clone(),
+				},
+				steps,
+				dependencies,
+				context,
+			) {
+				HasStepOrCanBuild::HasStep(step) => {
+					// Check for () -> Transactions
+					if dependencies.dependencies_for_step(&step.id()).len() == 0 {
+						return true;
+					}
+				}
+				HasStepOrCanBuild::CanLookup(lookup_fn) => {
+					// Check for () -> Transactions
+					let step = lookup_fn(args.clone());
+					if step.requires().len() == 0 {
+						return true;
+					}
+				}
+				HasStepOrCanBuild::CanBuild(_) | HasStepOrCanBuild::None => {}
+			}
+		}
+		return false;
+	}
+
+	fn build(
+		name: &'static str,
+		_kind: ReportingProductKind,
+		args: Box<dyn ReportingStepArgs>,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
+		Box::new(GenerateBalances {
+			step_name: name,
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl ReportingStep for GenerateBalances {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: self.step_name,
+			product_kinds: &[ReportingProductKind::BalancesAt],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self) -> Vec<ReportingProductId> {
+		// GenerateBalances depends on Transactions
+		vec![ReportingProductId {
+			name: self.step_name,
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(self.args.clone()),
+		}]
 	}
 }
 

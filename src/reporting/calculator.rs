@@ -18,7 +18,7 @@
 
 use super::{
 	ReportingContext, ReportingProductId, ReportingProductKind, ReportingStep,
-	ReportingStepDynamicBuilder, ReportingStepId, ReportingStepLookupFn,
+	ReportingStepDynamicBuilder, ReportingStepFromArgsFn, ReportingStepId,
 };
 
 #[derive(Debug)]
@@ -80,7 +80,7 @@ pub enum ReportingCalculationError {
 
 pub enum HasStepOrCanBuild<'a, 'b> {
 	HasStep(&'a Box<dyn ReportingStep>),
-	CanLookup(ReportingStepLookupFn),
+	CanLookup(ReportingStepFromArgsFn),
 	CanBuild(&'b ReportingStepDynamicBuilder),
 	None,
 }
@@ -105,7 +105,10 @@ pub fn has_step_or_can_build<'a, 'b>(
 		.keys()
 		.find(|(name, kinds)| *name == product.name && kinds.contains(&product.kind))
 	{
-		return HasStepOrCanBuild::CanLookup(*context.step_lookup_fn.get(lookup_key).unwrap());
+		let (takes_args_fn, from_args_fn) = context.step_lookup_fn.get(lookup_key).unwrap();
+		if takes_args_fn(&product.args) {
+			return HasStepOrCanBuild::CanLookup(*from_args_fn);
+		}
 	}
 
 	// No explicit step for product - try builders
@@ -173,6 +176,9 @@ pub fn solve_for(
 	for target in targets {
 		steps.push(target);
 		let target = steps.last().unwrap();
+		for dependency in target.requires() {
+			dependencies.add_dependency(target.id(), dependency);
+		}
 		target.as_ref().init_graph(&steps, &mut dependencies);
 	}
 
@@ -200,7 +206,7 @@ pub fn solve_for(
 					*name == dependency.dependency.name
 						&& kinds.contains(&dependency.dependency.kind)
 				}) {
-					let lookup_fn = context.step_lookup_fn.get(lookup_key).unwrap();
+					let (_, lookup_fn) = context.step_lookup_fn.get(lookup_key).unwrap();
 					let new_step = lookup_fn(dependency.dependency.args.clone());
 
 					// Check new step meets the dependency
@@ -255,6 +261,9 @@ pub fn solve_for(
 			new_step_indexes.push(steps.len());
 			steps.push(new_step);
 			let new_step = steps.last().unwrap();
+			for dependency in new_step.requires() {
+				dependencies.add_dependency(new_step.id(), dependency);
+			}
 			new_step.as_ref().init_graph(&steps, &mut dependencies);
 		}
 

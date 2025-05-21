@@ -113,7 +113,7 @@ pub fn has_step_or_can_build<'a, 'b>(
 		if (builder.can_build)(
 			product.name,
 			product.kind,
-			product.args.clone(),
+			&product.args,
 			steps,
 			dependencies,
 			context,
@@ -225,7 +225,7 @@ pub fn solve_for(
 						if (builder.can_build)(
 							dependency.dependency.name,
 							dependency.dependency.kind,
-							dependency.dependency.args.clone(),
+							&dependency.dependency.args,
 							&steps,
 							&dependencies,
 							&context,

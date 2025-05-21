@@ -21,7 +21,7 @@ use libdrcr::reporting::{
 	builders::register_dynamic_builders,
 	calculator::solve_for,
 	steps::{register_lookup_fns, AllTransactionsExceptRetainedEarnings, CalculateIncomeTax},
-	ReportingContext, ReportingStep,
+	DateEofyArgs, DateStartDateEndArgs, ReportingContext, ReportingStep,
 };
 
 fn main() {
@@ -31,13 +31,24 @@ fn main() {
 
 	let targets: Vec<Box<dyn ReportingStep>> = vec![
 		Box::new(CalculateIncomeTax {
-			date_eofy: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			args: DateEofyArgs {
+				date_eofy: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			},
 		}),
 		Box::new(AllTransactionsExceptRetainedEarnings {
-			date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
-			date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			args: DateStartDateEndArgs {
+				date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
+				date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			},
 		}),
 	];
 
-	println!("{:?}", solve_for(targets, context));
+	match solve_for(targets, context) {
+		Ok(steps) => {
+			for step in steps {
+				println!("- {}", step.id());
+			}
+		}
+		Err(err) => panic!("Error: {:?}", err),
+	}
 }

@@ -19,9 +19,11 @@
 use std::fmt::Debug;
 use std::{collections::HashMap, fmt::Display};
 
-use calculator::{ReportingGraphDependencies};
+use calculator::ReportingGraphDependencies;
 use chrono::NaiveDate;
 use downcast_rs::Downcast;
+use dyn_clone::DynClone;
+use dyn_eq::DynEq;
 
 pub mod builders;
 pub mod calculator;
@@ -66,12 +68,12 @@ impl ReportingContext {
 pub struct ReportingProductId {
 	name: &'static str,
 	kind: ReportingProductKind,
-	args: Vec<String>,
+	args: Box<dyn ReportingStepArgs>,
 }
 
 impl Display for ReportingProductId {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{}.{:?}{:?}", self.name, self.kind, self.args))
+		f.write_fmt(format_args!("{}.{:?}({})", self.name, self.kind, self.args))
 	}
 }
 
@@ -102,13 +104,13 @@ pub enum ReportingProductKind {
 pub struct ReportingStepId {
 	pub name: &'static str,
 	pub product_kinds: &'static [ReportingProductKind],
-	pub args: Vec<String>,
+	pub args: Box<dyn ReportingStepArgs>,
 }
 
 impl Display for ReportingStepId {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!(
-			"{}{:?}{:?}",
+			"{}{:?}({})",
 			self.name, self.product_kinds, self.args
 		))
 	}
@@ -138,14 +140,60 @@ pub trait ReportingStep: Debug + Downcast {
 
 downcast_rs::impl_downcast!(ReportingStep);
 
-pub type ReportingStepLookupFn = fn(args: Vec<String>) -> Box<dyn ReportingStep>;
+pub trait ReportingStepArgs: Debug + Display + Downcast + DynClone + DynEq {}
+
+downcast_rs::impl_downcast!(ReportingStepArgs);
+dyn_clone::clone_trait_object!(ReportingStepArgs);
+dyn_eq::eq_trait_object!(ReportingStepArgs);
+
+pub type ReportingStepLookupFn = fn(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep>;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DateArgs {
+	pub date: NaiveDate,
+}
+
+impl ReportingStepArgs for DateArgs {}
+
+impl Display for DateArgs {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.date))
+	}
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DateEofyArgs {
+	pub date_eofy: NaiveDate,
+}
+
+impl ReportingStepArgs for DateEofyArgs {}
+
+impl Display for DateEofyArgs {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.date_eofy))
+	}
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DateStartDateEndArgs {
+	pub date_start: NaiveDate,
+	pub date_end: NaiveDate,
+}
+
+impl ReportingStepArgs for DateStartDateEndArgs {}
+
+impl Display for DateStartDateEndArgs {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}, {}", self.date_start, self.date_end))
+	}
+}
 
 pub struct ReportingStepDynamicBuilder {
 	name: &'static str,
 	can_build: fn(
 		name: &'static str,
 		kind: ReportingProductKind,
-		args: Vec<String>,
+		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
@@ -153,7 +201,7 @@ pub struct ReportingStepDynamicBuilder {
 	build: fn(
 		name: &'static str,
 		kind: ReportingProductKind,
-		args: Vec<String>,
+		args: Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,

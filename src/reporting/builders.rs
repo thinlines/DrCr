@@ -16,12 +16,10 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use chrono::NaiveDate;
-
 use super::{
 	calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies},
-	ReportingContext, ReportingProductId, ReportingProductKind, ReportingStep,
-	ReportingStepDynamicBuilder, ReportingStepId,
+	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
+	ReportingStep, ReportingStepArgs, ReportingStepDynamicBuilder, ReportingStepId,
 };
 
 pub fn register_dynamic_builders(context: &mut ReportingContext) {
@@ -41,8 +39,7 @@ pub fn register_dynamic_builders(context: &mut ReportingContext) {
 #[derive(Debug)]
 pub struct BalancesAtToBalancesBetween {
 	step_name: &'static str,
-	date_start: NaiveDate,
-	date_end: NaiveDate,
+	args: DateStartDateEndArgs,
 }
 
 impl BalancesAtToBalancesBetween {
@@ -51,7 +48,7 @@ impl BalancesAtToBalancesBetween {
 	fn can_build(
 		name: &'static str,
 		kind: ReportingProductKind,
-		args: Vec<String>,
+		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
@@ -62,7 +59,7 @@ impl BalancesAtToBalancesBetween {
 				&ReportingProductId {
 					name,
 					kind: ReportingProductKind::BalancesAt,
-					args: vec![args[1].clone()],
+					args: args.clone(),
 				},
 				steps,
 				dependencies,
@@ -82,15 +79,14 @@ impl BalancesAtToBalancesBetween {
 	fn build(
 		name: &'static str,
 		_kind: ReportingProductKind,
-		args: Vec<String>,
+		args: Box<dyn ReportingStepArgs>,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(BalancesAtToBalancesBetween {
 			step_name: name,
-			date_start: NaiveDate::parse_from_str(&args[0], "%Y-%m-%d").unwrap(),
-			date_end: NaiveDate::parse_from_str(&args[1], "%Y-%m-%d").unwrap(),
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -100,10 +96,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		ReportingStepId {
 			name: self.step_name,
 			product_kinds: &[ReportingProductKind::BalancesBetween],
-			args: vec![
-				self.date_start.format("%Y-%m-%d").to_string(),
-				self.date_end.format("%Y-%m-%d").to_string(),
-			],
+			args: Box::new(self.args.clone()),
 		}
 	}
 
@@ -112,12 +105,15 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &mut ReportingGraphDependencies,
 	) {
+		// BalancesAtToBalancesBetween depends on BalancesAt at both time points
 		dependencies.add_dependency(
 			self.id(),
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
-				args: vec![self.date_start.format("%Y-%m-%d").to_string()],
+				args: Box::new(DateArgs {
+					date: self.args.date_start.clone(),
+				}),
 			},
 		);
 		dependencies.add_dependency(
@@ -125,7 +121,9 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
-				args: vec![self.date_end.format("%Y-%m-%d").to_string()],
+				args: Box::new(DateArgs {
+					date: self.args.date_end.clone(),
+				}),
 			},
 		);
 	}
@@ -134,8 +132,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 #[derive(Debug)]
 pub struct UpdateBalancesBetween {
 	step_name: &'static str,
-	date_start: NaiveDate,
-	date_end: NaiveDate,
+	args: DateStartDateEndArgs,
 }
 
 impl UpdateBalancesBetween {
@@ -144,7 +141,7 @@ impl UpdateBalancesBetween {
 	fn can_build(
 		name: &'static str,
 		kind: ReportingProductKind,
-		_args: Vec<String>,
+		_args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
@@ -191,15 +188,14 @@ impl UpdateBalancesBetween {
 	fn build(
 		name: &'static str,
 		_kind: ReportingProductKind,
-		args: Vec<String>,
+		args: Box<dyn ReportingStepArgs>,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(UpdateBalancesBetween {
 			step_name: name,
-			date_start: NaiveDate::parse_from_str(&args[0], "%Y-%m-%d").unwrap(),
-			date_end: NaiveDate::parse_from_str(&args[1], "%Y-%m-%d").unwrap(),
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -209,10 +205,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		ReportingStepId {
 			name: self.step_name,
 			product_kinds: &[ReportingProductKind::BalancesBetween],
-			args: vec![
-				self.date_start.format("%Y-%m-%d").to_string(),
-				self.date_end.format("%Y-%m-%d").to_string(),
-			],
+			args: Box::new(self.args.clone()),
 		}
 	}
 

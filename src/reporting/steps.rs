@@ -16,13 +16,12 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use chrono::NaiveDate;
-
 use crate::util::sofy_from_eofy;
 
 use super::{
-	calculator::ReportingGraphDependencies, ReportingContext, ReportingProductId,
-	ReportingProductKind, ReportingStep, ReportingStepId,
+	calculator::ReportingGraphDependencies, DateArgs, DateEofyArgs, DateStartDateEndArgs,
+	ReportingContext, ReportingProductId, ReportingProductKind, ReportingStep, ReportingStepArgs,
+	ReportingStepId,
 };
 
 pub fn register_lookup_fns(context: &mut ReportingContext) {
@@ -53,15 +52,13 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 
 #[derive(Debug)]
 pub struct AllTransactionsExceptRetainedEarnings {
-	pub date_start: NaiveDate,
-	pub date_end: NaiveDate,
+	pub args: DateStartDateEndArgs,
 }
 
 impl AllTransactionsExceptRetainedEarnings {
-	fn from_args(args: Vec<String>) -> Box<dyn ReportingStep> {
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsExceptRetainedEarnings {
-			date_start: NaiveDate::parse_from_str(&args[0], "%Y-%m-%d").unwrap(),
-			date_end: NaiveDate::parse_from_str(&args[1], "%Y-%m-%d").unwrap(),
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -71,23 +68,20 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 		ReportingStepId {
 			name: "AllTransactionsExceptRetainedEarnings",
 			product_kinds: &[ReportingProductKind::BalancesBetween],
-			args: vec![
-				self.date_start.format("%Y-%m-%d").to_string(),
-				self.date_end.format("%Y-%m-%d").to_string(),
-			],
+			args: Box::new(self.args.clone()),
 		}
 	}
 }
 
 #[derive(Debug)]
 pub struct CalculateIncomeTax {
-	pub date_eofy: NaiveDate,
+	pub args: DateEofyArgs,
 }
 
 impl CalculateIncomeTax {
-	fn from_args(args: Vec<String>) -> Box<dyn ReportingStep> {
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(CalculateIncomeTax {
-			date_eofy: NaiveDate::parse_from_str(&args[0], "%Y-%m-%d").unwrap(),
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -97,7 +91,7 @@ impl ReportingStep for CalculateIncomeTax {
 		ReportingStepId {
 			name: "CalculateIncomeTax",
 			product_kinds: &[ReportingProductKind::Transactions],
-			args: vec![self.date_eofy.format("%Y-%m-%d").to_string()],
+			args: Box::new(self.args.clone()),
 		}
 	}
 
@@ -106,17 +100,16 @@ impl ReportingStep for CalculateIncomeTax {
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &mut ReportingGraphDependencies,
 	) {
+		// CalculateIncomeTax depends on CombineOrdinaryTransactions
 		dependencies.add_dependency(
 			self.id(),
 			ReportingProductId {
 				name: "CombineOrdinaryTransactions",
 				kind: ReportingProductKind::BalancesBetween,
-				args: vec![
-					sofy_from_eofy(self.date_eofy)
-						.format("%Y-%m-%d")
-						.to_string(),
-					self.date_eofy.format("%Y-%m-%d").to_string(),
-				],
+				args: Box::new(DateStartDateEndArgs {
+					date_start: sofy_from_eofy(self.args.date_eofy),
+					date_end: self.args.date_eofy.clone(),
+				}),
 			},
 		);
 	}
@@ -128,7 +121,10 @@ impl ReportingStep for CalculateIncomeTax {
 	) {
 		for other in steps {
 			if let Some(other) = other.downcast_ref::<AllTransactionsExceptRetainedEarnings>() {
-				if other.date_start <= self.date_eofy && other.date_end >= self.date_eofy {
+				if other.args.date_start <= self.args.date_eofy
+					&& other.args.date_end >= self.args.date_eofy
+				{
+					// AllTransactionsExceptRetainedEarnings (in applicable periods) depends on CalculateIncomeTax
 					dependencies.add_target_dependency(other.id(), self.id());
 				}
 			}
@@ -138,13 +134,13 @@ impl ReportingStep for CalculateIncomeTax {
 
 #[derive(Debug)]
 pub struct CombineOrdinaryTransactions {
-	pub date: NaiveDate,
+	pub args: DateArgs,
 }
 
 impl CombineOrdinaryTransactions {
-	fn from_args(args: Vec<String>) -> Box<dyn ReportingStep> {
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(CombineOrdinaryTransactions {
-			date: NaiveDate::parse_from_str(&args[0], "%Y-%m-%d").unwrap(),
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -154,7 +150,7 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		ReportingStepId {
 			name: "CombineOrdinaryTransactions",
 			product_kinds: &[ReportingProductKind::BalancesAt],
-			args: vec![self.date.format("%Y-%m-%d").to_string()],
+			args: Box::new(self.args.clone()),
 		}
 	}
 
@@ -163,12 +159,13 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &mut ReportingGraphDependencies,
 	) {
+		// CombineOrdinaryTransactions depends on DBBalances
 		dependencies.add_dependency(
 			self.id(),
 			ReportingProductId {
 				name: "DBBalances",
 				kind: ReportingProductKind::BalancesAt,
-				args: vec![self.date.format("%Y-%m-%d").to_string()],
+				args: Box::new(self.args.clone()),
 			},
 		);
 	}
@@ -176,13 +173,13 @@ impl ReportingStep for CombineOrdinaryTransactions {
 
 #[derive(Debug)]
 pub struct DBBalances {
-	pub date: NaiveDate,
+	pub args: DateArgs,
 }
 
 impl DBBalances {
-	fn from_args(args: Vec<String>) -> Box<dyn ReportingStep> {
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(DBBalances {
-			date: NaiveDate::parse_from_str(&args[0], "%Y-%m-%d").unwrap(),
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -192,7 +189,7 @@ impl ReportingStep for DBBalances {
 		ReportingStepId {
 			name: "DBBalances",
 			product_kinds: &[ReportingProductKind::BalancesAt],
-			args: vec![self.date.format("%Y-%m-%d").to_string()],
+			args: Box::new(self.args.clone()),
 		}
 	}
 }

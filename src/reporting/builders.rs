@@ -26,12 +26,6 @@ use super::{
 
 pub fn register_dynamic_builders(context: &mut ReportingContext) {
 	context.register_dynamic_builder(ReportingStepDynamicBuilder {
-		name: "BalancesAtToBalancesBetween",
-		can_build: BalancesAtToBalancesBetween::can_build,
-		build: BalancesAtToBalancesBetween::build,
-	});
-
-	context.register_dynamic_builder(ReportingStepDynamicBuilder {
 		name: "GenerateBalances",
 		can_build: GenerateBalances::can_build,
 		build: GenerateBalances::build,
@@ -41,6 +35,19 @@ pub fn register_dynamic_builders(context: &mut ReportingContext) {
 		name: "UpdateBalancesBetween",
 		can_build: UpdateBalancesBetween::can_build,
 		build: UpdateBalancesBetween::build,
+	});
+
+	context.register_dynamic_builder(ReportingStepDynamicBuilder {
+		name: "UpdateBalancesAt",
+		can_build: UpdateBalancesAt::can_build,
+		build: UpdateBalancesAt::build,
+	});
+
+	// This is the least efficient way of generating BalancesBetween
+	context.register_dynamic_builder(ReportingStepDynamicBuilder {
+		name: "BalancesAtToBalancesBetween",
+		can_build: BalancesAtToBalancesBetween::can_build,
+		build: BalancesAtToBalancesBetween::build,
 	});
 }
 
@@ -63,6 +70,10 @@ impl BalancesAtToBalancesBetween {
 	) -> bool {
 		// Check for BalancesAt, BalancesAt -> BalancesBetween
 		if kind == ReportingProductKind::BalancesBetween {
+			if !args.is::<DateStartDateEndArgs>() {
+				return false;
+			}
+
 			let args = args.downcast_ref::<DateStartDateEndArgs>().unwrap();
 
 			match has_step_or_can_build(
@@ -105,7 +116,10 @@ impl BalancesAtToBalancesBetween {
 
 impl Display for BalancesAtToBalancesBetween {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{} {{BalancesAtToBalancesBetween}}", self.id()))
+		f.write_fmt(format_args!(
+			"{} {{BalancesAtToBalancesBetween}}",
+			self.id()
+		))
 	}
 }
 
@@ -224,6 +238,133 @@ impl ReportingStep for GenerateBalances {
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(self.args.clone()),
 		}]
+	}
+}
+
+#[derive(Debug)]
+pub struct UpdateBalancesAt {
+	step_name: &'static str,
+	args: DateArgs,
+}
+
+impl UpdateBalancesAt {
+	// Implements (BalancesAt -> Transactions) -> BalancesAt
+
+	fn can_build(
+		name: &'static str,
+		kind: ReportingProductKind,
+		_args: &Box<dyn ReportingStepArgs>,
+		steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		context: &ReportingContext,
+	) -> bool {
+		// Check for Transactions -> BalancesAt
+		if kind == ReportingProductKind::BalancesAt {
+			// Initially no need to check args
+			if let Some(step) = steps.iter().find(|s| {
+				s.id().name == name
+					&& s.id()
+						.product_kinds
+						.contains(&ReportingProductKind::Transactions)
+			}) {
+				// Check for BalancesAt -> Transactions
+				let dependencies_for_step = dependencies.dependencies_for_step(&step.id());
+				if dependencies_for_step.len() == 1
+					&& dependencies_for_step[0].dependency.kind == ReportingProductKind::BalancesAt
+				{
+					return true;
+				}
+
+				// Check if BalancesBetween -> Transactions and BalancesAt is available
+				if dependencies_for_step.len() == 1
+					&& dependencies_for_step[0].dependency.kind
+						== ReportingProductKind::BalancesBetween
+				{
+					let date_end = dependencies_for_step[0]
+						.dependency
+						.args
+						.downcast_ref::<DateStartDateEndArgs>()
+						.unwrap()
+						.date_end;
+
+					match has_step_or_can_build(
+						&ReportingProductId {
+							name: dependencies_for_step[0].dependency.name,
+							kind: ReportingProductKind::BalancesAt,
+							args: Box::new(DateArgs { date: date_end }),
+						},
+						steps,
+						dependencies,
+						context,
+					) {
+						HasStepOrCanBuild::HasStep(_)
+						| HasStepOrCanBuild::CanLookup(_)
+						| HasStepOrCanBuild::CanBuild(_) => {
+							return true;
+						}
+						HasStepOrCanBuild::None => {}
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	fn build(
+		name: &'static str,
+		_kind: ReportingProductKind,
+		args: Box<dyn ReportingStepArgs>,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
+		Box::new(UpdateBalancesAt {
+			step_name: name,
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for UpdateBalancesAt {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{} {{UpdateBalancesAt}}", self.id()))
+	}
+}
+
+impl ReportingStep for UpdateBalancesAt {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: self.step_name,
+			product_kinds: &[ReportingProductKind::BalancesAt],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn init_graph(
+		&self,
+		steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &mut ReportingGraphDependencies,
+	) {
+		// Add a dependency on the Transactions result
+		// Look up that step, so we can extract the appropriate args
+		let parent_step = steps
+			.iter()
+			.find(|s| {
+				s.id().name == self.step_name
+					&& s.id()
+						.product_kinds
+						.contains(&ReportingProductKind::Transactions)
+			})
+			.unwrap(); // Existence is checked in can_build
+
+		dependencies.add_dependency(
+			self.id(),
+			ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::Transactions,
+				args: parent_step.id().args.clone(),
+			},
+		);
 	}
 }
 

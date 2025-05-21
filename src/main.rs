@@ -20,8 +20,12 @@ use chrono::NaiveDate;
 use libdrcr::reporting::{
 	builders::register_dynamic_builders,
 	calculator::solve_for,
-	steps::{register_lookup_fns, AllTransactionsExceptRetainedEarnings, CalculateIncomeTax},
-	DateEofyArgs, DateStartDateEndArgs, ReportingContext, ReportingStep,
+	steps::{
+		register_lookup_fns, AllTransactionsExceptRetainedEarnings,
+		AllTransactionsIncludingRetainedEarnings, CalculateIncomeTax,
+	},
+	DateArgs, DateEofyArgs, DateStartDateEndArgs, ReportingContext, ReportingProductKind,
+	ReportingStep,
 };
 
 fn main() {
@@ -36,13 +40,43 @@ fn main() {
 			},
 		}),
 		Box::new(AllTransactionsExceptRetainedEarnings {
-			args: DateStartDateEndArgs {
+			product_kinds: &[ReportingProductKind::BalancesBetween],
+			args: Box::new(DateStartDateEndArgs {
 				date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
 				date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			},
+			}),
 		}),
 	];
 
+	println!("For income statement:");
+	match solve_for(targets, context) {
+		Ok(steps) => {
+			for step in steps {
+				println!("- {}", step);
+			}
+		}
+		Err(err) => panic!("Error: {:?}", err),
+	}
+
+	let mut context = ReportingContext::new(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap());
+	register_lookup_fns(&mut context);
+	register_dynamic_builders(&mut context);
+
+	let targets: Vec<Box<dyn ReportingStep>> = vec![
+		Box::new(CalculateIncomeTax {
+			args: DateEofyArgs {
+				date_eofy: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			},
+		}),
+		Box::new(AllTransactionsIncludingRetainedEarnings {
+			product_kinds: &[ReportingProductKind::BalancesAt],
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			}),
+		}),
+	];
+
+	println!("For balance sheet:");
 	match solve_for(targets, context) {
 		Ok(steps) => {
 			for step in steps {

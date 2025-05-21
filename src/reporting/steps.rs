@@ -29,9 +29,47 @@ use super::{
 pub fn register_lookup_fns(context: &mut ReportingContext) {
 	context.register_lookup_fn(
 		"AllTransactionsExceptRetainedEarnings",
+		&[ReportingProductKind::BalancesAt],
+		AllTransactionsExceptRetainedEarnings::takes_args,
+		|a| {
+			AllTransactionsExceptRetainedEarnings::from_args(&[ReportingProductKind::BalancesAt], a)
+		},
+	);
+
+	context.register_lookup_fn(
+		"AllTransactionsExceptRetainedEarnings",
 		&[ReportingProductKind::BalancesBetween],
 		AllTransactionsExceptRetainedEarnings::takes_args,
-		AllTransactionsExceptRetainedEarnings::from_args,
+		|a| {
+			AllTransactionsExceptRetainedEarnings::from_args(
+				&[ReportingProductKind::BalancesBetween],
+				a,
+			)
+		},
+	);
+
+	context.register_lookup_fn(
+		"AllTransactionsIncludingRetainedEarnings",
+		&[ReportingProductKind::BalancesAt],
+		AllTransactionsIncludingRetainedEarnings::takes_args,
+		|a| {
+			AllTransactionsIncludingRetainedEarnings::from_args(
+				&[ReportingProductKind::BalancesAt],
+				a,
+			)
+		},
+	);
+
+	context.register_lookup_fn(
+		"AllTransactionsIncludingRetainedEarnings",
+		&[ReportingProductKind::BalancesBetween],
+		AllTransactionsIncludingRetainedEarnings::takes_args,
+		|a| {
+			AllTransactionsIncludingRetainedEarnings::from_args(
+				&[ReportingProductKind::BalancesBetween],
+				a,
+			)
+		},
 	);
 
 	context.register_lookup_fn(
@@ -65,17 +103,22 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 
 #[derive(Debug)]
 pub struct AllTransactionsExceptRetainedEarnings {
-	pub args: DateStartDateEndArgs,
+	pub product_kinds: &'static [ReportingProductKind], // Must have single member
+	pub args: Box<dyn ReportingStepArgs>,
 }
 
 impl AllTransactionsExceptRetainedEarnings {
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
-		args.is::<DateStartDateEndArgs>()
+	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
+		true
 	}
-	
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+
+	fn from_args(
+		product_kinds: &'static [ReportingProductKind],
+		args: Box<dyn ReportingStepArgs>,
+	) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsExceptRetainedEarnings {
-			args: *args.downcast().unwrap(),
+			product_kinds,
+			args,
 		})
 	}
 }
@@ -90,9 +133,55 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "AllTransactionsExceptRetainedEarnings",
-			product_kinds: &[ReportingProductKind::BalancesBetween],
-			args: Box::new(self.args.clone()),
+			product_kinds: self.product_kinds,
+			args: self.args.clone(),
 		}
+	}
+}
+
+#[derive(Debug)]
+pub struct AllTransactionsIncludingRetainedEarnings {
+	pub product_kinds: &'static [ReportingProductKind], // Must have single member
+	pub args: Box<dyn ReportingStepArgs>,
+}
+
+impl AllTransactionsIncludingRetainedEarnings {
+	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
+		true
+	}
+
+	fn from_args(
+		product_kinds: &'static [ReportingProductKind],
+		args: Box<dyn ReportingStepArgs>,
+	) -> Box<dyn ReportingStep> {
+		Box::new(AllTransactionsIncludingRetainedEarnings {
+			product_kinds,
+			args,
+		})
+	}
+}
+
+impl Display for AllTransactionsIncludingRetainedEarnings {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "AllTransactionsIncludingRetainedEarnings",
+			product_kinds: self.product_kinds,
+			args: self.args.clone(),
+		}
+	}
+
+	fn requires(&self) -> Vec<ReportingProductId> {
+		vec![ReportingProductId {
+			name: "AllTransactionsExceptRetainedEarnings",
+			kind: self.product_kinds[0],
+			args: self.args.clone(),
+		}]
 	}
 }
 
@@ -105,7 +194,7 @@ impl CalculateIncomeTax {
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateEofyArgs>()
 	}
-	
+
 	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(CalculateIncomeTax {
 			args: *args.downcast().unwrap(),
@@ -147,11 +236,35 @@ impl ReportingStep for CalculateIncomeTax {
 	) {
 		for other in steps {
 			if let Some(other) = other.downcast_ref::<AllTransactionsExceptRetainedEarnings>() {
-				if other.args.date_start <= self.args.date_eofy
-					&& other.args.date_end >= self.args.date_eofy
-				{
-					// AllTransactionsExceptRetainedEarnings (in applicable periods) depends on CalculateIncomeTax
-					dependencies.add_target_dependency(other.id(), self.id());
+				// AllTransactionsExceptRetainedEarnings (in applicable periods) depends on CalculateIncomeTax
+				if other.args.is::<DateArgs>() {
+					let other_args = other.args.downcast_ref::<DateArgs>().unwrap();
+					if other_args.date >= self.args.date_eofy {
+						dependencies.add_dependency(
+							other.id(),
+							ReportingProductId {
+								name: self.id().name,
+								kind: other.product_kinds[0],
+								args: other.id().args,
+							},
+						);
+					}
+				} else if other.args.is::<DateStartDateEndArgs>() {
+					let other_args = other.args.downcast_ref::<DateStartDateEndArgs>().unwrap();
+					if other_args.date_start <= self.args.date_eofy
+						&& other_args.date_end >= self.args.date_eofy
+					{
+						dependencies.add_dependency(
+							other.id(),
+							ReportingProductId {
+								name: self.id().name,
+								kind: other.product_kinds[0],
+								args: other.id().args,
+							},
+						);
+					}
+				} else {
+					unreachable!();
 				}
 			}
 		}
@@ -167,7 +280,7 @@ impl CombineOrdinaryTransactions {
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
-	
+
 	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(CombineOrdinaryTransactions {
 			args: *args.downcast().unwrap(),
@@ -217,7 +330,7 @@ impl DBBalances {
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
-	
+
 	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(DBBalances {
 			args: *args.downcast().unwrap(),
@@ -250,7 +363,7 @@ impl PostUnreconciledStatementLines {
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
-	
+
 	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(PostUnreconciledStatementLines {
 			args: *args.downcast().unwrap(),

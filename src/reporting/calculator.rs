@@ -17,8 +17,8 @@
 */
 
 use super::{
-	ReportingContext, ReportingProductId, ReportingProductKind, ReportingStep,
-	ReportingStepDynamicBuilder, ReportingStepFromArgsFn, ReportingStepId,
+	ReportingContext, ReportingProductId, ReportingStep, ReportingStepDynamicBuilder,
+	ReportingStepFromArgsFn, ReportingStepId,
 };
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl ReportingGraphDependencies {
 		}
 	}
 
-	pub fn add_target_dependency(&mut self, target: ReportingStepId, dependency: ReportingStepId) {
+	/*pub fn add_target_dependency(&mut self, target: ReportingStepId, dependency: ReportingStepId) {
 		for kind in target.product_kinds {
 			match kind {
 				ReportingProductKind::Transactions | ReportingProductKind::BalancesBetween => {
@@ -58,7 +58,7 @@ impl ReportingGraphDependencies {
 				ReportingProductKind::Generic => todo!(),
 			}
 		}
-	}
+	}*/
 
 	pub fn dependencies_for_step(&self, step: &ReportingStepId) -> Vec<&Dependency> {
 		return self.vec.iter().filter(|d| d.step == *step).collect();
@@ -206,46 +206,50 @@ pub fn solve_for(
 					*name == dependency.dependency.name
 						&& kinds.contains(&dependency.dependency.kind)
 				}) {
-					let (_, lookup_fn) = context.step_lookup_fn.get(lookup_key).unwrap();
-					let new_step = lookup_fn(dependency.dependency.args.clone());
+					let (takes_args_fn, from_args_fn) =
+						context.step_lookup_fn.get(lookup_key).unwrap();
+					if takes_args_fn(&dependency.dependency.args) {
+						let new_step = from_args_fn(dependency.dependency.args.clone());
 
-					// Check new step meets the dependency
-					if new_step.id().name != dependency.dependency.name {
-						panic!("Unexpected step returned from lookup function (expected name {}, got {})", dependency.dependency.name, new_step.id().name);
-					}
-					if new_step.id().args != dependency.dependency.args {
-						panic!("Unexpected step returned from lookup function {} (expected args {:?}, got {:?})", dependency.dependency.name, dependency.dependency.args, new_step.id().args);
-					}
-					if !new_step
-						.id()
-						.product_kinds
-						.contains(&dependency.dependency.kind)
-					{
-						panic!("Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})", dependency.dependency.name, dependency.dependency.kind, new_step.id().product_kinds);
-					}
+						// Check new step meets the dependency
+						if new_step.id().name != dependency.dependency.name {
+							panic!("Unexpected step returned from lookup function (expected name {}, got {})", dependency.dependency.name, new_step.id().name);
+						}
+						if new_step.id().args != dependency.dependency.args {
+							panic!("Unexpected step returned from lookup function {} (expected args {:?}, got {:?})", dependency.dependency.name, dependency.dependency.args, new_step.id().args);
+						}
+						if !new_step
+							.id()
+							.product_kinds
+							.contains(&dependency.dependency.kind)
+						{
+							panic!("Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})", dependency.dependency.name, dependency.dependency.kind, new_step.id().product_kinds);
+						}
 
-					new_steps.push(new_step);
-				} else {
-					// No explicit step for product - try builders
-					for builder in context.step_dynamic_builders.iter() {
-						if (builder.can_build)(
+						new_steps.push(new_step);
+						continue;
+					}
+				}
+
+				// No explicit step for product - try builders
+				for builder in context.step_dynamic_builders.iter() {
+					if (builder.can_build)(
+						dependency.dependency.name,
+						dependency.dependency.kind,
+						&dependency.dependency.args,
+						&steps,
+						&dependencies,
+						&context,
+					) {
+						new_steps.push((builder.build)(
 							dependency.dependency.name,
 							dependency.dependency.kind,
-							&dependency.dependency.args,
+							dependency.dependency.args.clone(),
 							&steps,
 							&dependencies,
 							&context,
-						) {
-							new_steps.push((builder.build)(
-								dependency.dependency.name,
-								dependency.dependency.kind,
-								dependency.dependency.args.clone(),
-								&steps,
-								&dependencies,
-								&context,
-							));
-							break;
-						}
+						));
+						break;
 					}
 				}
 			}
@@ -267,9 +271,9 @@ pub fn solve_for(
 			new_step.as_ref().init_graph(&steps, &mut dependencies);
 		}
 
-		// Call after_init_graph on new steps
-		for new_step_index in new_step_indexes {
-			steps[new_step_index].after_init_graph(&steps, &mut dependencies);
+		// Call after_init_graph on all steps
+		for step in steps.iter() {
+			step.as_ref().after_init_graph(&steps, &mut dependencies);
 		}
 	}
 

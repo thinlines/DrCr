@@ -139,7 +139,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
-					date: self.args.date_start.clone(),
+					date: self.args.date_start.pred_opt().unwrap(), // Opening balance is the closing balance of the preceding day
 				}),
 			},
 			ReportingProductId {

@@ -52,7 +52,7 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 /// Used as the basis for the income statement.
 #[derive(Debug)]
 pub struct AllTransactionsExceptRetainedEarnings {
-	pub product_kinds: &'static [ReportingProductKind], // Must have single member
+	pub product_kinds: &'static [ReportingProductKind; 1], // Must have single member - represented as static array for compatibility with ReportingStepId
 	pub args: Box<dyn ReportingStepArgs>,
 }
 
@@ -78,7 +78,7 @@ impl AllTransactionsExceptRetainedEarnings {
 	}
 
 	fn from_args(
-		product_kinds: &'static [ReportingProductKind],
+		product_kinds: &'static [ReportingProductKind; 1],
 		args: Box<dyn ReportingStepArgs>,
 	) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsExceptRetainedEarnings {
@@ -113,10 +113,7 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 		// Get all dependencies
 		let step_dependencies = dependencies.dependencies_for_step(&self.id());
 
-		// Identify the product_kinds dependency most recently generated
-		if self.product_kinds.len() != 1 {
-			panic!("AllTransactionsExceptRetainedEarnings.product_kinds.len() != 1");
-		}
+		// Identify the product_kind dependency most recently generated
 		let product_kind = self.product_kinds[0];
 
 		for (product_id, product) in products.map().iter().rev() {

@@ -21,9 +21,9 @@ use std::fmt::Display;
 use crate::util::sofy_from_eofy;
 
 use super::{
-	calculator::ReportingGraphDependencies, DateArgs, DateEofyArgs, DateStartDateEndArgs,
-	ReportingContext, ReportingProductId, ReportingProductKind, ReportingStep, ReportingStepArgs,
-	ReportingStepId,
+	calculator::ReportingGraphDependencies, DateArgs, DateStartDateEndArgs, ReportingContext,
+	ReportingProductId, ReportingProductKind, ReportingStep, ReportingStepArgs, ReportingStepId,
+	VoidArgs,
 };
 
 pub fn register_lookup_fns(context: &mut ReportingContext) {
@@ -176,7 +176,7 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 		}
 	}
 
-	fn requires(&self) -> Vec<ReportingProductId> {
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		vec![ReportingProductId {
 			name: "AllTransactionsExceptRetainedEarnings",
 			kind: self.product_kinds[0],
@@ -186,19 +186,15 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 }
 
 #[derive(Debug)]
-pub struct CalculateIncomeTax {
-	pub args: DateEofyArgs,
-}
+pub struct CalculateIncomeTax {}
 
 impl CalculateIncomeTax {
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
-		args.is::<DateEofyArgs>()
+	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
+		true
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
-		Box::new(CalculateIncomeTax {
-			args: *args.downcast().unwrap(),
-		})
+	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(CalculateIncomeTax {})
 	}
 }
 
@@ -213,18 +209,18 @@ impl ReportingStep for CalculateIncomeTax {
 		ReportingStepId {
 			name: "CalculateIncomeTax",
 			product_kinds: &[ReportingProductKind::Transactions],
-			args: Box::new(self.args.clone()),
+			args: Box::new(VoidArgs {}),
 		}
 	}
 
-	fn requires(&self) -> Vec<ReportingProductId> {
+	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
 		// CalculateIncomeTax depends on CombineOrdinaryTransactions
 		vec![ReportingProductId {
 			name: "CombineOrdinaryTransactions",
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
-				date_start: sofy_from_eofy(self.args.date_eofy),
-				date_end: self.args.date_eofy.clone(),
+				date_start: sofy_from_eofy(context.eofy_date),
+				date_end: context.eofy_date.clone(),
 			}),
 		}]
 	}
@@ -233,39 +229,19 @@ impl ReportingStep for CalculateIncomeTax {
 		&self,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &mut ReportingGraphDependencies,
+		_context: &ReportingContext,
 	) {
 		for other in steps {
 			if let Some(other) = other.downcast_ref::<AllTransactionsExceptRetainedEarnings>() {
-				// AllTransactionsExceptRetainedEarnings (in applicable periods) depends on CalculateIncomeTax
-				if other.args.is::<DateArgs>() {
-					let other_args = other.args.downcast_ref::<DateArgs>().unwrap();
-					if other_args.date >= self.args.date_eofy {
-						dependencies.add_dependency(
-							other.id(),
-							ReportingProductId {
-								name: self.id().name,
-								kind: other.product_kinds[0],
-								args: other.id().args,
-							},
-						);
-					}
-				} else if other.args.is::<DateStartDateEndArgs>() {
-					let other_args = other.args.downcast_ref::<DateStartDateEndArgs>().unwrap();
-					if other_args.date_start <= self.args.date_eofy
-						&& other_args.date_end >= self.args.date_eofy
-					{
-						dependencies.add_dependency(
-							other.id(),
-							ReportingProductId {
-								name: self.id().name,
-								kind: other.product_kinds[0],
-								args: other.id().args,
-							},
-						);
-					}
-				} else {
-					unreachable!();
-				}
+				// AllTransactionsExceptRetainedEarnings depends on CalculateIncomeTax
+				dependencies.add_dependency(
+					other.id(),
+					ReportingProductId {
+						name: self.id().name,
+						kind: other.product_kinds[0],
+						args: other.id().args,
+					},
+				);
 			}
 		}
 	}
@@ -303,7 +279,7 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		}
 	}
 
-	fn requires(&self) -> Vec<ReportingProductId> {
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		vec![
 			// CombineOrdinaryTransactions depends on DBBalances
 			ReportingProductId {

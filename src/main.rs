@@ -24,8 +24,7 @@ use libdrcr::reporting::{
 		register_lookup_fns, AllTransactionsExceptRetainedEarnings,
 		AllTransactionsIncludingRetainedEarnings, CalculateIncomeTax,
 	},
-	DateArgs, DateEofyArgs, DateStartDateEndArgs, ReportingContext, ReportingProductKind,
-	ReportingStep,
+	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductKind, ReportingStep,
 };
 
 fn main() {
@@ -34,11 +33,7 @@ fn main() {
 	register_dynamic_builders(&mut context);
 
 	let targets: Vec<Box<dyn ReportingStep>> = vec![
-		Box::new(CalculateIncomeTax {
-			args: DateEofyArgs {
-				date_eofy: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			},
-		}),
+		Box::new(CalculateIncomeTax {}),
 		Box::new(AllTransactionsExceptRetainedEarnings {
 			product_kinds: &[ReportingProductKind::BalancesBetween],
 			args: Box::new(DateStartDateEndArgs {
@@ -63,11 +58,7 @@ fn main() {
 	register_dynamic_builders(&mut context);
 
 	let targets: Vec<Box<dyn ReportingStep>> = vec![
-		Box::new(CalculateIncomeTax {
-			args: DateEofyArgs {
-				date_eofy: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			},
-		}),
+		Box::new(CalculateIncomeTax {}),
 		Box::new(AllTransactionsIncludingRetainedEarnings {
 			product_kinds: &[ReportingProductKind::BalancesAt],
 			args: Box::new(DateArgs {

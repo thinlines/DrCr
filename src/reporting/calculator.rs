@@ -176,15 +176,15 @@ pub fn solve_for(
 	for target in targets {
 		steps.push(target);
 		let target = steps.last().unwrap();
-		for dependency in target.requires() {
+		for dependency in target.requires(&context) {
 			dependencies.add_dependency(target.id(), dependency);
 		}
-		target.as_ref().init_graph(&steps, &mut dependencies);
+		target.as_ref().init_graph(&steps, &mut dependencies, &context);
 	}
 
 	// Call after_init_graph on targets
 	for step in steps.iter() {
-		step.as_ref().after_init_graph(&steps, &mut dependencies);
+		step.as_ref().after_init_graph(&steps, &mut dependencies, &context);
 	}
 
 	// Process dependencies
@@ -265,15 +265,15 @@ pub fn solve_for(
 			new_step_indexes.push(steps.len());
 			steps.push(new_step);
 			let new_step = steps.last().unwrap();
-			for dependency in new_step.requires() {
+			for dependency in new_step.requires(&context) {
 				dependencies.add_dependency(new_step.id(), dependency);
 			}
-			new_step.as_ref().init_graph(&steps, &mut dependencies);
+			new_step.as_ref().init_graph(&steps, &mut dependencies, &context);
 		}
 
 		// Call after_init_graph on all steps
 		for step in steps.iter() {
-			step.as_ref().after_init_graph(&steps, &mut dependencies);
+			step.as_ref().after_init_graph(&steps, &mut dependencies, &context);
 		}
 	}
 

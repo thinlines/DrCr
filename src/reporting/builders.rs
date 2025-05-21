@@ -132,7 +132,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		}
 	}
 
-	fn requires(&self) -> Vec<ReportingProductId> {
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		// BalancesAtToBalancesBetween depends on BalancesAt at both time points
 		vec![
 			ReportingProductId {
@@ -191,7 +191,7 @@ impl GenerateBalances {
 				HasStepOrCanBuild::CanLookup(lookup_fn) => {
 					// Check for () -> Transactions
 					let step = lookup_fn(args.clone());
-					if step.requires().len() == 0 {
+					if step.requires(context).len() == 0 {
 						return true;
 					}
 				}
@@ -231,7 +231,7 @@ impl ReportingStep for GenerateBalances {
 		}
 	}
 
-	fn requires(&self) -> Vec<ReportingProductId> {
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		// GenerateBalances depends on Transactions
 		vec![ReportingProductId {
 			name: self.step_name,
@@ -344,6 +344,7 @@ impl ReportingStep for UpdateBalancesAt {
 		&self,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &mut ReportingGraphDependencies,
+		_context: &ReportingContext,
 	) {
 		// Add a dependency on the Transactions result
 		// Look up that step, so we can extract the appropriate args
@@ -458,6 +459,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		&self,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &mut ReportingGraphDependencies,
+		_context: &ReportingContext,
 	) {
 		// Add a dependency on the Transactions result
 		// Look up that step, so we can extract the appropriate args

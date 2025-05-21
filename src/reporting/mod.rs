@@ -30,7 +30,7 @@ pub mod calculator;
 pub mod steps;
 
 pub struct ReportingContext {
-	_eofy_date: NaiveDate,
+	eofy_date: NaiveDate,
 	step_lookup_fn: HashMap<
 		(&'static str, &'static [ReportingProductKind]),
 		(ReportingStepTakesArgsFn, ReportingStepFromArgsFn),
@@ -41,7 +41,7 @@ pub struct ReportingContext {
 impl ReportingContext {
 	pub fn new(eofy_date: NaiveDate) -> Self {
 		Self {
-			_eofy_date: eofy_date,
+			eofy_date: eofy_date,
 			step_lookup_fn: HashMap::new(),
 			step_dynamic_builders: Vec::new(),
 		}
@@ -126,7 +126,7 @@ pub trait ReportingStep: Debug + Display + Downcast {
 	fn id(&self) -> ReportingStepId;
 
 	// Methods
-	fn requires(&self) -> Vec<ReportingProductId> {
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		vec![]
 	}
 
@@ -134,6 +134,7 @@ pub trait ReportingStep: Debug + Display + Downcast {
 		&self,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &mut ReportingGraphDependencies,
+		_context: &ReportingContext,
 	) {
 	}
 
@@ -141,6 +142,7 @@ pub trait ReportingStep: Debug + Display + Downcast {
 		&self,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &mut ReportingGraphDependencies,
+		_context: &ReportingContext,
 	) {
 	}
 
@@ -161,6 +163,17 @@ pub type ReportingStepTakesArgsFn = fn(args: &Box<dyn ReportingStepArgs>) -> boo
 pub type ReportingStepFromArgsFn = fn(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VoidArgs {}
+
+impl ReportingStepArgs for VoidArgs {}
+
+impl Display for VoidArgs {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!(""))
+	}
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DateArgs {
 	pub date: NaiveDate,
 }
@@ -170,19 +183,6 @@ impl ReportingStepArgs for DateArgs {}
 impl Display for DateArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("{}", self.date))
-	}
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DateEofyArgs {
-	pub date_eofy: NaiveDate,
-}
-
-impl ReportingStepArgs for DateEofyArgs {}
-
-impl Display for DateEofyArgs {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{}", self.date_eofy))
 	}
 }
 

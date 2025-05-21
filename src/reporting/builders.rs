@@ -270,18 +270,18 @@ impl UpdateBalancesAt {
 				// Check for BalancesAt -> Transactions
 				let dependencies_for_step = dependencies.dependencies_for_step(&step.id());
 				if dependencies_for_step.len() == 1
-					&& dependencies_for_step[0].dependency.kind == ReportingProductKind::BalancesAt
+					&& dependencies_for_step[0].product.kind == ReportingProductKind::BalancesAt
 				{
 					return true;
 				}
 
 				// Check if BalancesBetween -> Transactions and BalancesAt is available
 				if dependencies_for_step.len() == 1
-					&& dependencies_for_step[0].dependency.kind
+					&& dependencies_for_step[0].product.kind
 						== ReportingProductKind::BalancesBetween
 				{
 					let date_end = dependencies_for_step[0]
-						.dependency
+						.product
 						.args
 						.downcast_ref::<DateStartDateEndArgs>()
 						.unwrap()
@@ -289,7 +289,7 @@ impl UpdateBalancesAt {
 
 					match has_step_or_can_build(
 						&ReportingProductId {
-							name: dependencies_for_step[0].dependency.name,
+							name: dependencies_for_step[0].product.name,
 							kind: ReportingProductKind::BalancesAt,
 							args: Box::new(DateArgs { date: date_end }),
 						},
@@ -398,7 +398,7 @@ impl UpdateBalancesBetween {
 				// Check for BalancesBetween -> Transactions
 				let dependencies_for_step = dependencies.dependencies_for_step(&step.id());
 				if dependencies_for_step.len() == 1
-					&& dependencies_for_step[0].dependency.kind
+					&& dependencies_for_step[0].product.kind
 						== ReportingProductKind::BalancesBetween
 				{
 					return true;

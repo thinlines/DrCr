@@ -35,9 +35,9 @@ impl ReportingGraphDependencies {
 		if !self
 			.vec
 			.iter()
-			.any(|d| d.step == step && d.dependency == dependency)
+			.any(|d| d.step == step && d.product == dependency)
 		{
-			self.vec.push(Dependency { step, dependency });
+			self.vec.push(Dependency { step, product: dependency });
 		}
 	}
 
@@ -65,10 +65,11 @@ impl ReportingGraphDependencies {
 	}
 }
 
+/// Represents that a [ReportingStep] depends on a [ReportingProduct]
 #[derive(Debug)]
 pub struct Dependency {
 	pub step: ReportingStepId,
-	pub dependency: ReportingProductId,
+	pub product: ReportingProductId,
 }
 
 #[derive(Debug)]
@@ -147,12 +148,12 @@ fn would_be_ready_to_execute(
 
 			// Check if the dependency has been produced by a previous step
 			for previous_step in previous_steps {
-				if steps[*previous_step].id().name == dependency.dependency.name
-					&& steps[*previous_step].id().args == dependency.dependency.args
+				if steps[*previous_step].id().name == dependency.product.name
+					&& steps[*previous_step].id().args == dependency.product.args
 					&& steps[*previous_step]
 						.id()
 						.product_kinds
-						.contains(&dependency.dependency.kind)
+						.contains(&dependency.product.kind)
 				{
 					continue 'check_each_dependency;
 				}
@@ -197,33 +198,33 @@ pub fn solve_for(
 				todo!();
 			}
 			if !steps.iter().any(|s| {
-				s.id().name == dependency.dependency.name
-					&& s.id().args == dependency.dependency.args
-					&& s.id().product_kinds.contains(&dependency.dependency.kind)
+				s.id().name == dependency.product.name
+					&& s.id().args == dependency.product.args
+					&& s.id().product_kinds.contains(&dependency.product.kind)
 			}) {
 				// Try lookup function
 				if let Some(lookup_key) = context.step_lookup_fn.keys().find(|(name, kinds)| {
-					*name == dependency.dependency.name
-						&& kinds.contains(&dependency.dependency.kind)
+					*name == dependency.product.name
+						&& kinds.contains(&dependency.product.kind)
 				}) {
 					let (takes_args_fn, from_args_fn) =
 						context.step_lookup_fn.get(lookup_key).unwrap();
-					if takes_args_fn(&dependency.dependency.args) {
-						let new_step = from_args_fn(dependency.dependency.args.clone());
+					if takes_args_fn(&dependency.product.args) {
+						let new_step = from_args_fn(dependency.product.args.clone());
 
 						// Check new step meets the dependency
-						if new_step.id().name != dependency.dependency.name {
-							panic!("Unexpected step returned from lookup function (expected name {}, got {})", dependency.dependency.name, new_step.id().name);
+						if new_step.id().name != dependency.product.name {
+							panic!("Unexpected step returned from lookup function (expected name {}, got {})", dependency.product.name, new_step.id().name);
 						}
-						if new_step.id().args != dependency.dependency.args {
-							panic!("Unexpected step returned from lookup function {} (expected args {:?}, got {:?})", dependency.dependency.name, dependency.dependency.args, new_step.id().args);
+						if new_step.id().args != dependency.product.args {
+							panic!("Unexpected step returned from lookup function {} (expected args {:?}, got {:?})", dependency.product.name, dependency.product.args, new_step.id().args);
 						}
 						if !new_step
 							.id()
 							.product_kinds
-							.contains(&dependency.dependency.kind)
+							.contains(&dependency.product.kind)
 						{
-							panic!("Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})", dependency.dependency.name, dependency.dependency.kind, new_step.id().product_kinds);
+							panic!("Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})", dependency.product.name, dependency.product.kind, new_step.id().product_kinds);
 						}
 
 						new_steps.push(new_step);
@@ -234,17 +235,17 @@ pub fn solve_for(
 				// No explicit step for product - try builders
 				for builder in context.step_dynamic_builders.iter() {
 					if (builder.can_build)(
-						dependency.dependency.name,
-						dependency.dependency.kind,
-						&dependency.dependency.args,
+						dependency.product.name,
+						dependency.product.kind,
+						&dependency.product.args,
 						&steps,
 						&dependencies,
 						&context,
 					) {
 						new_steps.push((builder.build)(
-							dependency.dependency.name,
-							dependency.dependency.kind,
-							dependency.dependency.args.clone(),
+							dependency.product.name,
+							dependency.product.kind,
+							dependency.product.args.clone(),
 							&steps,
 							&dependencies,
 							&context,
@@ -283,19 +284,19 @@ pub fn solve_for(
 			return Err(ReportingCalculationError::UnknownStep {
 				message: format!(
 					"No implementation for step {} which {} is a dependency of",
-					dependency.step, dependency.dependency
+					dependency.step, dependency.product
 				),
 			});
 		}
 		if !steps.iter().any(|s| {
-			s.id().name == dependency.dependency.name
-				&& s.id().args == dependency.dependency.args
-				&& s.id().product_kinds.contains(&dependency.dependency.kind)
+			s.id().name == dependency.product.name
+				&& s.id().args == dependency.product.args
+				&& s.id().product_kinds.contains(&dependency.product.kind)
 		}) {
 			return Err(ReportingCalculationError::NoStepForProduct {
 				message: format!(
 					"No step builds product {} wanted by {}",
-					dependency.dependency, dependency.step
+					dependency.product, dependency.step
 				),
 			});
 		}

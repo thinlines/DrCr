@@ -52,24 +52,7 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 		"AllTransactionsIncludingRetainedEarnings",
 		&[ReportingProductKind::BalancesAt],
 		AllTransactionsIncludingRetainedEarnings::takes_args,
-		|a| {
-			AllTransactionsIncludingRetainedEarnings::from_args(
-				&[ReportingProductKind::BalancesAt],
-				a,
-			)
-		},
-	);
-
-	context.register_lookup_fn(
-		"AllTransactionsIncludingRetainedEarnings",
-		&[ReportingProductKind::BalancesBetween],
-		AllTransactionsIncludingRetainedEarnings::takes_args,
-		|a| {
-			AllTransactionsIncludingRetainedEarnings::from_args(
-				&[ReportingProductKind::BalancesBetween],
-				a,
-			)
-		},
+		AllTransactionsIncludingRetainedEarnings::from_args,
 	);
 
 	context.register_lookup_fn(
@@ -141,22 +124,17 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 
 #[derive(Debug)]
 pub struct AllTransactionsIncludingRetainedEarnings {
-	pub product_kinds: &'static [ReportingProductKind], // Must have single member
-	pub args: Box<dyn ReportingStepArgs>,
+	pub args: DateArgs,
 }
 
 impl AllTransactionsIncludingRetainedEarnings {
-	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
-		true
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<DateArgs>()
 	}
 
-	fn from_args(
-		product_kinds: &'static [ReportingProductKind],
-		args: Box<dyn ReportingStepArgs>,
-	) -> Box<dyn ReportingStep> {
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsIncludingRetainedEarnings {
-			product_kinds,
-			args,
+			args: *args.downcast().unwrap(),
 		})
 	}
 }
@@ -171,17 +149,26 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "AllTransactionsIncludingRetainedEarnings",
-			product_kinds: self.product_kinds,
-			args: self.args.clone(),
+			product_kinds: &[ReportingProductKind::BalancesAt],
+			args: Box::new(self.args.clone()),
 		}
 	}
 
 	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
-		vec![ReportingProductId {
-			name: "AllTransactionsExceptRetainedEarnings",
-			kind: self.product_kinds[0],
-			args: self.args.clone(),
-		}]
+		vec![
+			// AllTransactionsIncludingRetainedEarnings requires AllTransactionsExceptRetainedEarnings
+			ReportingProductId {
+				name: "AllTransactionsExceptRetainedEarnings",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(self.args.clone()),
+			},
+			// AllTransactionsIncludingRetainedEarnings requires RetainedEarningsToEquity
+			ReportingProductId {
+				name: "RetainedEarningsToEquity",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			},
+		]
 	}
 }
 

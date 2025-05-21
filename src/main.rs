@@ -60,10 +60,9 @@ fn main() {
 	let targets: Vec<Box<dyn ReportingStep>> = vec![
 		Box::new(CalculateIncomeTax {}),
 		Box::new(AllTransactionsIncludingRetainedEarnings {
-			product_kinds: &[ReportingProductKind::BalancesAt],
-			args: Box::new(DateArgs {
+			args: DateArgs {
 				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			}),
+			},
 		}),
 	];
 

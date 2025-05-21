@@ -18,7 +18,7 @@
 
 use chrono::{Datelike, NaiveDate};
 
+/// Return the start date of the financial year, given the end date of the financial year
 pub fn sofy_from_eofy(date_eofy: NaiveDate) -> NaiveDate {
-	// Return the start date of the financial year, given the end date of the financial year
 	return date_eofy.with_year(date_eofy.year() - 1).unwrap().succ_opt().unwrap();
 }

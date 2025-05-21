@@ -16,6 +16,10 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! This module contains implementations of dynamic step builders
+//! 
+//! See [ReportingContext::register_dynamic_builder][super::types::ReportingContext::register_dynamic_builder].
+
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -39,13 +43,13 @@ pub fn register_dynamic_builders(context: &mut ReportingContext) {
 	BalancesAtToBalancesBetween::register_dynamic_builder(context);
 }
 
+/// This dynamic builder automatically generates a [BalancesBetween] by subtracting [BalancesAt] between two dates
 #[derive(Debug)]
 pub struct BalancesAtToBalancesBetween {
 	step_name: &'static str,
 	args: DateStartDateEndArgs,
 }
 
-/// This dynamic builder automatically generates a [BalancesBetween] by subtracting [BalancesAt] between two dates
 impl BalancesAtToBalancesBetween {
 	// Implements BalancesAt, BalancesAt -> BalancesBetween
 
@@ -205,7 +209,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 	}
 }
 
-/// This dynamic builder automatically generates a [BalancesAt] from a step which has no dependencies and generates [Transactions] (e.g. [super::steps::PostUnreconciledStatementLines])
+/// This dynamic builder automatically generates a [BalancesAt] from a step which has no dependencies and generates [Transactions] (e.g. [PostUnreconciledStatementLines][super::steps::PostUnreconciledStatementLines])
 #[derive(Debug)]
 pub struct GenerateBalances {
 	step_name: &'static str,

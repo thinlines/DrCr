@@ -45,6 +45,11 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 	RetainedEarningsToEquity::register_lookup_fn(context);
 }
 
+/// Target representing all transactions except charging retained earnings to equity
+/// 
+/// By default, this is [CombineOrdinaryTransactions] and, if requested, [CalculateIncomeTax].
+/// 
+/// Used as the basis for the income statement.
 #[derive(Debug)]
 pub struct AllTransactionsExceptRetainedEarnings {
 	pub product_kinds: &'static [ReportingProductKind], // Must have single member
@@ -157,6 +162,11 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 	}
 }
 
+/// Target representing all transactions including charging retained earnings to equity
+/// 
+/// In other words, this is [AllTransactionsExceptRetainedEarnings] and [RetainedEarningsToEquity].
+/// 
+/// Used as the basis for the balance sheet.
 #[derive(Debug)]
 pub struct AllTransactionsIncludingRetainedEarnings {
 	pub args: DateArgs,
@@ -262,6 +272,7 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 	}
 }
 
+/// Calculates income tax
 #[derive(Debug)]
 pub struct CalculateIncomeTax {}
 
@@ -358,6 +369,9 @@ impl ReportingStep for CalculateIncomeTax {
 	}
 }
 
+/// Combines all steps producing ordinary transactions
+/// 
+/// By default, these are [DBBalances] and [PostUnreconciledStatementLines]
 #[derive(Debug)]
 pub struct CombineOrdinaryTransactions {
 	pub args: DateArgs,
@@ -455,6 +469,7 @@ impl ReportingStep for CombineOrdinaryTransactions {
 	}
 }
 
+/// Look up account balances from the database
 #[derive(Debug)]
 pub struct DBBalances {
 	pub args: DateArgs,
@@ -522,6 +537,7 @@ impl ReportingStep for DBBalances {
 	}
 }
 
+/// Generate transactions for unreconciled statement lines
 #[derive(Debug)]
 pub struct PostUnreconciledStatementLines {
 	pub args: DateArgs,
@@ -589,6 +605,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 	}
 }
 
+/// Transfer historical balances in income and expense accounts to the retained earnings equity account
 #[derive(Debug)]
 pub struct RetainedEarningsToEquity {
 	pub args: DateArgs,

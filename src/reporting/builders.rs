@@ -17,7 +17,7 @@
 */
 
 //! This module contains implementations of dynamic step builders
-//! 
+//!
 //! See [ReportingContext::register_dynamic_builder][super::types::ReportingContext::register_dynamic_builder].
 
 use std::collections::HashMap;
@@ -548,7 +548,7 @@ impl ReportingStep for UpdateBalancesAt {
 		products.insert(
 			ReportingProductId {
 				name: self.step_name,
-				kind: ReportingProductKind::BalancesBetween,
+				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(balances),

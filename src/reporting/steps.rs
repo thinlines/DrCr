@@ -46,9 +46,9 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 }
 
 /// Target representing all transactions except charging retained earnings to equity
-/// 
+///
 /// By default, this is [CombineOrdinaryTransactions] and, if requested, [CalculateIncomeTax].
-/// 
+///
 /// Used as the basis for the income statement.
 #[derive(Debug)]
 pub struct AllTransactionsExceptRetainedEarnings {
@@ -160,9 +160,9 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 }
 
 /// Target representing all transactions including charging retained earnings to equity
-/// 
+///
 /// In other words, this is [AllTransactionsExceptRetainedEarnings] and [RetainedEarningsToEquity].
-/// 
+///
 /// Used as the basis for the balance sheet.
 #[derive(Debug)]
 pub struct AllTransactionsIncludingRetainedEarnings {
@@ -367,7 +367,7 @@ impl ReportingStep for CalculateIncomeTax {
 }
 
 /// Combines all steps producing ordinary transactions
-/// 
+///
 /// By default, these are [DBBalances] and [PostUnreconciledStatementLines]
 #[derive(Debug)]
 pub struct CombineOrdinaryTransactions {
@@ -510,15 +510,14 @@ impl ReportingStep for DBBalances {
 
 	fn execute(
 		&self,
-		_context: &ReportingContext,
+		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		products: &mut ReportingProducts,
 	) -> Result<(), ReportingExecutionError> {
-		eprintln!("Stub: DBBalances.execute");
-
+		// Get balances from DB
 		let balances = BalancesAt {
-			balances: HashMap::new(),
+			balances: context.db_connection.get_balances(self.args.date),
 		};
 
 		products.insert(

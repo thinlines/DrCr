@@ -20,5 +20,10 @@ use chrono::{Datelike, NaiveDate};
 
 /// Return the start date of the financial year, given the end date of the financial year
 pub fn sofy_from_eofy(date_eofy: NaiveDate) -> NaiveDate {
-	return date_eofy.with_year(date_eofy.year() - 1).unwrap().succ_opt().unwrap();
+	date_eofy.with_year(date_eofy.year() - 1).unwrap().succ_opt().unwrap()
+}
+
+/// Format the [NaiveDate] as a string
+pub fn format_date(date: NaiveDate) -> String {
+	date.format("%Y-%m-%d 00:00:00.000000").to_string()
 }

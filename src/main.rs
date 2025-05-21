@@ -17,6 +17,7 @@
 */
 
 use chrono::NaiveDate;
+use libdrcr::db::DbConnection;
 use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::{
@@ -29,7 +30,13 @@ use libdrcr::reporting::types::{
 };
 
 fn main() {
-	let mut context = ReportingContext::new(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap());
+	// Connect to database
+	let db_connection = DbConnection::connect("sqlite:drcr_testing.db");
+
+	// Initialise ReportingContext
+	let mut context =
+		ReportingContext::new(db_connection, NaiveDate::from_ymd_opt(2025, 6, 30).unwrap());
+
 	register_lookup_fns(&mut context);
 	register_dynamic_builders(&mut context);
 
@@ -82,5 +89,6 @@ fn main() {
 		})
 		.unwrap();
 
+	//println!("{}", products);
 	println!("{:?}", result);
 }

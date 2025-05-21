@@ -26,6 +26,7 @@ use dyn_eq::DynEq;
 use dyn_hash::DynHash;
 use indexmap::IndexMap;
 
+use crate::db::DbConnection;
 use crate::transaction::TransactionWithPostings;
 use crate::QuantityInt;
 
@@ -37,7 +38,11 @@ use super::executor::ReportingExecutionError;
 
 /// Records the context for a single reporting job
 pub struct ReportingContext {
+	// Configuration
+	pub db_connection: DbConnection,
 	pub eofy_date: NaiveDate,
+
+	// State
 	pub(crate) step_lookup_fn: HashMap<
 		(&'static str, &'static [ReportingProductKind]),
 		(ReportingStepTakesArgsFn, ReportingStepFromArgsFn),
@@ -47,8 +52,9 @@ pub struct ReportingContext {
 
 impl ReportingContext {
 	/// Initialise a new [ReportingContext]
-	pub fn new(eofy_date: NaiveDate) -> Self {
+	pub fn new(db_connection: DbConnection, eofy_date: NaiveDate) -> Self {
 		Self {
+			db_connection: db_connection,
 			eofy_date: eofy_date,
 			step_lookup_fn: HashMap::new(),
 			step_dynamic_builders: Vec::new(),

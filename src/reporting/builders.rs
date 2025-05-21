@@ -24,31 +24,14 @@ use super::types::{
 	ReportingStep, ReportingStepArgs, ReportingStepDynamicBuilder, ReportingStepId,
 };
 
+/// Call [ReportingContext::register_dynamic_builder] for all dynamic builders provided by this module
 pub fn register_dynamic_builders(context: &mut ReportingContext) {
-	context.register_dynamic_builder(ReportingStepDynamicBuilder {
-		name: "GenerateBalances",
-		can_build: GenerateBalances::can_build,
-		build: GenerateBalances::build,
-	});
+	GenerateBalances::register_dynamic_builder(context);
+	UpdateBalancesBetween::register_dynamic_builder(context);
+	UpdateBalancesAt::register_dynamic_builder(context);
 
-	context.register_dynamic_builder(ReportingStepDynamicBuilder {
-		name: "UpdateBalancesBetween",
-		can_build: UpdateBalancesBetween::can_build,
-		build: UpdateBalancesBetween::build,
-	});
-
-	context.register_dynamic_builder(ReportingStepDynamicBuilder {
-		name: "UpdateBalancesAt",
-		can_build: UpdateBalancesAt::can_build,
-		build: UpdateBalancesAt::build,
-	});
-
-	// This is the least efficient way of generating BalancesBetween
-	context.register_dynamic_builder(ReportingStepDynamicBuilder {
-		name: "BalancesAtToBalancesBetween",
-		can_build: BalancesAtToBalancesBetween::can_build,
-		build: BalancesAtToBalancesBetween::build,
-	});
+	// This is the least efficient way of generating BalancesBetween so put at the end
+	BalancesAtToBalancesBetween::register_dynamic_builder(context);
 }
 
 #[derive(Debug)]
@@ -59,6 +42,14 @@ pub struct BalancesAtToBalancesBetween {
 
 impl BalancesAtToBalancesBetween {
 	// Implements BalancesAt, BalancesAt -> BalancesBetween
+
+	fn register_dynamic_builder(context: &mut ReportingContext) {
+		context.register_dynamic_builder(ReportingStepDynamicBuilder {
+			name: "BalancesAtToBalancesBetween",
+			can_build: Self::can_build,
+			build: Self::build,
+		});
+	}
 
 	fn can_build(
 		name: &'static str,
@@ -162,6 +153,14 @@ pub struct GenerateBalances {
 impl GenerateBalances {
 	// Implements (() -> Transactions) -> BalancesAt
 
+	fn register_dynamic_builder(context: &mut ReportingContext) {
+		context.register_dynamic_builder(ReportingStepDynamicBuilder {
+			name: "GenerateBalances",
+			can_build: Self::can_build,
+			build: Self::build,
+		});
+	}
+
 	fn can_build(
 		name: &'static str,
 		kind: ReportingProductKind,
@@ -249,6 +248,14 @@ pub struct UpdateBalancesAt {
 
 impl UpdateBalancesAt {
 	// Implements (BalancesAt -> Transactions) -> BalancesAt
+
+	fn register_dynamic_builder(context: &mut ReportingContext) {
+		context.register_dynamic_builder(ReportingStepDynamicBuilder {
+			name: "UpdateBalancesAt",
+			can_build: Self::can_build,
+			build: Self::build,
+		});
+	}
 
 	fn can_build(
 		name: &'static str,
@@ -377,6 +384,14 @@ pub struct UpdateBalancesBetween {
 
 impl UpdateBalancesBetween {
 	// Implements (BalancesBetween -> Transactions) -> BalancesBetween
+
+	fn register_dynamic_builder(context: &mut ReportingContext) {
+		context.register_dynamic_builder(ReportingStepDynamicBuilder {
+			name: "UpdateBalancesBetween",
+			can_build: Self::can_build,
+			build: Self::build,
+		});
+	}
 
 	fn can_build(
 		name: &'static str,

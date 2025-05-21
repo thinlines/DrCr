@@ -33,69 +33,15 @@ use super::types::{
 	ReportingStepArgs, ReportingStepId, VoidArgs,
 };
 
+/// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
 pub fn register_lookup_fns(context: &mut ReportingContext) {
-	context.register_lookup_fn(
-		"AllTransactionsExceptRetainedEarnings",
-		&[ReportingProductKind::BalancesAt],
-		AllTransactionsExceptRetainedEarnings::takes_args,
-		|a| {
-			AllTransactionsExceptRetainedEarnings::from_args(&[ReportingProductKind::BalancesAt], a)
-		},
-	);
-
-	context.register_lookup_fn(
-		"AllTransactionsExceptRetainedEarnings",
-		&[ReportingProductKind::BalancesBetween],
-		AllTransactionsExceptRetainedEarnings::takes_args,
-		|a| {
-			AllTransactionsExceptRetainedEarnings::from_args(
-				&[ReportingProductKind::BalancesBetween],
-				a,
-			)
-		},
-	);
-
-	context.register_lookup_fn(
-		"AllTransactionsIncludingRetainedEarnings",
-		&[ReportingProductKind::BalancesAt],
-		AllTransactionsIncludingRetainedEarnings::takes_args,
-		AllTransactionsIncludingRetainedEarnings::from_args,
-	);
-
-	context.register_lookup_fn(
-		"CalculateIncomeTax",
-		&[ReportingProductKind::Transactions],
-		CalculateIncomeTax::takes_args,
-		CalculateIncomeTax::from_args,
-	);
-
-	context.register_lookup_fn(
-		"CombineOrdinaryTransactions",
-		&[ReportingProductKind::BalancesAt],
-		CombineOrdinaryTransactions::takes_args,
-		CombineOrdinaryTransactions::from_args,
-	);
-
-	context.register_lookup_fn(
-		"DBBalances",
-		&[ReportingProductKind::BalancesAt],
-		DBBalances::takes_args,
-		DBBalances::from_args,
-	);
-
-	context.register_lookup_fn(
-		"PostUnreconciledStatementLines",
-		&[ReportingProductKind::Transactions],
-		PostUnreconciledStatementLines::takes_args,
-		PostUnreconciledStatementLines::from_args,
-	);
-
-	context.register_lookup_fn(
-		"RetainedEarningsToEquity",
-		&[ReportingProductKind::Transactions],
-		RetainedEarningsToEquity::takes_args,
-		RetainedEarningsToEquity::from_args,
-	);
+	AllTransactionsExceptRetainedEarnings::register_lookup_fn(context);
+	AllTransactionsIncludingRetainedEarnings::register_lookup_fn(context);
+	CalculateIncomeTax::register_lookup_fn(context);
+	CombineOrdinaryTransactions::register_lookup_fn(context);
+	DBBalances::register_lookup_fn(context);
+	PostUnreconciledStatementLines::register_lookup_fn(context);
+	RetainedEarningsToEquity::register_lookup_fn(context);
 }
 
 #[derive(Debug)]
@@ -105,6 +51,22 @@ pub struct AllTransactionsExceptRetainedEarnings {
 }
 
 impl AllTransactionsExceptRetainedEarnings {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"AllTransactionsExceptRetainedEarnings",
+			&[ReportingProductKind::BalancesAt],
+			Self::takes_args,
+			|a| Self::from_args(&[ReportingProductKind::BalancesAt], a),
+		);
+
+		context.register_lookup_fn(
+			"AllTransactionsExceptRetainedEarnings",
+			&[ReportingProductKind::BalancesBetween],
+			Self::takes_args,
+			|a| Self::from_args(&[ReportingProductKind::BalancesBetween], a),
+		);
+	}
+
 	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
 		true
 	}
@@ -142,6 +104,15 @@ pub struct AllTransactionsIncludingRetainedEarnings {
 }
 
 impl AllTransactionsIncludingRetainedEarnings {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"AllTransactionsIncludingRetainedEarnings",
+			&[ReportingProductKind::BalancesAt],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
@@ -190,6 +161,15 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 pub struct CalculateIncomeTax {}
 
 impl CalculateIncomeTax {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"CalculateIncomeTax",
+			&[ReportingProductKind::Transactions],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
 	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
 		true
 	}
@@ -254,6 +234,15 @@ pub struct CombineOrdinaryTransactions {
 }
 
 impl CombineOrdinaryTransactions {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"CombineOrdinaryTransactions",
+			&[ReportingProductKind::BalancesAt],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
@@ -304,6 +293,15 @@ pub struct DBBalances {
 }
 
 impl DBBalances {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"DBBalances",
+			&[ReportingProductKind::BalancesAt],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
@@ -360,6 +358,15 @@ pub struct PostUnreconciledStatementLines {
 }
 
 impl PostUnreconciledStatementLines {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"PostUnreconciledStatementLines",
+			&[ReportingProductKind::Transactions],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}
@@ -393,6 +400,15 @@ pub struct RetainedEarningsToEquity {
 }
 
 impl RetainedEarningsToEquity {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"RetainedEarningsToEquity",
+			&[ReportingProductKind::Transactions],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
 		args.is::<DateArgs>()
 	}

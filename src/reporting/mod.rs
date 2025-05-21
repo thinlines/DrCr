@@ -16,7 +16,43 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use calculator::{steps_for_targets, ReportingCalculationError};
+use executor::{execute_steps, ReportingExecutionError};
+use types::{ReportingContext, ReportingProducts, ReportingStep};
+
 pub mod builders;
 pub mod calculator;
+pub mod executor;
 pub mod steps;
 pub mod types;
+
+#[derive(Debug)]
+pub enum ReportingError {
+	ReportingCalculationError(ReportingCalculationError),
+	ReportingExecutionError(ReportingExecutionError),
+}
+
+impl From<ReportingCalculationError> for ReportingError {
+	fn from(err: ReportingCalculationError) -> Self {
+		ReportingError::ReportingCalculationError(err)
+	}
+}
+
+impl From<ReportingExecutionError> for ReportingError {
+	fn from(err: ReportingExecutionError) -> Self {
+		ReportingError::ReportingExecutionError(err)
+	}
+}
+
+pub fn generate_report(
+	targets: Vec<Box<dyn ReportingStep>>,
+	context: &ReportingContext,
+) -> Result<ReportingProducts, ReportingError> {
+	// Solve dependencies
+	let sorted_steps = steps_for_targets(targets, context)?;
+
+	// Execute steps
+	let products = execute_steps(sorted_steps, context)?;
+
+	Ok(products)
+}

@@ -18,13 +18,12 @@
 
 use chrono::NaiveDate;
 use libdrcr::reporting::builders::register_dynamic_builders;
-use libdrcr::reporting::calculator::steps_for_targets;
+use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::{
-	register_lookup_fns, AllTransactionsExceptRetainedEarnings,
-	AllTransactionsIncludingRetainedEarnings, CalculateIncomeTax,
+	register_lookup_fns, AllTransactionsExceptRetainedEarnings, CalculateIncomeTax,
 };
 use libdrcr::reporting::types::{
-	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductKind, ReportingStep,
+	DateStartDateEndArgs, ReportingContext, ReportingProductKind, ReportingStep,
 };
 
 fn main() {
@@ -43,36 +42,7 @@ fn main() {
 		}),
 	];
 
-	println!("For income statement:");
-	match steps_for_targets(targets, context) {
-		Ok(steps) => {
-			for step in steps {
-				println!("- {}", step);
-			}
-		}
-		Err(err) => panic!("Error: {:?}", err),
-	}
+	let products = generate_report(targets, &context);
 
-	let mut context = ReportingContext::new(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap());
-	register_lookup_fns(&mut context);
-	register_dynamic_builders(&mut context);
-
-	let targets: Vec<Box<dyn ReportingStep>> = vec![
-		Box::new(CalculateIncomeTax {}),
-		Box::new(AllTransactionsIncludingRetainedEarnings {
-			args: DateArgs {
-				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			},
-		}),
-	];
-
-	println!("For balance sheet:");
-	match steps_for_targets(targets, context) {
-		Ok(steps) => {
-			for step in steps {
-				println!("- {}", step);
-			}
-		}
-		Err(err) => panic!("Error: {:?}", err),
-	}
+	println!("{:?}", products);
 }

@@ -150,7 +150,7 @@ fn would_be_ready_to_execute(
 /// Recursively resolve the dependencies of the target [ReportingStep]s and return a sorted [Vec] of [ReportingStep]s
 pub fn steps_for_targets(
 	targets: Vec<Box<dyn ReportingStep>>,
-	context: ReportingContext,
+	context: &ReportingContext,
 ) -> Result<Vec<Box<dyn ReportingStep>>, ReportingCalculationError> {
 	let mut steps: Vec<Box<dyn ReportingStep>> = Vec::new();
 	let mut dependencies = ReportingGraphDependencies { vec: Vec::new() };

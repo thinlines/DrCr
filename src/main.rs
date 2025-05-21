@@ -20,16 +20,20 @@ use chrono::NaiveDate;
 use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::{
-	register_lookup_fns, AllTransactionsExceptRetainedEarnings, CalculateIncomeTax,
+	register_lookup_fns, AllTransactionsExceptRetainedEarnings,
+	AllTransactionsIncludingRetainedEarnings, CalculateIncomeTax,
 };
 use libdrcr::reporting::types::{
-	DateStartDateEndArgs, ReportingContext, ReportingProductKind, ReportingStep,
+	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
+	ReportingStep,
 };
 
 fn main() {
 	let mut context = ReportingContext::new(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap());
 	register_lookup_fns(&mut context);
 	register_dynamic_builders(&mut context);
+
+	// Get income statement
 
 	let targets: Vec<Box<dyn ReportingStep>> = vec![
 		Box::new(CalculateIncomeTax {}),
@@ -42,7 +46,41 @@ fn main() {
 		}),
 	];
 
-	let products = generate_report(targets, &context);
+	let products = generate_report(targets, &context).unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "AllTransactionsExceptRetainedEarnings",
+			kind: ReportingProductKind::BalancesBetween,
+			args: Box::new(DateStartDateEndArgs {
+				date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
+				date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			}),
+		})
+		.unwrap();
 
-	println!("{:?}", products);
+	println!("{:?}", result);
+
+	// Get balance sheet
+
+	let targets: Vec<Box<dyn ReportingStep>> = vec![
+		Box::new(CalculateIncomeTax {}),
+		Box::new(AllTransactionsIncludingRetainedEarnings {
+			args: DateArgs {
+				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			},
+		}),
+	];
+
+	let products = generate_report(targets, &context).unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "AllTransactionsIncludingRetainedEarnings",
+			kind: ReportingProductKind::BalancesAt,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			}),
+		})
+		.unwrap();
+
+	println!("{:?}", result);
 }

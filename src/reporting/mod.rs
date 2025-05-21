@@ -49,10 +49,10 @@ pub fn generate_report(
 	context: &ReportingContext,
 ) -> Result<ReportingProducts, ReportingError> {
 	// Solve dependencies
-	let sorted_steps = steps_for_targets(targets, context)?;
+	let (sorted_steps, dependencies) = steps_for_targets(targets, context)?;
 
 	// Execute steps
-	let products = execute_steps(sorted_steps, context)?;
+	let products = execute_steps(sorted_steps, dependencies, context)?;
 
 	Ok(products)
 }

@@ -16,12 +16,15 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::collections::HashMap;
 use std::fmt::Display;
 
 use super::calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies};
+use super::executor::ReportingExecutionError;
 use super::types::{
-	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
-	ReportingStep, ReportingStepArgs, ReportingStepDynamicBuilder, ReportingStepId,
+	BalancesAt, BalancesBetween, DateArgs, DateStartDateEndArgs, ReportingContext,
+	ReportingProductId, ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs,
+	ReportingStepDynamicBuilder, ReportingStepId, Transactions,
 };
 
 /// Call [ReportingContext::register_dynamic_builder] for all dynamic builders provided by this module
@@ -40,6 +43,7 @@ pub struct BalancesAtToBalancesBetween {
 	args: DateStartDateEndArgs,
 }
 
+/// This dynamic builder automatically generates a [BalancesBetween] by subtracting [BalancesAt] between two dates
 impl BalancesAtToBalancesBetween {
 	// Implements BalancesAt, BalancesAt -> BalancesBetween
 
@@ -137,13 +141,69 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
-					date: self.args.date_end.clone(),
+					date: self.args.date_end,
 				}),
 			},
 		]
 	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get balances at dates
+		let balances_start = &products
+			.get_or_err(&ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(DateArgs {
+					date: self.args.date_start.pred_opt().unwrap(), // Opening balance is the closing balance of the preceding day
+				}),
+			})?
+			.downcast_ref::<BalancesAt>()
+			.unwrap()
+			.balances;
+
+		let balances_end = &products
+			.get_or_err(&ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(DateArgs {
+					date: self.args.date_end,
+				}),
+			})?
+			.downcast_ref::<BalancesAt>()
+			.unwrap()
+			.balances;
+
+		// Compute balances_end - balances_start
+		let mut balances = BalancesBetween {
+			balances: balances_end.clone(),
+		};
+
+		for (account, balance) in balances_start.iter() {
+			let running_balance = balances.balances.get(account).unwrap_or(&0) - balance;
+			balances.balances.insert(account.clone(), running_balance);
+		}
+
+		// Store result
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(balances),
+		);
+
+		Ok(())
+	}
 }
 
+/// This dynamic builder automatically generates a [BalancesAt] from a step which has no dependencies and generates [Transactions] (e.g. [super::steps::PostUnreconciledStatementLines])
 #[derive(Debug)]
 pub struct GenerateBalances {
 	step_name: &'static str,
@@ -151,8 +211,6 @@ pub struct GenerateBalances {
 }
 
 impl GenerateBalances {
-	// Implements (() -> Transactions) -> BalancesAt
-
 	fn register_dynamic_builder(context: &mut ReportingContext) {
 		context.register_dynamic_builder(ReportingStepDynamicBuilder {
 			name: "GenerateBalances",
@@ -238,8 +296,58 @@ impl ReportingStep for GenerateBalances {
 			args: Box::new(self.args.clone()),
 		}]
 	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get the transactions
+		let transactions = &products
+			.get_or_err(&ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			})?
+			.downcast_ref::<Transactions>()
+			.unwrap()
+			.transactions;
+
+		// Sum balances
+		let mut balances = BalancesAt {
+			balances: HashMap::new(),
+		};
+
+		for transaction in transactions.iter() {
+			for posting in transaction.postings.iter() {
+				// FIXME: Do currency conversion
+				let running_balance =
+					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
+				balances
+					.balances
+					.insert(posting.account.clone(), running_balance);
+			}
+		}
+
+		// Store result
+		products.insert(
+			ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(balances),
+		);
+
+		Ok(())
+	}
 }
 
+/// This dynamic builder automatically generates a [BalancesAt] from:
+/// - a step which generates [Transactions] from [BalancesAt], or
+/// - a step which generates [Transactions] from [BalancesBetween], and for which a [BalancesAt] is also available
 #[derive(Debug)]
 pub struct UpdateBalancesAt {
 	step_name: &'static str,
@@ -374,8 +482,97 @@ impl ReportingStep for UpdateBalancesAt {
 			},
 		);
 	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Look up the parent step, so we can extract the appropriate args
+		let parent_step = steps
+			.iter()
+			.find(|s| {
+				s.id().name == self.step_name
+					&& s.id()
+						.product_kinds
+						.contains(&ReportingProductKind::Transactions)
+			})
+			.unwrap(); // Existence is checked in can_build
+
+		// Get transactions
+		let transactions = &products
+			.get_or_err(&ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::Transactions,
+				args: parent_step.id().args,
+			})?
+			.downcast_ref::<Transactions>()
+			.unwrap()
+			.transactions;
+
+		// Look up the BalancesAt step
+		let dependencies_for_step = dependencies.dependencies_for_step(&parent_step.id());
+		let dependency = &dependencies_for_step[0].product; // Existence and uniqueness checked in can_build
+
+		let opening_balances_at;
+
+		if dependency.kind == ReportingProductKind::BalancesAt {
+			// Directly depends on BalancesAt -> Transaction
+			opening_balances_at = products
+				.get_or_err(&dependency)?
+				.downcast_ref::<BalancesAt>()
+				.unwrap();
+		} else {
+			// As checked in can_build, must depend on BalancesBetween -> Transaction with a BalancesAt available
+			let date_end = dependency
+				.args
+				.downcast_ref::<DateStartDateEndArgs>()
+				.unwrap()
+				.date_end;
+
+			opening_balances_at = products
+				.get_or_err(&ReportingProductId {
+					name: dependency.name,
+					kind: ReportingProductKind::BalancesAt,
+					args: Box::new(DateArgs { date: date_end }),
+				})?
+				.downcast_ref()
+				.unwrap();
+		}
+
+		// Sum balances
+		let mut balances = BalancesAt {
+			balances: opening_balances_at.balances.clone(),
+		};
+
+		for transaction in transactions.iter() {
+			for posting in transaction.postings.iter() {
+				// FIXME: Do currency conversion
+				let running_balance =
+					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
+				balances
+					.balances
+					.insert(posting.account.clone(), running_balance);
+			}
+		}
+
+		// Store result
+		products.insert(
+			ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(balances),
+		);
+
+		Ok(())
+	}
 }
 
+/// This dynamic builder automatically generates a [BalancesBetween] from a step which generates [Transactions] from [BalancesBetween]
 #[derive(Debug)]
 pub struct UpdateBalancesBetween {
 	step_name: &'static str,
@@ -383,8 +580,6 @@ pub struct UpdateBalancesBetween {
 }
 
 impl UpdateBalancesBetween {
-	// Implements (BalancesBetween -> Transactions) -> BalancesBetween
-
 	fn register_dynamic_builder(context: &mut ReportingContext) {
 		context.register_dynamic_builder(ReportingStepDynamicBuilder {
 			name: "UpdateBalancesBetween",
@@ -419,23 +614,6 @@ impl UpdateBalancesBetween {
 					return true;
 				}
 			}
-
-			// Check lookup or builder - with args
-			/*match has_step_or_can_build(
-				&ReportingProductId {
-					name,
-					kind: ReportingProductKind::Transactions,
-					args: args.clone(),
-				},
-				steps,
-				dependencies,
-				context,
-			) {
-				HasStepOrCanBuild::HasStep(step) => unreachable!(),
-				HasStepOrCanBuild::CanLookup(_)
-				| HasStepOrCanBuild::CanBuild(_)
-				| HasStepOrCanBuild::None => {}
-			}*/
 		}
 		return false;
 	}
@@ -493,8 +671,77 @@ impl ReportingStep for UpdateBalancesBetween {
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::Transactions,
-				args: parent_step.id().args.clone(),
+				args: parent_step.id().args,
 			},
 		);
+	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Look up the parent step, so we can extract the appropriate args
+		let parent_step = steps
+			.iter()
+			.find(|s| {
+				s.id().name == self.step_name
+					&& s.id()
+						.product_kinds
+						.contains(&ReportingProductKind::Transactions)
+			})
+			.unwrap(); // Existence is checked in can_build
+
+		// Get transactions
+		let transactions = &products
+			.get_or_err(&ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::Transactions,
+				args: parent_step.id().args,
+			})?
+			.downcast_ref::<Transactions>()
+			.unwrap()
+			.transactions;
+
+		// Look up the BalancesBetween step
+		let dependencies_for_step = dependencies.dependencies_for_step(&parent_step.id());
+		let balances_between_product = &dependencies_for_step[0].product; // Existence and uniqueness is checked in can_build
+
+		// Get opening balances
+		let opening_balances = &products
+			.get_or_err(balances_between_product)?
+			.downcast_ref::<BalancesBetween>()
+			.unwrap()
+			.balances;
+
+		// Sum balances
+		let mut balances = BalancesBetween {
+			balances: opening_balances.clone(),
+		};
+
+		for transaction in transactions.iter() {
+			for posting in transaction.postings.iter() {
+				// FIXME: Do currency conversion
+				let running_balance =
+					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
+				balances
+					.balances
+					.insert(posting.account.clone(), running_balance);
+			}
+		}
+
+		// Store result
+		products.insert(
+			ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(balances),
+		);
+
+		Ok(())
 	}
 }

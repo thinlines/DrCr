@@ -16,21 +16,21 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+//! This module contains concrete [ReportingStep] implementations
+
 use std::collections::HashMap;
 use std::fmt::Display;
 
 use chrono::Datelike;
 
-use crate::reporting::types::{
-	BalancesAt, DateStartDateEndArgs, ReportingProduct, ReportingProductId,
-};
+use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
 use crate::util::sofy_from_eofy;
 
 use super::calculator::ReportingGraphDependencies;
 use super::executor::ReportingExecutionError;
 use super::types::{
-	DateArgs, ReportingContext, ReportingProductKind, ReportingProducts, ReportingStep,
-	ReportingStepArgs, ReportingStepId, VoidArgs,
+	BalancesBetween, DateArgs, ReportingContext, ReportingProduct, ReportingProductKind,
+	ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId, VoidArgs,
 };
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
@@ -96,6 +96,64 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 			args: self.args.clone(),
 		}
 	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get all dependencies
+		let step_dependencies = dependencies.dependencies_for_step(&self.id());
+
+		// Identify the product_kinds dependency most recently generated
+		if self.product_kinds.len() != 1 {
+			panic!("AllTransactionsExceptRetainedEarnings.product_kinds.len() != 1");
+		}
+		let product_kind = self.product_kinds[0];
+
+		for (product_id, product) in products.map().iter().rev() {
+			if step_dependencies.iter().any(|d| d.product == *product_id) {
+				// Store the result
+				products.insert(
+					ReportingProductId {
+						name: self.id().name,
+						kind: product_kind,
+						args: self.args.clone(),
+					},
+					product.clone(),
+				);
+
+				return Ok(());
+			}
+		}
+
+		// No dependencies?! - store empty result
+		let product: Box<dyn ReportingProduct> = match self.product_kinds[0] {
+			ReportingProductKind::Transactions => Box::new(Transactions {
+				transactions: Vec::new(),
+			}),
+			ReportingProductKind::BalancesAt => Box::new(BalancesAt {
+				balances: HashMap::new(),
+			}),
+			ReportingProductKind::BalancesBetween => Box::new(BalancesBetween {
+				balances: HashMap::new(),
+			}),
+			ReportingProductKind::Generic => panic!("Requested AllTransactionsExceptRetainedEarnings.Generic but no available dependencies to provide it"),
+		};
+
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: product_kind,
+				args: self.args.clone(),
+			},
+			product,
+		);
+
+		Ok(())
+	}
 }
 
 #[derive(Debug)]
@@ -154,6 +212,62 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 				args: Box::new(self.args.clone()),
 			},
 		]
+	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get opening balances from AllTransactionsExceptRetainedEarnings
+		let opening_balances = products
+			.get_or_err(&ReportingProductId {
+				name: "AllTransactionsExceptRetainedEarnings",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(self.args.clone()),
+			})?
+			.downcast_ref::<BalancesAt>()
+			.unwrap();
+
+		// Get RetainedEarningsToEquity transactions
+		let transactions = products
+			.get_or_err(&ReportingProductId {
+				name: "RetainedEarningsToEquity",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			})?
+			.downcast_ref::<Transactions>()
+			.unwrap();
+
+		// Update balances
+		let mut balances = BalancesAt {
+			balances: opening_balances.balances.clone(),
+		};
+
+		for transaction in transactions.transactions.iter() {
+			for posting in transaction.postings.iter() {
+				// FIXME: Do currency conversion
+				let running_balance =
+					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
+				balances
+					.balances
+					.insert(posting.account.clone(), running_balance);
+			}
+		}
+
+		// Store result
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(balances),
+		);
+
+		Ok(())
 	}
 }
 
@@ -226,6 +340,31 @@ impl ReportingStep for CalculateIncomeTax {
 			}
 		}
 	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		eprintln!("Stub: CalculateIncomeTax.execute");
+
+		let transactions = Transactions {
+			transactions: Vec::new(),
+		};
+
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(VoidArgs {}),
+			},
+			Box::new(transactions),
+		);
+
+		Ok(())
+	}
 }
 
 #[derive(Debug)]
@@ -285,6 +424,44 @@ impl ReportingStep for CombineOrdinaryTransactions {
 			},
 		]
 	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Sum balances of all dependencies
+
+		let mut balances = BalancesAt {
+			balances: HashMap::new(),
+		};
+
+		for dependency in dependencies.dependencies_for_step(&self.id()) {
+			let dependency_balances = &products
+				.get_or_err(&dependency.product)?
+				.downcast_ref::<BalancesAt>()
+				.unwrap()
+				.balances;
+			for (account, balance) in dependency_balances.iter() {
+				let running_balance = balances.balances.get(account).unwrap_or(&0) + balance;
+				balances.balances.insert(account.clone(), running_balance);
+			}
+		}
+
+		// Store result
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(balances),
+		);
+
+		Ok(())
+	}
 }
 
 #[derive(Debug)]
@@ -331,6 +508,8 @@ impl ReportingStep for DBBalances {
 	fn execute(
 		&self,
 		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
 		products: &mut ReportingProducts,
 	) -> Result<(), ReportingExecutionError> {
 		eprintln!("Stub: DBBalances.execute");
@@ -345,7 +524,7 @@ impl ReportingStep for DBBalances {
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
-			ReportingProduct::BalancesAt(balances),
+			Box::new(balances),
 		);
 
 		Ok(())
@@ -391,6 +570,31 @@ impl ReportingStep for PostUnreconciledStatementLines {
 			product_kinds: &[ReportingProductKind::Transactions],
 			args: Box::new(self.args.clone()),
 		}
+	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		eprintln!("Stub: PostUnreconciledStatementLines.execute");
+
+		let transactions = Transactions {
+			transactions: Vec::new(),
+		};
+
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(transactions),
+		);
+
+		Ok(())
 	}
 }
 
@@ -447,5 +651,30 @@ impl ReportingStep for RetainedEarningsToEquity {
 					.unwrap(),
 			}),
 		}]
+	}
+
+	fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		eprintln!("Stub: RetainedEarningsToEquity.execute");
+
+		let transactions = Transactions {
+			transactions: Vec::new(),
+		};
+
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(transactions),
+		);
+
+		Ok(())
 	}
 }

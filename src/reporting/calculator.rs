@@ -151,7 +151,7 @@ fn would_be_ready_to_execute(
 pub fn steps_for_targets(
 	targets: Vec<Box<dyn ReportingStep>>,
 	context: &ReportingContext,
-) -> Result<Vec<Box<dyn ReportingStep>>, ReportingCalculationError> {
+) -> Result<(Vec<Box<dyn ReportingStep>>, ReportingGraphDependencies), ReportingCalculationError> {
 	let mut steps: Vec<Box<dyn ReportingStep>> = Vec::new();
 	let mut dependencies = ReportingGraphDependencies { vec: Vec::new() };
 
@@ -319,5 +319,5 @@ pub fn steps_for_targets(
 		.map(|(s, _idx)| s)
 		.collect::<Vec<_>>();
 
-	Ok(sorted_steps)
+	Ok((sorted_steps, dependencies))
 }

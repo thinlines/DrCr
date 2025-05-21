@@ -16,21 +16,22 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::types::{ReportingContext, ReportingProducts, ReportingStep};
+use super::{calculator::ReportingGraphDependencies, types::{ReportingContext, ReportingProducts, ReportingStep}};
 
 #[derive(Debug)]
-pub struct ReportingExecutionError {
-	message: String,
+pub enum ReportingExecutionError {
+	DependencyNotAvailable { message: String }
 }
 
 pub fn execute_steps(
 	steps: Vec<Box<dyn ReportingStep>>,
+	dependencies: ReportingGraphDependencies,
 	context: &ReportingContext,
 ) -> Result<ReportingProducts, ReportingExecutionError> {
 	let mut products = ReportingProducts::new();
 
-	for step in steps {
-		step.execute(context, &mut products)?;
+	for step in steps.iter() {
+		step.execute(context, &steps, &dependencies, &mut products)?;
 	}
 
 	Ok(products)

@@ -19,6 +19,8 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
+use crate::transaction::update_balances_from_transactions;
+
 use super::calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies};
 use super::executor::ReportingExecutionError;
 use super::types::{
@@ -319,17 +321,7 @@ impl ReportingStep for GenerateBalances {
 		let mut balances = BalancesAt {
 			balances: HashMap::new(),
 		};
-
-		for transaction in transactions.iter() {
-			for posting in transaction.postings.iter() {
-				// FIXME: Do currency conversion
-				let running_balance =
-					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
-				balances
-					.balances
-					.insert(posting.account.clone(), running_balance);
-			}
-		}
+		update_balances_from_transactions(&mut balances.balances, transactions.iter());
 
 		// Store result
 		products.insert(
@@ -546,17 +538,7 @@ impl ReportingStep for UpdateBalancesAt {
 		let mut balances = BalancesAt {
 			balances: opening_balances_at.balances.clone(),
 		};
-
-		for transaction in transactions.iter() {
-			for posting in transaction.postings.iter() {
-				// FIXME: Do currency conversion
-				let running_balance =
-					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
-				balances
-					.balances
-					.insert(posting.account.clone(), running_balance);
-			}
-		}
+		update_balances_from_transactions(&mut balances.balances, transactions.iter());
 
 		// Store result
 		products.insert(
@@ -720,17 +702,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		let mut balances = BalancesBetween {
 			balances: opening_balances.clone(),
 		};
-
-		for transaction in transactions.iter() {
-			for posting in transaction.postings.iter() {
-				// FIXME: Do currency conversion
-				let running_balance =
-					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
-				balances
-					.balances
-					.insert(posting.account.clone(), running_balance);
-			}
-		}
+		update_balances_from_transactions(&mut balances.balances, transactions.iter());
 
 		// Store result
 		products.insert(

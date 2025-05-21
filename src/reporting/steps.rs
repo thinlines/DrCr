@@ -24,6 +24,7 @@ use std::fmt::Display;
 use chrono::Datelike;
 
 use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
+use crate::transaction::update_balances_from_transactions;
 use crate::util::sofy_from_eofy;
 
 use super::calculator::ReportingGraphDependencies;
@@ -245,17 +246,7 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 		let mut balances = BalancesAt {
 			balances: opening_balances.balances.clone(),
 		};
-
-		for transaction in transactions.transactions.iter() {
-			for posting in transaction.postings.iter() {
-				// FIXME: Do currency conversion
-				let running_balance =
-					balances.balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
-				balances
-					.balances
-					.insert(posting.account.clone(), running_balance);
-			}
-		}
+		update_balances_from_transactions(&mut balances.balances, transactions.transactions.iter());
 
 		// Store result
 		products.insert(

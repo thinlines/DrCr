@@ -16,6 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::collections::HashMap;
+
 use chrono::NaiveDateTime;
 
 use crate::QuantityInt;
@@ -41,4 +43,17 @@ pub struct Posting {
 	pub account: String,
 	pub quantity: QuantityInt,
 	pub commodity: String,
+}
+
+pub(crate) fn update_balances_from_transactions<'a, I: Iterator<Item = &'a TransactionWithPostings>>(
+	balances: &mut HashMap<String, QuantityInt>,
+	transactions: I,
+) {
+	for transaction in transactions {
+		for posting in transaction.postings.iter() {
+			// FIXME: Do currency conversion
+			let running_balance = balances.get(&posting.account).unwrap_or(&0) + posting.quantity;
+			balances.insert(posting.account.clone(), running_balance);
+		}
+	}
 }

@@ -46,7 +46,7 @@ fn main() {
 	match solve_for(targets, context) {
 		Ok(steps) => {
 			for step in steps {
-				println!("- {}", step.id());
+				println!("- {}", step);
 			}
 		}
 		Err(err) => panic!("Error: {:?}", err),

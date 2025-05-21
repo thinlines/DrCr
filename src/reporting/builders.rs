@@ -16,6 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::fmt::Display;
+
 use super::{
 	calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies},
 	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
@@ -98,6 +100,12 @@ impl BalancesAtToBalancesBetween {
 			step_name: name,
 			args: *args.downcast().unwrap(),
 		})
+	}
+}
+
+impl Display for BalancesAtToBalancesBetween {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{} {{BalancesAtToBalancesBetween}}", self.id()))
 	}
 }
 
@@ -194,6 +202,12 @@ impl GenerateBalances {
 	}
 }
 
+impl Display for GenerateBalances {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{} {{GenerateBalances}}", self.id()))
+	}
+}
+
 impl ReportingStep for GenerateBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -281,6 +295,12 @@ impl UpdateBalancesBetween {
 			step_name: name,
 			args: *args.downcast().unwrap(),
 		})
+	}
+}
+
+impl Display for UpdateBalancesBetween {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{} {{UpdateBalancesBetween}}", self.id()))
 	}
 }
 

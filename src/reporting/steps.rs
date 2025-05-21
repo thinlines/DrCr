@@ -16,6 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::fmt::Display;
+
 use crate::util::sofy_from_eofy;
 
 use super::{
@@ -78,6 +80,12 @@ impl AllTransactionsExceptRetainedEarnings {
 	}
 }
 
+impl Display for AllTransactionsExceptRetainedEarnings {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
 impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -102,6 +110,12 @@ impl CalculateIncomeTax {
 		Box::new(CalculateIncomeTax {
 			args: *args.downcast().unwrap(),
 		})
+	}
+}
+
+impl Display for CalculateIncomeTax {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
 	}
 }
 
@@ -161,6 +175,12 @@ impl CombineOrdinaryTransactions {
 	}
 }
 
+impl Display for CombineOrdinaryTransactions {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
 impl ReportingStep for CombineOrdinaryTransactions {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -205,6 +225,12 @@ impl DBBalances {
 	}
 }
 
+impl Display for DBBalances {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
 impl ReportingStep for DBBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -229,6 +255,12 @@ impl PostUnreconciledStatementLines {
 		Box::new(PostUnreconciledStatementLines {
 			args: *args.downcast().unwrap(),
 		})
+	}
+}
+
+impl Display for PostUnreconciledStatementLines {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
 	}
 }
 

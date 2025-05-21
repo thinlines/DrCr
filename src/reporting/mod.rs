@@ -121,7 +121,7 @@ impl Display for ReportingStepId {
 	}
 }
 
-pub trait ReportingStep: Debug + Downcast {
+pub trait ReportingStep: Debug + Display + Downcast {
 	// Info
 	fn id(&self) -> ReportingStepId;
 

@@ -18,8 +18,8 @@
 
 use std::fmt::Display;
 
-use super::{
-	calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies},
+use super::calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies};
+use super::types::{
 	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
 	ReportingStep, ReportingStepArgs, ReportingStepDynamicBuilder, ReportingStepId,
 };

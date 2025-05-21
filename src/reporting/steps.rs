@@ -20,13 +20,11 @@ use std::fmt::Display;
 
 use chrono::Datelike;
 
+use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProduct, ReportingProductId};
 use crate::util::sofy_from_eofy;
 
-use super::{
-	calculator::ReportingGraphDependencies, DateArgs, DateStartDateEndArgs, ReportingContext,
-	ReportingProductId, ReportingProductKind, ReportingStep, ReportingStepArgs, ReportingStepId,
-	VoidArgs,
-};
+use super::	calculator::ReportingGraphDependencies;
+use super::types::{DateArgs, ReportingContext, ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId, 	VoidArgs};
 
 pub fn register_lookup_fns(context: &mut ReportingContext) {
 	context.register_lookup_fn(

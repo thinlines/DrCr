@@ -17,13 +17,13 @@
 */
 
 use chrono::NaiveDate;
-use libdrcr::reporting::{
-	builders::register_dynamic_builders,
-	calculator::solve_for,
-	steps::{
-		register_lookup_fns, AllTransactionsExceptRetainedEarnings,
-		AllTransactionsIncludingRetainedEarnings, CalculateIncomeTax,
-	},
+use libdrcr::reporting::builders::register_dynamic_builders;
+use libdrcr::reporting::calculator::steps_for_targets;
+use libdrcr::reporting::steps::{
+	register_lookup_fns, AllTransactionsExceptRetainedEarnings,
+	AllTransactionsIncludingRetainedEarnings, CalculateIncomeTax,
+};
+use libdrcr::reporting::types::{
 	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductKind, ReportingStep,
 };
 
@@ -44,7 +44,7 @@ fn main() {
 	];
 
 	println!("For income statement:");
-	match solve_for(targets, context) {
+	match steps_for_targets(targets, context) {
 		Ok(steps) => {
 			for step in steps {
 				println!("- {}", step);
@@ -67,7 +67,7 @@ fn main() {
 	];
 
 	println!("For balance sheet:");
-	match solve_for(targets, context) {
+	match steps_for_targets(targets, context) {
 		Ok(steps) => {
 			for step in steps {
 				println!("- {}", step);

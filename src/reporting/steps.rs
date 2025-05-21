@@ -18,6 +18,8 @@
 
 use std::fmt::Display;
 
+use chrono::Datelike;
+
 use crate::util::sofy_from_eofy;
 
 use super::{
@@ -81,6 +83,13 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 		&[ReportingProductKind::Transactions],
 		PostUnreconciledStatementLines::takes_args,
 		PostUnreconciledStatementLines::from_args,
+	);
+
+	context.register_lookup_fn(
+		"RetainedEarningsToEquity",
+		&[ReportingProductKind::Transactions],
+		RetainedEarningsToEquity::takes_args,
+		RetainedEarningsToEquity::from_args,
 	);
 }
 
@@ -347,5 +356,52 @@ impl ReportingStep for PostUnreconciledStatementLines {
 			product_kinds: &[ReportingProductKind::Transactions],
 			args: Box::new(self.args.clone()),
 		}
+	}
+}
+
+#[derive(Debug)]
+pub struct RetainedEarningsToEquity {
+	pub args: DateArgs,
+}
+
+impl RetainedEarningsToEquity {
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<DateArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(RetainedEarningsToEquity {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for RetainedEarningsToEquity {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+impl ReportingStep for RetainedEarningsToEquity {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "RetainedEarningsToEquity",
+			product_kinds: &[ReportingProductKind::Transactions],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
+		// RetainedEarningsToEquity depends on CombineOrdinaryTransactions for last financial year
+		vec![ReportingProductId {
+			name: "CombineOrdinaryTransactions",
+			kind: ReportingProductKind::BalancesAt,
+			args: Box::new(DateArgs {
+				date: context
+					.eofy_date
+					.with_year(context.eofy_date.year() - 1)
+					.unwrap(),
+			}),
+		}]
 	}
 }

@@ -39,37 +39,38 @@ use super::types::{
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
 pub fn register_lookup_fns(context: &mut ReportingContext) {
-	AllTransactionsExceptRetainedEarnings::register_lookup_fn(context);
-	AllTransactionsIncludingRetainedEarnings::register_lookup_fn(context);
+	AllTransactionsExceptEarningsToEquity::register_lookup_fn(context);
+	AllTransactionsIncludingEarningsToEquity::register_lookup_fn(context);
 	CalculateIncomeTax::register_lookup_fn(context);
 	CombineOrdinaryTransactions::register_lookup_fn(context);
+	CurrentYearEarningsToEquity::register_lookup_fn(context);
 	DBBalances::register_lookup_fn(context);
 	PostUnreconciledStatementLines::register_lookup_fn(context);
 	RetainedEarningsToEquity::register_lookup_fn(context);
 }
 
-/// Target representing all transactions except charging retained earnings to equity
+/// Target representing all transactions except charging current year and retained earnings to equity
 ///
 /// By default, this is [CombineOrdinaryTransactions] and, if requested, [CalculateIncomeTax].
 ///
 /// Used as the basis for the income statement.
 #[derive(Debug)]
-pub struct AllTransactionsExceptRetainedEarnings {
+pub struct AllTransactionsExceptEarningsToEquity {
 	pub product_kinds: &'static [ReportingProductKind; 1], // Must have single member - represented as static array for compatibility with ReportingStepId
 	pub args: Box<dyn ReportingStepArgs>,
 }
 
-impl AllTransactionsExceptRetainedEarnings {
+impl AllTransactionsExceptEarningsToEquity {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"AllTransactionsExceptRetainedEarnings",
+			"AllTransactionsExceptEarningsToEquity",
 			&[ReportingProductKind::BalancesAt],
 			Self::takes_args,
 			|a| Self::from_args(&[ReportingProductKind::BalancesAt], a),
 		);
 
 		context.register_lookup_fn(
-			"AllTransactionsExceptRetainedEarnings",
+			"AllTransactionsExceptEarningsToEquity",
 			&[ReportingProductKind::BalancesBetween],
 			Self::takes_args,
 			|a| Self::from_args(&[ReportingProductKind::BalancesBetween], a),
@@ -84,23 +85,23 @@ impl AllTransactionsExceptRetainedEarnings {
 		product_kinds: &'static [ReportingProductKind; 1],
 		args: Box<dyn ReportingStepArgs>,
 	) -> Box<dyn ReportingStep> {
-		Box::new(AllTransactionsExceptRetainedEarnings {
+		Box::new(AllTransactionsExceptEarningsToEquity {
 			product_kinds,
 			args,
 		})
 	}
 }
 
-impl Display for AllTransactionsExceptRetainedEarnings {
+impl Display for AllTransactionsExceptEarningsToEquity {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("{}", self.id()))
 	}
 }
 
-impl ReportingStep for AllTransactionsExceptRetainedEarnings {
+impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "AllTransactionsExceptRetainedEarnings",
+			name: "AllTransactionsExceptEarningsToEquity",
 			product_kinds: self.product_kinds,
 			args: self.args.clone(),
 		}
@@ -146,7 +147,7 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 			ReportingProductKind::BalancesBetween => Box::new(BalancesBetween {
 				balances: HashMap::new(),
 			}),
-			ReportingProductKind::Generic => panic!("Requested AllTransactionsExceptRetainedEarnings.Generic but no available dependencies to provide it"),
+			ReportingProductKind::Generic => panic!("Requested AllTransactionsExceptEarningsToEquity.Generic but no available dependencies to provide it"),
 		};
 
 		products.insert(
@@ -162,20 +163,20 @@ impl ReportingStep for AllTransactionsExceptRetainedEarnings {
 	}
 }
 
-/// Target representing all transactions including charging retained earnings to equity
+/// Target representing all transactions including charging current year and retained earnings to equity
 ///
-/// In other words, this is [AllTransactionsExceptRetainedEarnings] and [RetainedEarningsToEquity].
+/// In other words, this is [AllTransactionsExceptEarningsToEquity], [CurrentYearEarningsToEquity] and [RetainedEarningsToEquity].
 ///
 /// Used as the basis for the balance sheet.
 #[derive(Debug)]
-pub struct AllTransactionsIncludingRetainedEarnings {
+pub struct AllTransactionsIncludingEarningsToEquity {
 	pub args: DateArgs,
 }
 
-impl AllTransactionsIncludingRetainedEarnings {
+impl AllTransactionsIncludingEarningsToEquity {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"AllTransactionsIncludingRetainedEarnings",
+			"AllTransactionsIncludingEarningsToEquity",
 			&[ReportingProductKind::BalancesAt],
 			Self::takes_args,
 			Self::from_args,
@@ -187,22 +188,22 @@ impl AllTransactionsIncludingRetainedEarnings {
 	}
 
 	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
-		Box::new(AllTransactionsIncludingRetainedEarnings {
+		Box::new(AllTransactionsIncludingEarningsToEquity {
 			args: *args.downcast().unwrap(),
 		})
 	}
 }
 
-impl Display for AllTransactionsIncludingRetainedEarnings {
+impl Display for AllTransactionsIncludingEarningsToEquity {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("{}", self.id()))
 	}
 }
 
-impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
+impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "AllTransactionsIncludingRetainedEarnings",
+			name: "AllTransactionsIncludingEarningsToEquity",
 			product_kinds: &[ReportingProductKind::BalancesAt],
 			args: Box::new(self.args.clone()),
 		}
@@ -210,13 +211,19 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 
 	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		vec![
-			// AllTransactionsIncludingRetainedEarnings requires AllTransactionsExceptRetainedEarnings
+			// AllTransactionsIncludingEarningsToEquity requires AllTransactionsExceptEarningsToEquity
 			ReportingProductId {
-				name: "AllTransactionsExceptRetainedEarnings",
+				name: "AllTransactionsExceptEarningsToEquity",
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
-			// AllTransactionsIncludingRetainedEarnings requires RetainedEarningsToEquity
+			// AllTransactionsIncludingEarningsToEquity requires CurrentYearEarningsToEquity
+			ReportingProductId {
+				name: "CurrentYearEarningsToEquity",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			},
+			// AllTransactionsIncludingEarningsToEquity requires RetainedEarningsToEquity
 			ReportingProductId {
 				name: "RetainedEarningsToEquity",
 				kind: ReportingProductKind::Transactions,
@@ -232,18 +239,28 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 		_dependencies: &ReportingGraphDependencies,
 		products: &mut ReportingProducts,
 	) -> Result<(), ReportingExecutionError> {
-		// Get opening balances from AllTransactionsExceptRetainedEarnings
+		// Get opening balances from AllTransactionsExceptEarningsToEquity
 		let opening_balances = products
 			.get_or_err(&ReportingProductId {
-				name: "AllTransactionsExceptRetainedEarnings",
+				name: "AllTransactionsExceptEarningsToEquity",
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			})?
 			.downcast_ref::<BalancesAt>()
 			.unwrap();
 
+		// Get CurrentYearEarningsToEquity transactions
+		let transactions_current = products
+			.get_or_err(&ReportingProductId {
+				name: "CurrentYearEarningsToEquity",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			})?
+			.downcast_ref::<Transactions>()
+			.unwrap();
+
 		// Get RetainedEarningsToEquity transactions
-		let transactions = products
+		let transactions_retained = products
 			.get_or_err(&ReportingProductId {
 				name: "RetainedEarningsToEquity",
 				kind: ReportingProductKind::Transactions,
@@ -256,7 +273,14 @@ impl ReportingStep for AllTransactionsIncludingRetainedEarnings {
 		let mut balances = BalancesAt {
 			balances: opening_balances.balances.clone(),
 		};
-		update_balances_from_transactions(&mut balances.balances, transactions.transactions.iter());
+		update_balances_from_transactions(
+			&mut balances.balances,
+			transactions_current.transactions.iter(),
+		);
+		update_balances_from_transactions(
+			&mut balances.balances,
+			transactions_retained.transactions.iter(),
+		);
 
 		// Store result
 		products.insert(
@@ -329,8 +353,8 @@ impl ReportingStep for CalculateIncomeTax {
 		_context: &ReportingContext,
 	) {
 		for other in steps {
-			if let Some(other) = other.downcast_ref::<AllTransactionsExceptRetainedEarnings>() {
-				// AllTransactionsExceptRetainedEarnings depends on CalculateIncomeTax
+			if let Some(other) = other.downcast_ref::<AllTransactionsExceptEarningsToEquity>() {
+				// AllTransactionsExceptEarningsToEquity depends on CalculateIncomeTax
 				dependencies.add_dependency(
 					other.id(),
 					ReportingProductId {
@@ -463,6 +487,138 @@ impl ReportingStep for CombineOrdinaryTransactions {
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(balances),
+		);
+
+		Ok(())
+	}
+}
+
+/// Transfer current year balances in income and expense accounts to the current year earnings equity account
+#[derive(Debug)]
+pub struct CurrentYearEarningsToEquity {
+	pub args: DateArgs,
+}
+
+impl CurrentYearEarningsToEquity {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"CurrentYearEarningsToEquity",
+			&[ReportingProductKind::Transactions],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<DateArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(CurrentYearEarningsToEquity {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for CurrentYearEarningsToEquity {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+impl ReportingStep for CurrentYearEarningsToEquity {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "CurrentYearEarningsToEquity",
+			product_kinds: &[ReportingProductKind::Transactions],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
+		// CurrentYearEarningsToEquity depends on CombineOrdinaryTransactions
+		vec![ReportingProductId {
+			name: "CombineOrdinaryTransactions",
+			kind: ReportingProductKind::BalancesBetween,
+			args: Box::new(DateStartDateEndArgs {
+				date_start: sofy_from_eofy(context.eofy_date),
+				date_end: context.eofy_date.clone(),
+			}),
+		}]
+	}
+
+	fn execute(
+		&self,
+		context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get balances for this financial year
+		let balances = products
+			.get_or_err(&ReportingProductId {
+				name: "CombineOrdinaryTransactions",
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(DateStartDateEndArgs {
+					date_start: sofy_from_eofy(context.eofy_date),
+					date_end: context.eofy_date.clone(),
+				}),
+			})?
+			.downcast_ref::<BalancesBetween>()
+			.unwrap();
+
+		// Get income and expense accounts
+		let kinds_for_account =
+			kinds_for_account(context.db_connection.get_account_configurations());
+
+		// Transfer income and expense balances to current year earnings
+		let mut transactions = Transactions {
+			transactions: Vec::new(),
+		};
+
+		for (account, balance) in balances.balances.iter() {
+			if let Some(kinds) = kinds_for_account.get(account) {
+				if kinds
+					.iter()
+					.any(|k| k == "drcr.income" || k == "drcr.expense")
+				{
+					transactions.transactions.push(TransactionWithPostings {
+						transaction: Transaction {
+							id: None,
+							dt: context.eofy_date.and_hms_opt(0, 0, 0).unwrap(),
+							description: "Current year earnings".to_string(),
+						},
+						postings: vec![
+							Posting {
+								id: None,
+								transaction_id: None,
+								description: None,
+								account: account.clone(),
+								quantity: -balance,
+								commodity: context.reporting_commodity.clone(),
+							},
+							Posting {
+								id: None,
+								transaction_id: None,
+								description: None,
+								account: "Current Year Earnings".to_string(),
+								quantity: *balance,
+								commodity: context.reporting_commodity.clone(),
+							},
+						],
+					})
+				}
+			}
+		}
+
+		// Store product
+		products.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(transactions),
 		);
 
 		Ok(())
@@ -728,6 +884,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 			}
 		}
 
+		// Store product
 		products.insert(
 			ReportingProductId {
 				name: self.id().name,

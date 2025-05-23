@@ -321,3 +321,52 @@ pub fn steps_for_targets(
 
 	Ok((sorted_steps, dependencies))
 }
+
+/// Generate graphviz code representing the dependency tree
+///
+/// Useful for debugging or visualisation. Can be compiled using e.g. `dot -Tpdf -O output.gv`.
+pub fn steps_as_graphviz(
+	steps: &Vec<Box<dyn ReportingStep>>,
+	dependencies: &ReportingGraphDependencies,
+) -> String {
+	let mut result = String::from("strict digraph drcr {\n");
+
+	// Output all steps
+	for step in steps.iter() {
+		let step_display_name = step.to_string();
+		if step_display_name.contains("{") {
+			// Bodge: Detect dynamic step builders
+			result.push_str(&format!(
+				"\"{}\" [shape=box, style=dashed, label=\"{}\"];\n",
+				step.id(),
+				step_display_name
+			));
+		} else {
+			result.push_str(&format!("\"{}\" [shape=box];\n", step.id()));
+		}
+
+		// Output the products of the step
+		for product_kind in step.id().product_kinds.iter() {
+			result.push_str(&format!(
+				"\"{}\" -> \"{}\";\n",
+				step.id(),
+				ReportingProductId {
+					name: step.id().name,
+					kind: *product_kind,
+					args: step.id().args
+				}
+			));
+		}
+	}
+
+	// Output all dependencies
+	for dependency in dependencies.vec().iter() {
+		result.push_str(&format!(
+			"\"{}\" -> \"{}\";\n",
+			dependency.product, dependency.step
+		));
+	}
+
+	result.push_str("}");
+	result
+}

@@ -19,6 +19,7 @@
 use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
 use libdrcr::reporting::builders::register_dynamic_builders;
+use libdrcr::reporting::calculator::{steps_as_graphviz, steps_for_targets};
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::{
 	register_lookup_fns, AllTransactionsExceptEarningsToEquity,
@@ -42,6 +43,21 @@ fn main() {
 
 	register_lookup_fns(&mut context);
 	register_dynamic_builders(&mut context);
+
+	// Print Graphviz
+
+	let targets: Vec<Box<dyn ReportingStep>> = vec![
+		Box::new(CalculateIncomeTax {}),
+		Box::new(AllTransactionsIncludingEarningsToEquity {
+			args: DateArgs {
+				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			},
+		}),
+	];
+	let (sorted_steps, dependencies) = steps_for_targets(targets, &context).unwrap();
+
+	println!("Graphviz:");
+	println!("{}", steps_as_graphviz(&sorted_steps, &dependencies));
 
 	// Get income statement
 

@@ -18,7 +18,7 @@
 
 use calculator::{steps_for_targets, ReportingCalculationError};
 use executor::{execute_steps, ReportingExecutionError};
-use types::{ReportingContext, ReportingProducts, ReportingStep};
+use types::{ReportingContext, ReportingProductId, ReportingProducts};
 
 pub mod builders;
 pub mod calculator;
@@ -44,8 +44,11 @@ impl From<ReportingExecutionError> for ReportingError {
 	}
 }
 
+/// Calculate the steps required to generate the requested [ReportingProductId]s and then execute them
+///
+/// Helper function to call [steps_for_targets] followed by [execute_steps].
 pub fn generate_report(
-	targets: Vec<Box<dyn ReportingStep>>,
+	targets: Vec<ReportingProductId>,
 	context: &ReportingContext,
 ) -> Result<ReportingProducts, ReportingError> {
 	// Solve dependencies

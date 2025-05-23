@@ -21,13 +21,10 @@ use libdrcr::db::DbConnection;
 use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::calculator::{steps_as_graphviz, steps_for_targets};
 use libdrcr::reporting::generate_report;
-use libdrcr::reporting::steps::{
-	register_lookup_fns, AllTransactionsExceptEarningsToEquity,
-	AllTransactionsIncludingEarningsToEquity, CalculateIncomeTax,
-};
+use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
 	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
-	ReportingStep,
+	VoidArgs,
 };
 
 fn main() {
@@ -46,13 +43,19 @@ fn main() {
 
 	// Print Graphviz
 
-	let targets: Vec<Box<dyn ReportingStep>> = vec![
-		Box::new(CalculateIncomeTax {}),
-		Box::new(AllTransactionsIncludingEarningsToEquity {
-			args: DateArgs {
+	let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "AllTransactionsIncludingEarningsToEquity",
+			kind: ReportingProductKind::BalancesAt,
+			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			},
-		}),
+			}),
+		},
 	];
 	let (sorted_steps, dependencies) = steps_for_targets(targets, &context).unwrap();
 
@@ -61,15 +64,20 @@ fn main() {
 
 	// Get income statement
 
-	let targets: Vec<Box<dyn ReportingStep>> = vec![
-		Box::new(CalculateIncomeTax {}),
-		Box::new(AllTransactionsExceptEarningsToEquity {
-			product_kinds: &[ReportingProductKind::BalancesBetween],
+	let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
 				date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
 				date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
 			}),
-		}),
+		},
 	];
 
 	let products = generate_report(targets, &context).unwrap();
@@ -89,13 +97,19 @@ fn main() {
 
 	// Get balance sheet
 
-	let targets: Vec<Box<dyn ReportingStep>> = vec![
-		Box::new(CalculateIncomeTax {}),
-		Box::new(AllTransactionsIncludingEarningsToEquity {
-			args: DateArgs {
+	let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "AllTransactionsIncludingEarningsToEquity",
+			kind: ReportingProductKind::BalancesAt,
+			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-			},
-		}),
+			}),
+		},
 	];
 
 	let products = generate_report(targets, &context).unwrap();

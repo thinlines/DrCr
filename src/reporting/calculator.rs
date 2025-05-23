@@ -207,33 +207,41 @@ fn would_be_ready_to_execute(
 	true
 }
 
-/// Recursively resolve the dependencies of the target [ReportingStep]s and return a sorted [Vec] of [ReportingStep]s
+/// Recursively resolve the dependencies of the target [ReportingProductId]s and return a sorted [Vec] of [ReportingStep]s
 pub fn steps_for_targets(
-	targets: Vec<Box<dyn ReportingStep>>,
+	targets: Vec<ReportingProductId>,
 	context: &ReportingContext,
 ) -> Result<(Vec<Box<dyn ReportingStep>>, ReportingGraphDependencies), ReportingCalculationError> {
 	let mut steps: Vec<Box<dyn ReportingStep>> = Vec::new();
 	let mut dependencies = ReportingGraphDependencies { vec: Vec::new() };
 
-	// Initialise targets
-	for target in targets {
-		steps.push(target);
-		let target = steps.last().unwrap();
-		for dependency in target.requires(&context) {
-			dependencies.add_dependency(target.id(), dependency);
+	// Process initial targets
+	for target in targets.iter() {
+		if !steps.iter().any(|s| {
+			s.id().name == target.name
+				&& s.id().args == target.args
+				&& s.id().product_kinds.contains(&target.kind)
+		}) {
+			// No current step generates the product - try to lookup or build
+			if let Some(new_step) = build_step_for_product(&target, &steps, &dependencies, context)
+			{
+				steps.push(new_step);
+				let new_step = steps.last().unwrap();
+				for dependency in new_step.requires(&context) {
+					dependencies.add_dependency(new_step.id(), dependency);
+				}
+				new_step.init_graph(&steps, &mut dependencies, &context);
+			}
 		}
-		target
-			.as_ref()
-			.init_graph(&steps, &mut dependencies, &context);
 	}
 
-	// Call after_init_graph on targets
+	// Call after_init_graph
 	for step in steps.iter() {
 		step.as_ref()
 			.after_init_graph(&steps, &mut dependencies, &context);
 	}
 
-	// Process dependencies
+	// Recursively process dependencies
 	loop {
 		let mut new_steps = Vec::new();
 

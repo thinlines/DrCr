@@ -226,14 +226,31 @@ pub fn steps_for_targets(
 						&dependencies,
 						&context,
 					) {
-						new_steps.push((builder.build)(
+						let new_step = (builder.build)(
 							dependency.product.name,
 							dependency.product.kind,
 							dependency.product.args.clone(),
 							&steps,
 							&dependencies,
 							&context,
-						));
+						);
+
+						// Check new step meets the dependency
+						if new_step.id().name != dependency.product.name {
+							panic!("Unexpected step returned from dynamic builder (expected name {}, got {})", dependency.product.name, new_step.id().name);
+						}
+						if new_step.id().args != dependency.product.args {
+							panic!("Unexpected step returned from dynamic builder {} (expected args {:?}, got {:?})", dependency.product.name, dependency.product.args, new_step.id().args);
+						}
+						if !new_step
+							.id()
+							.product_kinds
+							.contains(&dependency.product.kind)
+						{
+							panic!("Unexpected step returned from dynamic builder {} (expected kind {:?}, got {:?})", dependency.product.name, dependency.product.kind, new_step.id().product_kinds);
+						}
+
+						new_steps.push(new_step);
 						break;
 					}
 				}

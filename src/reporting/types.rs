@@ -41,6 +41,7 @@ pub struct ReportingContext {
 	// Configuration
 	pub db_connection: DbConnection,
 	pub eofy_date: NaiveDate,
+	pub reporting_commodity: String,
 
 	// State
 	pub(crate) step_lookup_fn: HashMap<
@@ -52,10 +53,15 @@ pub struct ReportingContext {
 
 impl ReportingContext {
 	/// Initialise a new [ReportingContext]
-	pub fn new(db_connection: DbConnection, eofy_date: NaiveDate) -> Self {
+	pub fn new(
+		db_connection: DbConnection,
+		eofy_date: NaiveDate,
+		reporting_commodity: String,
+	) -> Self {
 		Self {
-			db_connection: db_connection,
-			eofy_date: eofy_date,
+			db_connection,
+			eofy_date,
+			reporting_commodity,
 			step_lookup_fn: HashMap::new(),
 			step_dynamic_builders: Vec::new(),
 		}

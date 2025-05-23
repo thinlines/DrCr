@@ -34,8 +34,11 @@ fn main() {
 	let db_connection = DbConnection::connect("sqlite:drcr_testing.db");
 
 	// Initialise ReportingContext
-	let mut context =
-		ReportingContext::new(db_connection, NaiveDate::from_ymd_opt(2025, 6, 30).unwrap());
+	let mut context = ReportingContext::new(
+		db_connection,
+		NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+		"$".to_string(),
+	);
 
 	register_lookup_fns(&mut context);
 	register_dynamic_builders(&mut context);
@@ -65,6 +68,7 @@ fn main() {
 		})
 		.unwrap();
 
+	println!("Income statement:");
 	println!("{:?}", result);
 
 	// Get balance sheet
@@ -89,6 +93,6 @@ fn main() {
 		})
 		.unwrap();
 
-	//println!("{}", products);
+	println!("Balance sheet:");
 	println!("{:?}", result);
 }

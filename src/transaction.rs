@@ -39,7 +39,7 @@ pub struct TransactionWithPostings {
 pub struct Posting {
 	pub id: Option<u64>,
 	pub transaction_id: Option<u64>,
-	pub description: String,
+	pub description: Option<String>,
 	pub account: String,
 	pub quantity: QuantityInt,
 	pub commodity: String,

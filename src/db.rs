@@ -21,9 +21,11 @@ use std::ops::DerefMut;
 use std::{cell::RefCell, future::Future};
 
 use chrono::NaiveDate;
+use sqlx::sqlite::SqliteRow;
 use sqlx::{Connection, Row, SqliteConnection};
 use tokio::runtime::Runtime;
 
+use crate::account_config::AccountConfiguration;
 use crate::{util::format_date, QuantityInt};
 
 pub struct DbConnection {
@@ -73,7 +75,7 @@ impl DbConnection {
 			SELECT max_tid_by_account.account, running_balance AS quantity
 			FROM max_tid_by_account
 			JOIN transactions_with_running_balances ON max_tid = transactions_with_running_balances.transaction_id AND max_tid_by_account.account = transactions_with_running_balances.account"
-		).bind(format_date(date)).fetch_all(connection.deref_mut()).await.unwrap();
+		).bind(format_date(date)).fetch_all(connection.deref_mut()).await.expect("SQL error");
 
 		let mut balances = HashMap::new();
 		for row in rows {
@@ -81,5 +83,28 @@ impl DbConnection {
 		}
 
 		balances
+	}
+
+	/// Get account configurations from the database
+	pub fn get_account_configurations(&self) -> Vec<AccountConfiguration> {
+		run_blocking(self.get_account_configurations_async())
+	}
+
+	async fn get_account_configurations_async(&self) -> Vec<AccountConfiguration> {
+		let mut connection = self.sqlx_connection.borrow_mut();
+
+		let account_configurations =
+			sqlx::query("SELECT id, account, kind, data FROM account_configurations")
+				.map(|r: SqliteRow| AccountConfiguration {
+					id: r.get("id"),
+					account: r.get("account"),
+					kind: r.get("kind"),
+					data: r.get("data"),
+				})
+				.fetch_all(connection.deref_mut())
+				.await
+				.expect("SQL error");
+
+		account_configurations
 	}
 }

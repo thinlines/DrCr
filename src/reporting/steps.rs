@@ -23,8 +23,11 @@ use std::fmt::Display;
 
 use chrono::Datelike;
 
+use crate::account_config::kinds_for_account;
 use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
-use crate::transaction::update_balances_from_transactions;
+use crate::transaction::{
+	update_balances_from_transactions, Posting, Transaction, TransactionWithPostings,
+};
 use crate::util::sofy_from_eofy;
 
 use super::calculator::ReportingGraphDependencies;
@@ -659,16 +662,71 @@ impl ReportingStep for RetainedEarningsToEquity {
 
 	fn execute(
 		&self,
-		_context: &ReportingContext,
+		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		products: &mut ReportingProducts,
 	) -> Result<(), ReportingExecutionError> {
-		eprintln!("Stub: RetainedEarningsToEquity.execute");
+		// Get balances at end of last financial year
+		let last_eofy_date = context
+			.eofy_date
+			.with_year(context.eofy_date.year() - 1)
+			.unwrap();
 
-		let transactions = Transactions {
+		let balances_last_eofy = products
+			.get_or_err(&ReportingProductId {
+				name: "CombineOrdinaryTransactions",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(DateArgs {
+					date: last_eofy_date.clone(),
+				}),
+			})?
+			.downcast_ref::<BalancesAt>()
+			.unwrap();
+
+		// Get income and expense accounts
+		let kinds_for_account =
+			kinds_for_account(context.db_connection.get_account_configurations());
+
+		// Transfer income and expense balances to retained earnings
+		let mut transactions = Transactions {
 			transactions: Vec::new(),
 		};
+
+		for (account, balance) in balances_last_eofy.balances.iter() {
+			if let Some(kinds) = kinds_for_account.get(account) {
+				if kinds
+					.iter()
+					.any(|k| k == "drcr.income" || k == "drcr.expense")
+				{
+					transactions.transactions.push(TransactionWithPostings {
+						transaction: Transaction {
+							id: None,
+							dt: last_eofy_date.and_hms_opt(0, 0, 0).unwrap(),
+							description: "Retained earnings".to_string(),
+						},
+						postings: vec![
+							Posting {
+								id: None,
+								transaction_id: None,
+								description: None,
+								account: account.clone(),
+								quantity: -balance,
+								commodity: context.reporting_commodity.clone(),
+							},
+							Posting {
+								id: None,
+								transaction_id: None,
+								description: None,
+								account: "Retained Earnings".to_string(),
+								quantity: *balance,
+								commodity: context.reporting_commodity.clone(),
+							},
+						],
+					})
+				}
+			}
+		}
 
 		products.insert(
 			ReportingProductId {

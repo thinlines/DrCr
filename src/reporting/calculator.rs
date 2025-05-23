@@ -118,6 +118,66 @@ pub fn has_step_or_can_build<'a, 'b>(
 	return HasStepOrCanBuild::None;
 }
 
+/// Generates a new step which generates the requested [ReportingProduct][super::types::ReportingProduct], using a lookup function or dynamic builder
+///
+/// Panics if a known step already generates the requested [ReportingProduct][super::types::ReportingProduct].
+fn build_step_for_product(
+	product: &ReportingProductId,
+	steps: &Vec<Box<dyn ReportingStep>>,
+	dependencies: &ReportingGraphDependencies,
+	context: &ReportingContext,
+) -> Option<Box<dyn ReportingStep>> {
+	let new_step;
+	match has_step_or_can_build(product, steps, dependencies, context) {
+		HasStepOrCanBuild::HasStep(_) => {
+			panic!("Attempted to call build_step_for_product for already existing step")
+		}
+		HasStepOrCanBuild::CanLookup(from_args_fn) => {
+			new_step = from_args_fn(product.args.clone());
+		}
+		HasStepOrCanBuild::CanBuild(builder) => {
+			new_step = (builder.build)(
+				product.name,
+				product.kind,
+				product.args.clone(),
+				&steps,
+				&dependencies,
+				&context,
+			);
+		}
+		HasStepOrCanBuild::None => {
+			return None;
+		}
+	}
+
+	// Check new step meets the dependency
+	if new_step.id().name != product.name {
+		panic!(
+			"Unexpected step returned from lookup function (expected name {}, got {})",
+			product.name,
+			new_step.id().name
+		);
+	}
+	if new_step.id().args != product.args {
+		panic!(
+			"Unexpected step returned from lookup function {} (expected args {:?}, got {:?})",
+			product.name,
+			product.args,
+			new_step.id().args
+		);
+	}
+	if !new_step.id().product_kinds.contains(&product.kind) {
+		panic!(
+			"Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})",
+			product.name,
+			product.kind,
+			new_step.id().product_kinds
+		);
+	}
+
+	Some(new_step)
+}
+
 /// Check whether the [ReportingStep] would be ready to execute, if the given previous steps have already completed
 fn would_be_ready_to_execute(
 	step: &Box<dyn ReportingStep>,
@@ -179,6 +239,7 @@ pub fn steps_for_targets(
 
 		for dependency in dependencies.vec.iter() {
 			if !steps.iter().any(|s| s.id() == dependency.step) {
+				// Unknown step for which a dependency has been declared
 				// FIXME: Call the lookup function
 				todo!();
 			}
@@ -187,72 +248,11 @@ pub fn steps_for_targets(
 					&& s.id().args == dependency.product.args
 					&& s.id().product_kinds.contains(&dependency.product.kind)
 			}) {
-				// Try lookup function
-				if let Some(lookup_key) = context.step_lookup_fn.keys().find(|(name, kinds)| {
-					*name == dependency.product.name && kinds.contains(&dependency.product.kind)
-				}) {
-					let (takes_args_fn, from_args_fn) =
-						context.step_lookup_fn.get(lookup_key).unwrap();
-					if takes_args_fn(&dependency.product.args) {
-						let new_step = from_args_fn(dependency.product.args.clone());
-
-						// Check new step meets the dependency
-						if new_step.id().name != dependency.product.name {
-							panic!("Unexpected step returned from lookup function (expected name {}, got {})", dependency.product.name, new_step.id().name);
-						}
-						if new_step.id().args != dependency.product.args {
-							panic!("Unexpected step returned from lookup function {} (expected args {:?}, got {:?})", dependency.product.name, dependency.product.args, new_step.id().args);
-						}
-						if !new_step
-							.id()
-							.product_kinds
-							.contains(&dependency.product.kind)
-						{
-							panic!("Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})", dependency.product.name, dependency.product.kind, new_step.id().product_kinds);
-						}
-
-						new_steps.push(new_step);
-						continue;
-					}
-				}
-
-				// No explicit step for product - try builders
-				for builder in context.step_dynamic_builders.iter() {
-					if (builder.can_build)(
-						dependency.product.name,
-						dependency.product.kind,
-						&dependency.product.args,
-						&steps,
-						&dependencies,
-						&context,
-					) {
-						let new_step = (builder.build)(
-							dependency.product.name,
-							dependency.product.kind,
-							dependency.product.args.clone(),
-							&steps,
-							&dependencies,
-							&context,
-						);
-
-						// Check new step meets the dependency
-						if new_step.id().name != dependency.product.name {
-							panic!("Unexpected step returned from dynamic builder (expected name {}, got {})", dependency.product.name, new_step.id().name);
-						}
-						if new_step.id().args != dependency.product.args {
-							panic!("Unexpected step returned from dynamic builder {} (expected args {:?}, got {:?})", dependency.product.name, dependency.product.args, new_step.id().args);
-						}
-						if !new_step
-							.id()
-							.product_kinds
-							.contains(&dependency.product.kind)
-						{
-							panic!("Unexpected step returned from dynamic builder {} (expected kind {:?}, got {:?})", dependency.product.name, dependency.product.kind, new_step.id().product_kinds);
-						}
-
-						new_steps.push(new_step);
-						break;
-					}
+				// No current step generates the product - try to lookup or build
+				if let Some(new_step) =
+					build_step_for_product(&dependency.product, &steps, &dependencies, context)
+				{
+					new_steps.push(new_step);
 				}
 			}
 		}

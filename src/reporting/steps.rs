@@ -536,9 +536,9 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 	}
 
 	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
-		// CurrentYearEarningsToEquity depends on CombineOrdinaryTransactions
+		// CurrentYearEarningsToEquity depends on AllTransactionsExceptEarningsToEquity
 		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions",
+			name: "AllTransactionsExceptEarningsToEquity",
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
 				date_start: sofy_from_eofy(context.eofy_date),
@@ -557,7 +557,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		// Get balances for this financial year
 		let balances = products
 			.get_or_err(&ReportingProductId {
-				name: "CombineOrdinaryTransactions",
+				name: "AllTransactionsExceptEarningsToEquity",
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(DateStartDateEndArgs {
 					date_start: sofy_from_eofy(context.eofy_date),

@@ -194,6 +194,7 @@ pub trait GenericReportingProduct: Debug + ReportingProduct {}
 /// Map from [ReportingProductId] to [ReportingProduct]
 #[derive(Clone, Debug)]
 pub struct ReportingProducts {
+	// This needs to be an IndexMap not HashMap, because sometimes we query which product is more up to date
 	map: IndexMap<ReportingProductId, Box<dyn ReportingProduct>>,
 }
 

@@ -93,7 +93,7 @@ impl DbConnection {
 	async fn get_account_configurations_async(&self) -> Vec<AccountConfiguration> {
 		let mut connection = self.sqlx_connection.borrow_mut();
 
-		let account_configurations =
+		let mut account_configurations =
 			sqlx::query("SELECT id, account, kind, data FROM account_configurations")
 				.map(|r: SqliteRow| AccountConfiguration {
 					id: r.get("id"),
@@ -104,6 +104,20 @@ impl DbConnection {
 				.fetch_all(connection.deref_mut())
 				.await
 				.expect("SQL error");
+
+		// System accounts
+		account_configurations.push(AccountConfiguration {
+			id: None,
+			account: "Current Year Earnings".to_string(),
+			kind: "drcr.equity".to_string(),
+			data: None,
+		});
+		account_configurations.push(AccountConfiguration {
+			id: None,
+			account: "Retained Earnings".to_string(),
+			kind: "drcr.equity".to_string(),
+			data: None,
+		});
 
 		account_configurations
 	}

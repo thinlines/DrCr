@@ -29,18 +29,24 @@ use crate::transaction::{
 	update_balances_from_transactions, Posting, Transaction, TransactionWithPostings,
 };
 use crate::util::sofy_from_eofy;
+use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
+use super::dynamic_report::{
+	entries_for_kind, CalculatedRow, DynamicReport, DynamicReportEntry, LiteralRow, Section,
+};
 use super::executor::ReportingExecutionError;
 use super::types::{
-	BalancesBetween, DateArgs, ReportingContext, ReportingProduct, ReportingProductKind,
-	ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId, VoidArgs,
+	BalancesBetween, DateArgs, MultipleDateArgs, ReportingContext, ReportingProduct,
+	ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId,
+	VoidArgs,
 };
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
 pub fn register_lookup_fns(context: &mut ReportingContext) {
 	AllTransactionsExceptEarningsToEquity::register_lookup_fn(context);
 	AllTransactionsIncludingEarningsToEquity::register_lookup_fn(context);
+	BalanceSheet::register_lookup_fn(context);
 	CalculateIncomeTax::register_lookup_fn(context);
 	CombineOrdinaryTransactions::register_lookup_fn(context);
 	CurrentYearEarningsToEquity::register_lookup_fn(context);
@@ -290,6 +296,182 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(balances),
+		);
+
+		Ok(())
+	}
+}
+
+/// Generates a balance sheet [DynamicReport]
+#[derive(Debug)]
+pub struct BalanceSheet {
+	pub args: MultipleDateArgs,
+}
+
+impl BalanceSheet {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"BalanceSheet",
+			&[ReportingProductKind::Generic],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<MultipleDateArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(BalanceSheet {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for BalanceSheet {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+impl ReportingStep for BalanceSheet {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "BalanceSheet",
+			product_kinds: &[ReportingProductKind::Generic],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
+		let mut result = Vec::new();
+
+		// BalanceSheet depends on AllTransactionsIncludingEarningsToEquity in each requested period
+		for date_args in self.args.dates.iter() {
+			result.push(ReportingProductId {
+				name: "AllTransactionsIncludingEarningsToEquity",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(date_args.clone()),
+			});
+		}
+
+		result
+	}
+
+	fn execute(
+		&self,
+		context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get balances for each period
+		let mut balances: Vec<&HashMap<String, QuantityInt>> = Vec::new();
+		for date_args in self.args.dates.iter() {
+			let product = products.get_or_err(&ReportingProductId {
+				name: "AllTransactionsIncludingEarningsToEquity",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(date_args.clone()),
+			})?;
+
+			balances.push(&product.downcast_ref::<BalancesAt>().unwrap().balances);
+		}
+
+		// Get names of all balance sheet accounts
+		let kinds_for_account =
+			kinds_for_account(context.db_connection.get_account_configurations());
+
+		// Init report
+		let mut report = DynamicReport {
+			title: "Balance sheet".to_string(),
+			columns: self.args.dates.iter().map(|d| d.date.to_string()).collect(),
+			entries: vec![
+				DynamicReportEntry::Section(Section {
+					text: "Assets".to_string(),
+					id: Some("assets".to_string()),
+					visible: true,
+					auto_hide: false,
+					entries: {
+						let mut entries =
+							entries_for_kind("drcr.asset", false, &balances, &kinds_for_account);
+						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
+							calculate_fn: |report| LiteralRow {
+								text: "Total assets".to_string(),
+								quantity: report.subtotal_for_id("assets"),
+								id: None,
+								visible: true,
+								auto_hide: false,
+								link: None,
+								heading: true,
+								bordered: true,
+							},
+						}));
+						entries
+					},
+				}),
+				DynamicReportEntry::Spacer,
+				DynamicReportEntry::Section(Section {
+					text: "Liabilities".to_string(),
+					id: Some("liabilities".to_string()),
+					visible: true,
+					auto_hide: false,
+					entries: {
+						let mut entries =
+							entries_for_kind("drcr.liability", true, &balances, &kinds_for_account);
+						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
+							calculate_fn: |report| LiteralRow {
+								text: "Total liabilities".to_string(),
+								quantity: report.subtotal_for_id("liabilities"),
+								id: None,
+								visible: true,
+								auto_hide: false,
+								link: None,
+								heading: true,
+								bordered: true,
+							},
+						}));
+						entries
+					},
+				}),
+				DynamicReportEntry::Spacer,
+				DynamicReportEntry::Section(Section {
+					text: "Equity".to_string(),
+					id: Some("equity".to_string()),
+					visible: true,
+					auto_hide: false,
+					entries: {
+						let mut entries =
+							entries_for_kind("drcr.equity", true, &balances, &kinds_for_account);
+						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
+							calculate_fn: |report| LiteralRow {
+								text: "Total equity".to_string(),
+								quantity: report.subtotal_for_id("equity"),
+								id: None,
+								visible: true,
+								auto_hide: false,
+								link: None,
+								heading: true,
+								bordered: true,
+							},
+						}));
+						entries
+					},
+				}),
+			],
+		};
+
+		report.calculate();
+		report.auto_hide();
+
+		// Store the result
+		products.insert(
+			ReportingProductId {
+				name: "BalanceSheet",
+				kind: ReportingProductKind::Generic,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(report),
 		);
 
 		Ok(())

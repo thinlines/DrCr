@@ -22,6 +22,7 @@ use types::{ReportingContext, ReportingProductId, ReportingProducts};
 
 pub mod builders;
 pub mod calculator;
+pub mod dynamic_report;
 pub mod executor;
 pub mod steps;
 pub mod types;

@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+use std::hash::Hash;
 
 use chrono::NaiveDate;
 use downcast_rs::Downcast;
@@ -354,5 +355,47 @@ impl ReportingStepArgs for DateStartDateEndArgs {}
 impl Display for DateStartDateEndArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("{}, {}", self.date_start, self.date_end))
+	}
+}
+
+/// [ReportingStepArgs] implementation which takes multiple [DateArgs]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct MultipleDateArgs {
+	pub dates: Vec<DateArgs>,
+}
+
+impl ReportingStepArgs for MultipleDateArgs {}
+
+impl Display for MultipleDateArgs {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!(
+			"{}",
+			self.dates
+				.iter()
+				.map(|a| a.to_string())
+				.collect::<Vec<_>>()
+				.join(", ")
+		))
+	}
+}
+
+/// [ReportingStepArgs] implementation which takes multiple [DateStartDateEndArgs]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct MultipleDateStartDateEndArgs {
+	pub dates: Vec<DateStartDateEndArgs>,
+}
+
+impl ReportingStepArgs for MultipleDateStartDateEndArgs {}
+
+impl Display for MultipleDateStartDateEndArgs {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!(
+			"{}",
+			self.dates
+				.iter()
+				.map(|a| format!("({})", a))
+				.collect::<Vec<_>>()
+				.join(", ")
+		))
 	}
 }

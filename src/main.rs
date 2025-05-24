@@ -23,8 +23,8 @@ use libdrcr::reporting::calculator::{steps_as_graphviz, steps_for_targets};
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
-	DateArgs, DateStartDateEndArgs, ReportingContext, ReportingProductId, ReportingProductKind,
-	VoidArgs,
+	DateArgs, DateStartDateEndArgs, MultipleDateArgs, ReportingContext, ReportingProductId,
+	ReportingProductKind, VoidArgs,
 };
 
 fn main() {
@@ -50,10 +50,12 @@ fn main() {
 			args: Box::new(VoidArgs {}),
 		},
 		ReportingProductId {
-			name: "AllTransactionsIncludingEarningsToEquity",
-			kind: ReportingProductKind::BalancesAt,
-			args: Box::new(DateArgs {
-				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			name: "BalanceSheet",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateArgs {
+				dates: vec![DateArgs {
+					date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+				}],
 			}),
 		},
 	];
@@ -104,10 +106,12 @@ fn main() {
 			args: Box::new(VoidArgs {}),
 		},
 		ReportingProductId {
-			name: "AllTransactionsIncludingEarningsToEquity",
-			kind: ReportingProductKind::BalancesAt,
-			args: Box::new(DateArgs {
-				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			name: "BalanceSheet",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateArgs {
+				dates: vec![DateArgs {
+					date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+				}],
 			}),
 		},
 	];
@@ -115,10 +119,12 @@ fn main() {
 	let products = generate_report(targets, &context).unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
-			name: "AllTransactionsIncludingEarningsToEquity",
-			kind: ReportingProductKind::BalancesAt,
-			args: Box::new(DateArgs {
-				date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			name: "BalanceSheet",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateArgs {
+				dates: vec![DateArgs {
+					date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+				}],
 			}),
 		})
 		.unwrap();

@@ -20,6 +20,7 @@ use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
 use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::calculator::{steps_as_graphviz, steps_for_targets};
+use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
@@ -130,5 +131,8 @@ fn main() {
 		.unwrap();
 
 	println!("Balance sheet:");
-	println!("{:?}", result);
+	println!(
+		"{}",
+		result.downcast_ref::<DynamicReport>().unwrap().to_json()
+	);
 }

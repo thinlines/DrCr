@@ -18,12 +18,14 @@
 
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::QuantityInt;
 
 use super::types::{GenericReportingProduct, ReportingProduct};
 
 /// Represents a dynamically generated report composed of [DynamicReportEntry]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DynamicReport {
 	pub title: String,
 	pub columns: Vec<String>,
@@ -109,20 +111,26 @@ impl DynamicReport {
 			panic!("Called subtotal_for_id on non-Section");
 		}
 	}
+
+	/// Serialise the report (as JSON) using serde
+	pub fn to_json(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
 }
 
 impl GenericReportingProduct for DynamicReport {}
 impl ReportingProduct for DynamicReport {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum DynamicReportEntry {
 	Section(Section),
 	LiteralRow(LiteralRow),
+	#[serde(skip)]
 	CalculatedRow(CalculatedRow),
 	Spacer,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Section {
 	pub text: String,
 	pub id: Option<String>,
@@ -230,7 +238,7 @@ impl Section {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LiteralRow {
 	pub text: String,
 	pub quantity: Vec<QuantityInt>,

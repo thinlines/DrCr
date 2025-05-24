@@ -682,6 +682,8 @@ dependencies = [
  "dyn-eq",
  "dyn-hash",
  "indexmap",
+ "serde",
+ "serde_json",
  "sqlx",
  "tokio",
 ]

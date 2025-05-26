@@ -16,6 +16,7 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -29,13 +30,22 @@ use super::types::{GenericReportingProduct, ReportingProduct};
 pub struct DynamicReport {
 	pub title: String,
 	pub columns: Vec<String>,
-	pub entries: Vec<DynamicReportEntry>,
+	// This must use RefCell as, during calculation, we iterate while mutating the report
+	pub entries: Vec<RefCell<DynamicReportEntry>>,
 }
 
 impl DynamicReport {
+	pub fn new(title: String, columns: Vec<String>, entries: Vec<DynamicReportEntry>) -> Self {
+		Self {
+			title,
+			columns,
+			entries: entries.into_iter().map(|e| RefCell::new(e)).collect(),
+		}
+	}
+
 	/// Remove all entries from the report where auto_hide is enabled and quantity is zero
 	pub fn auto_hide(&mut self) {
-		self.entries.retain_mut(|e| match e {
+		self.entries.retain(|e| match &mut *e.borrow_mut() {
 			DynamicReportEntry::Section(section) => {
 				section.auto_hide_children();
 				if section.can_auto_hide_self() {
@@ -58,15 +68,26 @@ impl DynamicReport {
 
 	/// Recursively calculate all [CalculatedRow] entries
 	pub fn calculate(&mut self) {
-		// FIXME: This is for the borrow checker - can it be avoided?
-		let report_cloned = self.clone();
+		for (entry_idx, entry) in self.entries.iter().enumerate() {
+			let entry_ref = entry.borrow();
 
-		for entry in self.entries.iter_mut() {
-			match entry {
-				DynamicReportEntry::Section(section) => section.calculate(&report_cloned),
+			match &*entry_ref {
+				DynamicReportEntry::Section(section) => {
+					// Clone first, in case calculation needs to take reference to the section
+					let mut updated_section = section.clone();
+					updated_section.calculate(&self);
+
+					drop(entry_ref); // Drop entry_ref so we can borrow mutably
+					let mut entry_mut = self.entries[entry_idx].borrow_mut();
+					*entry_mut = DynamicReportEntry::Section(updated_section);
+				}
 				DynamicReportEntry::LiteralRow(_) => (),
 				DynamicReportEntry::CalculatedRow(row) => {
-					*entry = DynamicReportEntry::LiteralRow(row.calculate(&report_cloned));
+					let updated_row = row.calculate(&self);
+
+					drop(entry_ref); // Drop entry_ref so we can borrow mutably
+					let mut entry_mut = self.entries[entry_idx].borrow_mut();
+					*entry_mut = DynamicReportEntry::LiteralRow(updated_row);
 				}
 				DynamicReportEntry::Spacer => (),
 			}
@@ -74,13 +95,18 @@ impl DynamicReport {
 	}
 
 	/// Look up [DynamicReportEntry] by id
-	pub fn by_id(&self, id: &str) -> Option<&DynamicReportEntry> {
+	///
+	/// Returns a cloned copy of the [DynamicReportEntry]. This is necessary because the entry may be within a [Section], and [RefCell] semantics cannot express this type of nested borrow.
+	pub fn by_id(&self, id: &str) -> Option<DynamicReportEntry> {
+		// Manually iterate over self.entries rather than self.entries()
+		// To catch the situation where entry is already mutably borrowed
 		for entry in self.entries.iter() {
-			match entry {
+			match entry.try_borrow() {
+				Ok(entry) => match &*entry {
 				DynamicReportEntry::Section(section) => {
 					if let Some(i) = &section.id {
 						if i == id {
-							return Some(entry);
+								return Some(entry.clone());
 						}
 					}
 					if let Some(e) = section.by_id(id) {
@@ -90,12 +116,17 @@ impl DynamicReport {
 				DynamicReportEntry::LiteralRow(row) => {
 					if let Some(i) = &row.id {
 						if i == id {
-							return Some(entry);
+								return Some(entry.clone());
 						}
 					}
 				}
 				DynamicReportEntry::CalculatedRow(_) => (),
 				DynamicReportEntry::Spacer => (),
+				},
+				Err(err) => panic!(
+					"Attempt to call by_id on DynamicReportEntry which is mutably borrowed: {}",
+					err
+				),
 			}
 		}
 
@@ -136,12 +167,28 @@ pub struct Section {
 	pub id: Option<String>,
 	pub visible: bool,
 	pub auto_hide: bool,
-	pub entries: Vec<DynamicReportEntry>,
+	pub entries: Vec<RefCell<DynamicReportEntry>>,
 }
 
 impl Section {
+	pub fn new(
+		text: String,
+		id: Option<String>,
+		visible: bool,
+		auto_hide: bool,
+		entries: Vec<DynamicReportEntry>,
+	) -> Self {
+		Self {
+			text,
+			id,
+			visible,
+			auto_hide,
+			entries: entries.into_iter().map(|e| RefCell::new(e)).collect(),
+		}
+	}
+
 	fn auto_hide_children(&mut self) {
-		self.entries.retain_mut(|e| match e {
+		self.entries.retain(|e| match &mut *e.borrow_mut() {
 			DynamicReportEntry::Section(section) => {
 				section.auto_hide_children();
 				if section.can_auto_hide_self() {
@@ -164,7 +211,7 @@ impl Section {
 
 	fn can_auto_hide_self(&self) -> bool {
 		self.auto_hide
-			&& self.entries.iter().all(|e| match e {
+			&& self.entries.iter().all(|e| match &*e.borrow() {
 				DynamicReportEntry::Section(section) => section.can_auto_hide_self(),
 				DynamicReportEntry::LiteralRow(row) => row.can_auto_hide(),
 				DynamicReportEntry::CalculatedRow(_) => false,
@@ -174,12 +221,26 @@ impl Section {
 
 	/// Recursively calculate all [CalculatedRow] entries
 	pub fn calculate(&mut self, report: &DynamicReport) {
-		for entry in self.entries.iter_mut() {
-			match entry {
-				DynamicReportEntry::Section(section) => section.calculate(report),
+		for (entry_idx, entry) in self.entries.iter().enumerate() {
+			let entry_ref = entry.borrow();
+
+			match &*entry_ref {
+				DynamicReportEntry::Section(section) => {
+					// Clone first, in case calculation needs to take reference to the section
+					let mut updated_section = section.clone();
+					updated_section.calculate(&report);
+
+					drop(entry_ref); // Drop entry_ref so we can borrow mutably
+					let mut entry_mut = self.entries[entry_idx].borrow_mut();
+					*entry_mut = DynamicReportEntry::Section(updated_section);
+				}
 				DynamicReportEntry::LiteralRow(_) => (),
 				DynamicReportEntry::CalculatedRow(row) => {
-					*entry = DynamicReportEntry::LiteralRow(row.calculate(report))
+					let updated_row = row.calculate(&report);
+
+					drop(entry_ref); // Drop entry_ref so we can borrow mutably
+					let mut entry_mut = self.entries[entry_idx].borrow_mut();
+					*entry_mut = DynamicReportEntry::LiteralRow(updated_row);
 				}
 				DynamicReportEntry::Spacer => (),
 			}
@@ -187,13 +248,18 @@ impl Section {
 	}
 
 	/// Look up [DynamicReportEntry] by id
-	pub fn by_id(&self, id: &str) -> Option<&DynamicReportEntry> {
+	///
+	/// Returns a cloned copy of the [DynamicReportEntry].
+	pub fn by_id(&self, id: &str) -> Option<DynamicReportEntry> {
+		// Manually iterate over self.entries rather than self.entries()
+		// To catch the situation where entry is already mutably borrowed
 		for entry in self.entries.iter() {
-			match entry {
+			match entry.try_borrow() {
+				Ok(entry) => match &*entry {
 				DynamicReportEntry::Section(section) => {
 					if let Some(i) = &section.id {
 						if i == id {
-							return Some(entry);
+								return Some(entry.clone());
 						}
 					}
 					if let Some(e) = section.by_id(id) {
@@ -203,12 +269,17 @@ impl Section {
 				DynamicReportEntry::LiteralRow(row) => {
 					if let Some(i) = &row.id {
 						if i == id {
-							return Some(entry);
+								return Some(entry.clone());
 						}
 					}
 				}
 				DynamicReportEntry::CalculatedRow(_) => (),
 				DynamicReportEntry::Spacer => (),
+				},
+				Err(err) => panic!(
+					"Attempt to call by_id on DynamicReportEntry which is mutably borrowed: {}",
+					err
+				),
 			}
 		}
 
@@ -219,7 +290,7 @@ impl Section {
 	pub fn subtotal(&self, report: &DynamicReport) -> Vec<QuantityInt> {
 		let mut subtotals = vec![0; report.columns.len()];
 		for entry in self.entries.iter() {
-			match entry {
+			match &*entry.borrow() {
 				DynamicReportEntry::Section(section) => {
 					for (col_idx, subtotal) in section.subtotal(report).into_iter().enumerate() {
 						subtotals[col_idx] += subtotal;

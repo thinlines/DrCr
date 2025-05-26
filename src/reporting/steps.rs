@@ -372,16 +372,16 @@ impl ReportingStep for BalanceSheet {
 			kinds_for_account(context.db_connection.get_account_configurations());
 
 		// Init report
-		let mut report = DynamicReport {
-			title: "Balance sheet".to_string(),
-			columns: self.args.dates.iter().map(|d| d.date.to_string()).collect(),
-			entries: vec![
-				DynamicReportEntry::Section(Section {
-					text: "Assets".to_string(),
-					id: Some("assets".to_string()),
-					visible: true,
-					auto_hide: false,
-					entries: {
+		let mut report = DynamicReport::new(
+			"Balance sheet".to_string(),
+			self.args.dates.iter().map(|d| d.date.to_string()).collect(),
+			vec![
+				DynamicReportEntry::Section(Section::new(
+					"Assets".to_string(),
+					Some("assets".to_string()),
+					true,
+					false,
+					{
 						let mut entries =
 							entries_for_kind("drcr.asset", false, &balances, &kinds_for_account);
 						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
@@ -398,14 +398,14 @@ impl ReportingStep for BalanceSheet {
 						}));
 						entries
 					},
-				}),
+				)),
 				DynamicReportEntry::Spacer,
-				DynamicReportEntry::Section(Section {
-					text: "Liabilities".to_string(),
-					id: Some("liabilities".to_string()),
-					visible: true,
-					auto_hide: false,
-					entries: {
+				DynamicReportEntry::Section(Section::new(
+					"Liabilities".to_string(),
+					Some("liabilities".to_string()),
+					true,
+					false,
+					{
 						let mut entries =
 							entries_for_kind("drcr.liability", true, &balances, &kinds_for_account);
 						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
@@ -422,14 +422,14 @@ impl ReportingStep for BalanceSheet {
 						}));
 						entries
 					},
-				}),
+				)),
 				DynamicReportEntry::Spacer,
-				DynamicReportEntry::Section(Section {
-					text: "Equity".to_string(),
-					id: Some("equity".to_string()),
-					visible: true,
-					auto_hide: false,
-					entries: {
+				DynamicReportEntry::Section(Section::new(
+					"Equity".to_string(),
+					Some("equity".to_string()),
+					true,
+					false,
+					{
 						let mut entries =
 							entries_for_kind("drcr.equity", true, &balances, &kinds_for_account);
 						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
@@ -446,9 +446,9 @@ impl ReportingStep for BalanceSheet {
 						}));
 						entries
 					},
-				}),
+				)),
 			],
-		};
+		);
 
 		report.calculate();
 		report.auto_hide();

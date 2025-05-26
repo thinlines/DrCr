@@ -35,7 +35,6 @@ use crate::AppState;
 #[tauri::command]
 pub(crate) async fn get_balance_sheet(
 	state: State<'_, Mutex<AppState>>,
-	eofy_date: String,
 	dates: Vec<String>,
 ) -> Result<String, ()> {
 	let state = state.lock().await;
@@ -47,11 +46,8 @@ pub(crate) async fn get_balance_sheet(
 			DbConnection::connect(format!("sqlite:{}", db_filename.as_str()).as_str());
 
 		// Initialise ReportingContext
-		let mut context = ReportingContext::new(
-			db_connection,
-			NaiveDate::parse_from_str(eofy_date.as_str(), "%Y-%m-%d").unwrap(),
-			"$".to_string(),
-		);
+		let eofy_date = db_connection.metadata().eofy_date;
+		let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
 		register_lookup_fns(&mut context);
 		register_dynamic_builders(&mut context);
 
@@ -98,7 +94,6 @@ pub(crate) async fn get_balance_sheet(
 #[tauri::command]
 pub(crate) async fn get_income_statement(
 	state: State<'_, Mutex<AppState>>,
-	eofy_date: String,
 	dates: Vec<(String, String)>,
 ) -> Result<String, ()> {
 	let state = state.lock().await;
@@ -110,11 +105,8 @@ pub(crate) async fn get_income_statement(
 			DbConnection::connect(format!("sqlite:{}", db_filename.as_str()).as_str());
 
 		// Initialise ReportingContext
-		let mut context = ReportingContext::new(
-			db_connection,
-			NaiveDate::parse_from_str(eofy_date.as_str(), "%Y-%m-%d").unwrap(),
-			"$".to_string(),
-		);
+		let eofy_date = db_connection.metadata().eofy_date;
+		let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
 		register_lookup_fns(&mut context);
 		register_dynamic_builders(&mut context);
 

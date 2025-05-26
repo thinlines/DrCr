@@ -45,7 +45,6 @@
 	
 	import { DynamicReport } from './base.ts';
 	import { db } from '../db.ts';
-	import { ExtendedDatabase } from '../dbutil.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
 	const report = ref(null as DynamicReport | null);
@@ -62,17 +61,14 @@
 		dt.value = db.metadata.eofy_date;
 		dtStart.value = dayjs(db.metadata.eofy_date).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');
 		
-		await updateReport(session);
+		await updateReport();
 		
 		// Update report when dates etc. changed
 		// We initialise the watcher here only after dt and dtStart are initialised above
-		watch([dt, dtStart, comparePeriods, compareUnit], async () => {
-			const session = await db.load();
-			await updateReport(session);
-		});
+		watch([dt, dtStart, comparePeriods, compareUnit], updateReport);
 	}
 	
-	async function updateReport(session: ExtendedDatabase) {
+	async function updateReport() {
 		const reportDates = [];
 		for (let i = 0; i < comparePeriods.value; i++) {
 			let thisReportDt, thisReportDtStart;
@@ -97,7 +93,7 @@
 			reportDates.push([thisReportDtStart.format('YYYY-MM-DD'), thisReportDt.format('YYYY-MM-DD')]);
 		}
 		
-		report.value = JSON.parse(await invoke('get_income_statement', { eofyDate: db.metadata.eofy_date, dates: reportDates }));
+		report.value = JSON.parse(await invoke('get_income_statement', { dates: reportDates }));
 	}
 	
 	load();

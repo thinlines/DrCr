@@ -28,7 +28,7 @@ use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProduct
 use crate::transaction::{
 	update_balances_from_transactions, Posting, Transaction, TransactionWithPostings,
 };
-use crate::util::sofy_from_eofy;
+use crate::util::{get_eofy, sofy_from_eofy};
 use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
@@ -37,9 +37,8 @@ use super::dynamic_report::{
 };
 use super::executor::ReportingExecutionError;
 use super::types::{
-	BalancesBetween, DateArgs, MultipleDateArgs, ReportingContext, ReportingProduct,
-	ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId,
-	VoidArgs,
+	BalancesBetween, DateArgs, MultipleDateArgs, ReportingContext, ReportingProductKind,
+	ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId, VoidArgs,
 };
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
@@ -113,6 +112,15 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 		}
 	}
 
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
+		// AllTransactionsExceptEarningsToEquity always depends on CombineOrdinaryTransactions at least
+		vec![ReportingProductId {
+			name: "CombineOrdinaryTransactions",
+			kind: self.product_kinds[0],
+			args: self.args.clone(),
+		}]
+	}
+
 	fn execute(
 		&self,
 		_context: &ReportingContext,
@@ -142,30 +150,11 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 			}
 		}
 
-		// No dependencies?! - store empty result
-		let product: Box<dyn ReportingProduct> = match self.product_kinds[0] {
-			ReportingProductKind::Transactions => Box::new(Transactions {
-				transactions: Vec::new(),
-			}),
-			ReportingProductKind::BalancesAt => Box::new(BalancesAt {
-				balances: HashMap::new(),
-			}),
-			ReportingProductKind::BalancesBetween => Box::new(BalancesBetween {
-				balances: HashMap::new(),
-			}),
-			ReportingProductKind::Generic => panic!("Requested AllTransactionsExceptEarningsToEquity.Generic but no available dependencies to provide it"),
-		};
-
-		products.insert(
-			ReportingProductId {
-				name: self.id().name,
-				kind: product_kind,
-				args: self.args.clone(),
-			},
-			product,
+		// No dependencies?! - this is likely a mistake
+		panic!(
+			"Requested {:?} but no available dependencies to provide it",
+			self.product_kinds[0]
 		);
-
-		Ok(())
 	}
 }
 
@@ -675,7 +664,7 @@ impl ReportingStep for CombineOrdinaryTransactions {
 	}
 }
 
-/// Transfer current year balances in income and expense accounts to the current year earnings equity account
+/// Transfer year-to-date balances in income and expense accounts (as at the requested date) to the current year earnings equity account
 #[derive(Debug)]
 pub struct CurrentYearEarningsToEquity {
 	pub args: DateArgs,
@@ -718,13 +707,15 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 	}
 
 	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
+		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
+
 		// CurrentYearEarningsToEquity depends on AllTransactionsExceptEarningsToEquity
 		vec![ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity",
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
-				date_start: sofy_from_eofy(context.eofy_date),
-				date_end: context.eofy_date.clone(),
+				date_start: sofy_from_eofy(eofy_date),
+				date_end: eofy_date,
 			}),
 		}]
 	}
@@ -736,14 +727,16 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		_dependencies: &ReportingGraphDependencies,
 		products: &mut ReportingProducts,
 	) -> Result<(), ReportingExecutionError> {
+		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
+
 		// Get balances for this financial year
 		let balances = products
 			.get_or_err(&ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity",
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(DateStartDateEndArgs {
-					date_start: sofy_from_eofy(context.eofy_date),
-					date_end: context.eofy_date.clone(),
+					date_start: sofy_from_eofy(eofy_date),
+					date_end: eofy_date,
 				}),
 			})?
 			.downcast_ref::<BalancesBetween>()
@@ -767,7 +760,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 					transactions.transactions.push(TransactionWithPostings {
 						transaction: Transaction {
 							id: None,
-							dt: context.eofy_date.and_hms_opt(0, 0, 0).unwrap(),
+							dt: eofy_date.and_hms_opt(0, 0, 0).unwrap(),
 							description: "Current year earnings".to_string(),
 						},
 						postings: vec![
@@ -985,15 +978,15 @@ impl ReportingStep for RetainedEarningsToEquity {
 	}
 
 	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
+		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
+		let last_eofy_date = eofy_date.with_year(eofy_date.year() - 1).unwrap();
+
 		// RetainedEarningsToEquity depends on CombineOrdinaryTransactions for last financial year
 		vec![ReportingProductId {
 			name: "CombineOrdinaryTransactions",
 			kind: ReportingProductKind::BalancesAt,
 			args: Box::new(DateArgs {
-				date: context
-					.eofy_date
-					.with_year(context.eofy_date.year() - 1)
-					.unwrap(),
+				date: last_eofy_date,
 			}),
 		}]
 	}
@@ -1005,12 +998,10 @@ impl ReportingStep for RetainedEarningsToEquity {
 		_dependencies: &ReportingGraphDependencies,
 		products: &mut ReportingProducts,
 	) -> Result<(), ReportingExecutionError> {
-		// Get balances at end of last financial year
-		let last_eofy_date = context
-			.eofy_date
-			.with_year(context.eofy_date.year() - 1)
-			.unwrap();
+		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
+		let last_eofy_date = eofy_date.with_year(eofy_date.year() - 1).unwrap();
 
+		// Get balances at end of last financial year
 		let balances_last_eofy = products
 			.get_or_err(&ReportingProductId {
 				name: "CombineOrdinaryTransactions",

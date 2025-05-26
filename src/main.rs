@@ -29,6 +29,8 @@ use libdrcr::reporting::types::{
 };
 
 fn main() {
+	const YEAR: i32 = 2023;
+
 	// Connect to database
 	let db_connection = DbConnection::connect("sqlite:drcr_testing.db");
 
@@ -55,7 +57,7 @@ fn main() {
 			kind: ReportingProductKind::Generic,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
-					date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
 			}),
 		},
@@ -77,8 +79,8 @@ fn main() {
 			name: "AllTransactionsExceptEarningsToEquity",
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
-				date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
-				date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+				date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
+				date_end: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
 		},
 	];
@@ -89,8 +91,8 @@ fn main() {
 			name: "AllTransactionsExceptEarningsToEquity",
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
-				date_start: NaiveDate::from_ymd_opt(2024, 7, 1).unwrap(),
-				date_end: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+				date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
+				date_end: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
 		})
 		.unwrap();
@@ -111,7 +113,7 @@ fn main() {
 			kind: ReportingProductKind::Generic,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
-					date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
 			}),
 		},
@@ -124,7 +126,7 @@ fn main() {
 			kind: ReportingProductKind::Generic,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
-					date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
 			}),
 		})

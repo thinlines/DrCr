@@ -364,11 +364,15 @@ impl UpdateBalancesAt {
 	fn can_build(
 		name: &'static str,
 		kind: ReportingProductKind,
-		_args: &Box<dyn ReportingStepArgs>,
+		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
 	) -> bool {
+		if !args.is::<DateArgs>() {
+			return false;
+		}
+
 		// Check for Transactions -> BalancesAt
 		if kind == ReportingProductKind::BalancesAt {
 			// Initially no need to check args
@@ -391,18 +395,13 @@ impl UpdateBalancesAt {
 					&& dependencies_for_step[0].product.kind
 						== ReportingProductKind::BalancesBetween
 				{
-					let date_end = dependencies_for_step[0]
-						.product
-						.args
-						.downcast_ref::<DateStartDateEndArgs>()
-						.unwrap()
-						.date_end;
-
 					match has_step_or_can_build(
 						&ReportingProductId {
 							name: dependencies_for_step[0].product.name,
 							kind: ReportingProductKind::BalancesAt,
-							args: Box::new(DateArgs { date: date_end }),
+							args: Box::new(DateArgs {
+								date: args.downcast_ref::<DateArgs>().unwrap().date,
+							}),
 						},
 						steps,
 						dependencies,
@@ -477,6 +476,27 @@ impl ReportingStep for UpdateBalancesAt {
 				args: parent_step.id().args.clone(),
 			},
 		);
+
+		// Look up the BalancesAt step
+		let dependencies_for_step = dependencies.dependencies_for_step(&parent_step.id());
+		let dependency = &dependencies_for_step[0].product; // Existence and uniqueness checked in can_build
+
+		if dependency.kind == ReportingProductKind::BalancesAt {
+			// Directly depends on BalancesAt -> Transaction
+			// Do not need to add extra dependencies
+		} else {
+			// As checked in can_build, must depend on BalancesBetween -> Transaction with a BalancesAt available
+			dependencies.add_dependency(
+				self.id(),
+				ReportingProductId {
+					name: dependency.name,
+					kind: ReportingProductKind::BalancesAt,
+					args: Box::new(DateArgs {
+						date: self.args.date,
+					}),
+				},
+			);
+		}
 	}
 
 	fn execute(
@@ -522,17 +542,13 @@ impl ReportingStep for UpdateBalancesAt {
 				.unwrap();
 		} else {
 			// As checked in can_build, must depend on BalancesBetween -> Transaction with a BalancesAt available
-			let date_end = dependency
-				.args
-				.downcast_ref::<DateStartDateEndArgs>()
-				.unwrap()
-				.date_end;
-
 			opening_balances_at = products
 				.get_or_err(&ReportingProductId {
 					name: dependency.name,
 					kind: ReportingProductKind::BalancesAt,
-					args: Box::new(DateArgs { date: date_end }),
+					args: Box::new(DateArgs {
+						date: self.args.date,
+					}),
 				})?
 				.downcast_ref()
 				.unwrap();
@@ -542,7 +558,12 @@ impl ReportingStep for UpdateBalancesAt {
 		let mut balances = BalancesAt {
 			balances: opening_balances_at.balances.clone(),
 		};
-		update_balances_from_transactions(&mut balances.balances, transactions.iter());
+		update_balances_from_transactions(
+			&mut balances.balances,
+			transactions
+				.iter()
+				.filter(|t| t.transaction.dt.date() <= self.args.date),
+		);
 
 		// Store result
 		products.insert(
@@ -706,7 +727,13 @@ impl ReportingStep for UpdateBalancesBetween {
 		let mut balances = BalancesBetween {
 			balances: opening_balances.clone(),
 		};
-		update_balances_from_transactions(&mut balances.balances, transactions.iter());
+		update_balances_from_transactions(
+			&mut balances.balances,
+			transactions.iter().filter(|t| {
+				t.transaction.dt.date() >= self.args.date_start
+					&& t.transaction.dt.date() <= self.args.date_end
+			}),
+		);
 
 		// Store result
 		products.insert(

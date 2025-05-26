@@ -23,8 +23,8 @@ use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
-	DateArgs, MultipleDateArgs, ReportingContext, ReportingProductId, ReportingProductKind,
-	VoidArgs,
+	DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
+	ReportingContext, ReportingProductId, ReportingProductKind, VoidArgs,
 };
 use tauri::State;
 use tokio::sync::Mutex;
@@ -90,6 +90,70 @@ pub(crate) async fn get_balance_sheet(
 		let balance_sheet = result.downcast_ref::<DynamicReport>().unwrap().to_json();
 
 		Ok(balance_sheet)
+	})
+	.await
+	.unwrap()
+}
+
+#[tauri::command]
+pub(crate) async fn get_income_statement(
+	state: State<'_, Mutex<AppState>>,
+	eofy_date: String,
+	dates: Vec<(String, String)>,
+) -> Result<String, ()> {
+	let state = state.lock().await;
+	let db_filename = state.db_filename.clone().unwrap();
+
+	spawn_blocking(move || {
+		// Connect to database
+		let db_connection =
+			DbConnection::connect(format!("sqlite:{}", db_filename.as_str()).as_str());
+
+		// Initialise ReportingContext
+		let mut context = ReportingContext::new(
+			db_connection,
+			NaiveDate::parse_from_str(eofy_date.as_str(), "%Y-%m-%d").unwrap(),
+			"$".to_string(),
+		);
+		register_lookup_fns(&mut context);
+		register_dynamic_builders(&mut context);
+
+		// Get income statement
+		let mut date_args = Vec::new();
+		for (date_start, date_end) in dates.iter() {
+			date_args.push(DateStartDateEndArgs {
+				date_start: NaiveDate::parse_from_str(date_start, "%Y-%m-%d").unwrap(),
+				date_end: NaiveDate::parse_from_str(date_end, "%Y-%m-%d").unwrap(),
+			})
+		}
+		let targets = vec![
+			ReportingProductId {
+				name: "CalculateIncomeTax",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(VoidArgs {}),
+			},
+			ReportingProductId {
+				name: "IncomeStatement",
+				kind: ReportingProductKind::Generic,
+				args: Box::new(MultipleDateStartDateEndArgs {
+					dates: date_args.clone(),
+				}),
+			},
+		];
+
+		// Run report
+		let products = generate_report(targets, &context).unwrap();
+		let result = products
+			.get_or_err(&ReportingProductId {
+				name: "IncomeStatement",
+				kind: ReportingProductKind::Generic,
+				args: Box::new(MultipleDateStartDateEndArgs { dates: date_args }),
+			})
+			.unwrap();
+
+		let income_statement = result.downcast_ref::<DynamicReport>().unwrap().to_json();
+
+		Ok(income_statement)
 	})
 	.await
 	.unwrap()

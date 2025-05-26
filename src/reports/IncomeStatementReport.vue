@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -16,48 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
 
-<script lang="ts">
-	export class IncomeStatementReport extends DynamicReport {
-		constructor() {
-			super('Income statement');
-		}
-		
-		async generate(balances: Map<string, number>) {
-			const report = this;
-			this.entries = [
-				new Section(
-					'Income',
-					[
-						...await DynamicReport.entriesForKind(balances, 'drcr.income', true),
-						new Subtotal('Total income', 'total_income', true /* visible */, true /* bordered */)
-					]
-				),
-				new Spacer(),
-				new Section(
-					'Expenses',
-					[
-						...await DynamicReport.entriesForKind(balances, 'drcr.expense'),
-						new Subtotal('Total expenses', 'total_expenses', true /* visible */, true /* bordered */)
-					]
-				),
-				new Spacer(),
-				new Computed(
-					'Net surplus (deficit)',
-					() => (report.byId('total_income') as Subtotal).quantity - (report.byId('total_expenses') as Subtotal).quantity,
-					'net_surplus',
-					true /* visible */, false /* autoHide */, null /* link */, true /* heading */, true /* bordered */
-				)
-			];
-			
-			this.calculate();
-		}
-	}
-</script>
-
-<!-- Report display -->
-
 <template>
-	<ComparativeDynamicReportComponent :reports="reports" :labels="reportLabels">
+	<DynamicReportComponent :report="report">
 		<div class="my-2 py-2 flex">
 			<div class="grow flex gap-x-2 items-baseline">
 				<input type="date" class="bordered-field" v-model.lazy="dtStart">
@@ -75,21 +35,20 @@
 				</div>
 			</div>
 		</div>
-	</ComparativeDynamicReportComponent>
+	</DynamicReportComponent>
 </template>
 
 <script setup lang="ts">
-	import { ref, watch } from 'vue';
 	import dayjs from 'dayjs';
+	import { invoke } from '@tauri-apps/api/core';
+	import { ref, watch } from 'vue';
 	
-	import { Computed, DynamicReport, Section, Spacer, Subtotal } from './base.ts';
+	import { DynamicReport } from './base.ts';
 	import { db } from '../db.ts';
 	import { ExtendedDatabase } from '../dbutil.ts';
-	import ComparativeDynamicReportComponent from '../components/ComparativeDynamicReportComponent.vue';
-	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
+	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
-	const reports = ref([] as IncomeStatementReport[]);
-	const reportLabels = ref([] as string[]);
+	const report = ref(null as DynamicReport | null);
 	
 	const dt = ref(null as string | null);
 	const dtStart = ref(null as string | null);
@@ -114,16 +73,14 @@
 	}
 	
 	async function updateReport(session: ExtendedDatabase) {
-		const newReportPromises = [];
-		const newReportLabels = [];
+		const reportDates = [];
 		for (let i = 0; i < comparePeriods.value; i++) {
-			let thisReportDt, thisReportDtStart, thisReportLabel;
+			let thisReportDt, thisReportDtStart;
 			
 			// Get period start and end dates
 			if (compareUnit.value === 'years') {
 				thisReportDt = dayjs(dt.value!).subtract(i, 'year');
 				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'year');
-				thisReportLabel = dayjs(dt.value!).subtract(i, 'year').format('YYYY');
 			} else if (compareUnit.value === 'months') {
 				if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
 					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
@@ -133,28 +90,14 @@
 					thisReportDt = dayjs(dt.value!).subtract(i, 'month');
 					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month');
 				}
-				thisReportLabel = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM');
 			} else {
 				throw new Error('Unexpected compareUnit');
 			}
 			
-			// Generate reports asynchronously
-			newReportPromises.push((async () => {
-				const reportingWorkflow = new ReportingWorkflow();
-				await reportingWorkflow.generate(session, thisReportDt.format('YYYY-MM-DD'), thisReportDtStart.format('YYYY-MM-DD'));
-				return reportingWorkflow.getReportAtStage(ReportingStage.InterimIncomeStatement, IncomeStatementReport) as IncomeStatementReport;
-			})());
-			
-			if (comparePeriods.value === 1) {
-				// If only 1 report, the heading is simply "$"
-				newReportLabels.push(db.metadata.reporting_commodity);
-			} else {
-				newReportLabels.push(thisReportLabel);
-			}
+			reportDates.push([thisReportDtStart.format('YYYY-MM-DD'), thisReportDt.format('YYYY-MM-DD')]);
 		}
 		
-		reports.value = await Promise.all(newReportPromises);
-		reportLabels.value = newReportLabels;
+		report.value = JSON.parse(await invoke('get_income_statement', { eofyDate: db.metadata.eofy_date, dates: reportDates }));
 	}
 	
 	load();

@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -16,8 +16,7 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { db, getAccountsForKind } from '../db.ts';
-
+// Cannot be a class as these are directly deserialised from JSON
 export interface DynamicReport {
 	title: string;
 	columns: string[];
@@ -25,13 +24,13 @@ export interface DynamicReport {
 }
 
 // serde_json serialises an enum like this
-export type DynamicReportEntry = {Section: Section} | {LiteralRow: LiteralRow} | 'Spacer';
+export type DynamicReportEntry = { Section: Section } | { LiteralRow: LiteralRow } | 'Spacer';
 
 export interface Section {
 	text: string;
 	id: string | null;
-	visible: bool;
-	auto_hide: bool;
+	visible: boolean;
+	auto_hide: boolean;
 	entries: DynamicReportEntry[];
 }
 
@@ -39,12 +38,28 @@ export interface LiteralRow {
 	text: string;
 	quantity: number[];
 	id: string;
-	visible: bool;
-	auto_hide: bool;
+	visible: boolean;
+	auto_hide: boolean;
 	link: string | null;
-	heading: bool;
-	bordered: bool;
+	heading: boolean;
+	bordered: boolean;
 }
 
 export interface Spacer {
+}
+
+export function reportEntryById(report: DynamicReport | Section, id: string): DynamicReportEntry | null {
+	for (const entry of report.entries) {
+		if ((entry as { Section: Section }).Section) {
+			const result = reportEntryById((entry as { Section: Section }).Section, id);
+			if (result !== null) {
+				return result;
+			}
+		} else if ((entry as { LiteralRow: LiteralRow }).LiteralRow) {
+			if ((entry as { LiteralRow: LiteralRow }).LiteralRow.id === id) {
+				return entry;
+			}
+		}
+	}
+	return null;
 }

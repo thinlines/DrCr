@@ -16,11 +16,9 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 -->
 
-<!-- Report display -->
-
 <template>
 	<DynamicReportComponent :report="report">
-		<!-- <div class="my-2 py-2 flex">
+		<div class="my-2 py-2 flex">
 			<div class="grow flex gap-x-2 items-baseline">
 				<span class="whitespace-nowrap">As at</span>
 				<input type="date" class="bordered-field" v-model.lazy="dt">
@@ -45,120 +43,81 @@
 					<p class="text-sm text-red-700">Total assets do not equal total liabilities and equity. This may occur if not all accounts have been classified in the chart of accounts.</p>
 				</div>
 			</div>
-		</div> -->
+		</div>
 	</DynamicReportComponent>
 </template>
 
 <script setup lang="ts">
+	import dayjs from 'dayjs';
 	import { invoke } from '@tauri-apps/api/core';
-	import { ref } from 'vue';
+	import { computed, ref, watch } from 'vue';
 	
-	import DynamicReport from './base.ts';
+	import { ExclamationCircleIcon } from '@heroicons/vue/20/solid';
+	
+	import { DynamicReport, reportEntryById } from './base.ts';
+	import { db } from '../db.ts';
+	import { ExtendedDatabase } from '../dbutil.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
 	const report = ref(null as DynamicReport | null);
 	
+	const dt = ref(null as string | null);
+	const comparePeriods = ref(1);
+	const compareUnit = ref('years');
+	
 	async function load() {
-		report.value = JSON.parse(await invoke('get_balance_sheet', {}));
-		console.log(report.value);
+		const session = await db.load();
+		
+		dt.value = db.metadata.eofy_date;
+		
+		await updateReport(session);
+		
+		// Update report when dates etc. changed
+		// We initialise the watcher here only after dt is initialised above
+		watch([dt, comparePeriods, compareUnit], async () => {
+			const session = await db.load();
+			await updateReport(session);
+		});
 	}
 	load();
 	
-	// import { computed, ref, watch } from 'vue';
-	// import dayjs from 'dayjs';
-	
-	// import { ExclamationCircleIcon } from '@heroicons/vue/20/solid';
-	
-	// import { Computed, DynamicReport, Entry, Section, Spacer, Subtotal } from './base.ts';
-	// import { IncomeStatementReport}  from './IncomeStatementReport.vue';
-	// import { db } from '../db.ts';
-	// import { ExtendedDatabase } from '../dbutil.ts';
-	// import ComparativeDynamicReportComponent from '../components/ComparativeDynamicReportComponent.vue';
-	// import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
-	
-	// const reports = ref([] as BalanceSheetReport[]);
-	// const reportLabels = ref([] as string[]);
-	
-	// const dt = ref(null as string | null);
-	// const comparePeriods = ref(1);
-	// const compareUnit = ref('years');
-	
-	// async function load() {
-	// 	const session = await db.load();
+	async function updateReport(session: ExtendedDatabase) {
+		const reportDates = [];
+		for (let i = 0; i < comparePeriods.value; i++) {
+			let thisReportDt;
+			
+			// Get period end date
+			if (compareUnit.value === 'years') {
+				thisReportDt = dayjs(dt.value!).subtract(i, 'year');
+			} else if (compareUnit.value === 'months') {
+				if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
+					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
+					thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
+				} else {
+					thisReportDt = dayjs(dt.value!).subtract(i, 'month');
+				}
+			} else {
+				throw new Error('Unexpected compareUnit');
+			}
+			
+			reportDates.push(thisReportDt.format('YYYY-MM-DD'));
+		}
 		
-	// 	dt.value = db.metadata.eofy_date;
-		
-	// 	await updateReport(session);
-		
-	// 	// Update report when dates etc. changed
-	// 	// We initialise the watcher here only after dt and dtStart are initialised above
-	// 	watch([dt, comparePeriods, compareUnit], async () => {
-	// 		const session = await db.load();
-	// 		await updateReport(session);
-	// 	});
-	// }
-	// load();
+		report.value = JSON.parse(await invoke('get_balance_sheet', { eofyDate: db.metadata.eofy_date, dates: reportDates }));
+	}
 	
-	// async function updateReport(session: ExtendedDatabase) {
-	// 	const newReportPromises = [];
-	// 	const newReportLabels = [];
-	// 	for (let i = 0; i < comparePeriods.value; i++) {
-	// 		let thisReportDt, thisReportLabel;
-			
-	// 		// Get period end date
-	// 		if (compareUnit.value === 'years') {
-	// 			thisReportDt = dayjs(dt.value!).subtract(i, 'year');
-	// 			thisReportLabel = dayjs(dt.value!).subtract(i, 'year').format('YYYY');
-	// 		} else if (compareUnit.value === 'months') {
-	// 			if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
-	// 				// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
-	// 				thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
-	// 			} else {
-	// 				thisReportDt = dayjs(dt.value!).subtract(i, 'month');
-	// 			}
-	// 			thisReportLabel = dayjs(dt.value!).subtract(i, 'month').format('YYYY-MM');
-	// 		} else {
-	// 			throw new Error('Unexpected compareUnit');
-	// 		}
-			
-	// 		// Get start of financial year date
-	// 		let sofyDayjs = dayjs(db.metadata.eofy_date).subtract(1, 'year').add(1, 'day');
-	// 		let thisReportDtStart = thisReportDt.set('date', sofyDayjs.get('date')).set('month', sofyDayjs.get('month'));
-	// 		if (thisReportDtStart.isAfter(thisReportDt)) {
-	// 			thisReportDtStart = thisReportDtStart.subtract(1, 'year');
-	// 		}
-			
-	// 		console.log([thisReportDt, thisReportDtStart]);
-			
-	// 		// Generate reports asynchronously
-	// 		newReportPromises.push((async () => {
-	// 			const reportingWorkflow = new ReportingWorkflow();
-	// 			await reportingWorkflow.generate(session, thisReportDt.format('YYYY-MM-DD'), thisReportDtStart.format('YYYY-MM-DD'));
-	// 			return reportingWorkflow.getReportAtStage(ReportingStage.FINAL_STAGE, BalanceSheetReport) as BalanceSheetReport;
-	// 		})());
-			
-	// 		if (comparePeriods.value === 1) {
-	// 			// If only 1 report, the heading is simply "$"
-	// 			newReportLabels.push(db.metadata.reporting_commodity);
-	// 		} else {
-	// 			newReportLabels.push(thisReportLabel);
-	// 		}
-	// 	}
+	const doesBalance = computed(function() {
+		const totalAssets = reportEntryById(report.value, 'total_assets').LiteralRow.quantity;
+		const totalLiabilities = reportEntryById(report.value, 'total_liabilities').LiteralRow.quantity;
+		const totalEquity = reportEntryById(report.value, 'total_equity').LiteralRow.quantity;
 		
-	// 	reports.value = await Promise.all(newReportPromises);
-	// 	reportLabels.value = newReportLabels;
-	// }
-	
-	// const doesBalance = computed(function() {
-	// 	let doesBalance = true;
-	// 	for (const report of reports.value) {
-	// 		const totalAssets = (report.byId('total_assets') as Computed).quantity;
-	// 		const totalLiabilities = (report.byId('total_liabilities') as Computed).quantity;
-	// 		const totalEquity = (report.byId('total_equity') as Computed).quantity;
-	// 		if (totalAssets !== totalLiabilities + totalEquity) {
-	// 			doesBalance = false;
-	// 		}
-	// 	}
-	// 	return doesBalance;
-	// });
+		let doesBalance = true;
+		for (let column = 0; column < report.value.columns.length; column++) {
+			if (totalAssets[column] !== totalLiabilities[column] + totalEquity[column]) {
+				doesBalance = false;
+				break;
+			}
+		}
+		return doesBalance;
+	});
 </script>

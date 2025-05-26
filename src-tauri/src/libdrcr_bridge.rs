@@ -33,7 +33,11 @@ use tokio::task::spawn_blocking;
 use crate::AppState;
 
 #[tauri::command]
-pub(crate) async fn get_balance_sheet(state: State<'_, Mutex<AppState>>) -> Result<String, ()> {
+pub(crate) async fn get_balance_sheet(
+	state: State<'_, Mutex<AppState>>,
+	eofy_date: String,
+	dates: Vec<String>,
+) -> Result<String, ()> {
 	let state = state.lock().await;
 	let db_filename = state.db_filename.clone().unwrap();
 
@@ -45,14 +49,19 @@ pub(crate) async fn get_balance_sheet(state: State<'_, Mutex<AppState>>) -> Resu
 		// Initialise ReportingContext
 		let mut context = ReportingContext::new(
 			db_connection,
-			NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
+			NaiveDate::parse_from_str(eofy_date.as_str(), "%Y-%m-%d").unwrap(),
 			"$".to_string(),
 		);
 		register_lookup_fns(&mut context);
 		register_dynamic_builders(&mut context);
 
 		// Get balance sheet
-
+		let mut date_args = Vec::new();
+		for date in dates.iter() {
+			date_args.push(DateArgs {
+				date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
+			})
+		}
 		let targets = vec![
 			ReportingProductId {
 				name: "CalculateIncomeTax",
@@ -63,23 +72,18 @@ pub(crate) async fn get_balance_sheet(state: State<'_, Mutex<AppState>>) -> Resu
 				name: "BalanceSheet",
 				kind: ReportingProductKind::Generic,
 				args: Box::new(MultipleDateArgs {
-					dates: vec![DateArgs {
-						date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-					}],
+					dates: date_args.clone(),
 				}),
 			},
 		];
 
+		// Run report
 		let products = generate_report(targets, &context).unwrap();
 		let result = products
 			.get_or_err(&ReportingProductId {
 				name: "BalanceSheet",
 				kind: ReportingProductKind::Generic,
-				args: Box::new(MultipleDateArgs {
-					dates: vec![DateArgs {
-						date: NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
-					}],
-				}),
+				args: Box::new(MultipleDateArgs { dates: date_args }),
 			})
 			.unwrap();
 

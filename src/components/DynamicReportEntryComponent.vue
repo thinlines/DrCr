@@ -23,7 +23,8 @@
 				<a :href="entry.LiteralRow.link" class="hover:text-blue-700 hover:underline" v-if="entry.LiteralRow.link !== null">{{ entry.LiteralRow.text }}</a>
 				<template v-if="entry.LiteralRow.link === null">{{ entry.LiteralRow.text }}</template>
 			</component>
-			<component :is="entry.LiteralRow.heading ? 'th' : 'td'" class="py-0.5 pl-1 text-gray-900 text-end" :class="{ 'font-semibold': entry.LiteralRow.heading }" v-html="ppBracketed(entry.LiteralRow.quantity, entry.LiteralRow.link ?? undefined)" />
+			<component :is="entry.LiteralRow.heading ? 'th' : 'td'" class="py-0.5 pl-1 text-gray-900 text-end" :class="{ 'font-semibold': entry.LiteralRow.heading }" v-html="(cell !== 0 || entry.LiteralRow.heading) ? ppBracketed(cell, entry.LiteralRow.link ?? undefined) : ''" v-for="cell of entry.LiteralRow.quantity">
+			</component>
 		</tr>
 	</template>
 	<template v-if="entry.Section">

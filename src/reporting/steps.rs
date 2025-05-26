@@ -388,7 +388,7 @@ impl ReportingStep for BalanceSheet {
 							calculate_fn: |report| LiteralRow {
 								text: "Total assets".to_string(),
 								quantity: report.subtotal_for_id("assets"),
-								id: None,
+								id: Some("total_assets".to_string()),
 								visible: true,
 								auto_hide: false,
 								link: None,
@@ -412,7 +412,7 @@ impl ReportingStep for BalanceSheet {
 							calculate_fn: |report| LiteralRow {
 								text: "Total liabilities".to_string(),
 								quantity: report.subtotal_for_id("liabilities"),
-								id: None,
+								id: Some("total_liabilities".to_string()),
 								visible: true,
 								auto_hide: false,
 								link: None,
@@ -436,7 +436,7 @@ impl ReportingStep for BalanceSheet {
 							calculate_fn: |report| LiteralRow {
 								text: "Total equity".to_string(),
 								quantity: report.subtotal_for_id("equity"),
-								id: None,
+								id: Some("total_equity".to_string()),
 								visible: true,
 								auto_hide: false,
 								link: None,

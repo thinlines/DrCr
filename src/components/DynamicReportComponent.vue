@@ -39,7 +39,6 @@
 </template>
 
 <script setup lang="ts">
-	import { db } from '../db.ts';
 	import { DynamicReport } from '../reports/base.ts';
 	import DynamicReportEntryComponent from './DynamicReportEntryComponent.vue';
 	

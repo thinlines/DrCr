@@ -56,7 +56,7 @@
 	const compareUnit = ref('years');
 	
 	async function load() {
-		const session = await db.load();
+		await db.load();
 		
 		dt.value = db.metadata.eofy_date;
 		dtStart.value = dayjs(db.metadata.eofy_date).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');

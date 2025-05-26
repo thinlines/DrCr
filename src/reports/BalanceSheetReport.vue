@@ -54,7 +54,7 @@
 	
 	import { ExclamationCircleIcon } from '@heroicons/vue/20/solid';
 	
-	import { DynamicReport, reportEntryById } from './base.ts';
+	import { DynamicReport, LiteralRow, reportEntryById } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
@@ -65,7 +65,7 @@
 	const compareUnit = ref('years');
 	
 	async function load() {
-		const session = await db.load();
+		await db.load();
 		
 		dt.value = db.metadata.eofy_date;
 		
@@ -103,9 +103,13 @@
 	}
 	
 	const doesBalance = computed(function() {
-		const totalAssets = reportEntryById(report.value, 'total_assets').LiteralRow.quantity;
-		const totalLiabilities = reportEntryById(report.value, 'total_liabilities').LiteralRow.quantity;
-		const totalEquity = reportEntryById(report.value, 'total_equity').LiteralRow.quantity;
+		if (report.value === null) {
+			return true;
+		}
+		
+		const totalAssets = (reportEntryById(report.value, 'total_assets') as { LiteralRow: LiteralRow }).LiteralRow.quantity;
+		const totalLiabilities = (reportEntryById(report.value, 'total_liabilities') as { LiteralRow: LiteralRow }).LiteralRow.quantity;
+		const totalEquity = (reportEntryById(report.value, 'total_equity') as { LiteralRow: LiteralRow }).LiteralRow.quantity;
 		
 		let doesBalance = true;
 		for (let column = 0; column < report.value.columns.length; column++) {

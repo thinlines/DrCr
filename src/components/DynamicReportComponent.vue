@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -28,22 +28,20 @@
 			<thead>
 				<tr class="border-b border-gray-300">
 					<th></th>
-					<th class="py-0.5 pl-1 text-gray-900 font-semibold text-end">{{ db.metadata.reporting_commodity }}&nbsp;</th>
+					<th v-for="column of report.columns" class="py-0.5 pl-1 text-gray-900 font-semibold text-end">{{ column }}&nbsp;</th>
 				</tr>
 			</thead>
 			<tbody>
-				<DynamicReportEntry :entry="entry" v-for="entry of report.entries" />
+				<DynamicReportEntryComponent :entry="entry" v-for="entry of report.entries" />
 			</tbody>
 		</table>
 	</template>
 </template>
 
 <script setup lang="ts">
-	import { defineProps } from 'vue';
-	
 	import { db } from '../db.ts';
 	import { DynamicReport } from '../reports/base.ts';
-	import DynamicReportEntry from './DynamicReportEntry.vue';
+	import DynamicReportEntryComponent from './DynamicReportEntryComponent.vue';
 	
 	const { report } = defineProps<{ report: DynamicReport | null }>();
 </script>

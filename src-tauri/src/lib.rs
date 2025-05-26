@@ -16,6 +16,7 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+mod libdrcr_bridge;
 mod sql;
 
 use tauri::{AppHandle, Builder, Manager, State};
@@ -82,6 +83,7 @@ pub fn run() {
 		.plugin(tauri_plugin_store::Builder::new().build())
 		.invoke_handler(tauri::generate_handler![
 			get_open_filename, set_open_filename,
+			libdrcr_bridge::get_balance_sheet,
 			sql::sql_transaction_begin, sql::sql_transaction_execute, sql::sql_transaction_select, sql::sql_transaction_rollback, sql::sql_transaction_commit
 		])
 		.run(tauri::generate_context!())

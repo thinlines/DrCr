@@ -18,166 +18,33 @@
 
 import { db, getAccountsForKind } from '../db.ts';
 
-export interface DrcrReport {
+export interface DynamicReport {
+	title: string;
+	columns: string[];
+	entries: DynamicReportEntry[];
 }
 
-export interface DynamicReportNode {
+// serde_json serialises an enum like this
+export type DynamicReportEntry = {Section: Section} | {LiteralRow: LiteralRow} | 'Spacer';
+
+export interface Section {
+	text: string;
 	id: string | null;
-	calculate(parent: DynamicReport | DynamicReportNode): void;
+	visible: bool;
+	auto_hide: bool;
+	entries: DynamicReportEntry[];
 }
 
-export class DynamicReport implements DrcrReport {
-	constructor(
-		public title: string,
-		public entries: DynamicReportNode[] = [],
-	) {}
-	
-	byId(id: string): DynamicReportNode | null {
-		// Get the DynamicReportNode with the given ID
-		for (const entry of this.entries) {
-			if (entry.id === id) {
-				return entry;
-			}
-			if (entry instanceof Section) {
-				const result = entry.byId(id);
-				if (result) {
-					return result;
-				}
-			}
-		}
-		return null;
-	}
-	
-	calculate() {
-		// Compute all subtotals
-		for (const entry of this.entries) {
-			entry.calculate(this);
-		}
-	}
-	
-	static async entriesForKind(balances: Map<string, number>, kind: string, negate = false) {
-		// Get accounts associated with this kind
-		const accountsForKind = await getAccountsForKind(await db.load(), kind);
-		
-		// Return one entry for each such account
-		const entries = [];
-		for (const account of accountsForKind) {
-			if (balances.has(account)) {
-				const quantity = balances.get(account)!;
-				if (quantity === 0) {
-					continue;
-				}
-				
-				entries.push(new Entry(
-					account,
-					negate ? -quantity : quantity,
-					null /* id */,
-					true /* visible */,
-					false /* autoHide */,
-					'/transactions/' + account
-				));
-			}
-		}
-		
-		return entries;
-	}
+export interface LiteralRow {
+	text: string;
+	quantity: number[];
+	id: string;
+	visible: bool;
+	auto_hide: bool;
+	link: string | null;
+	heading: bool;
+	bordered: bool;
 }
 
-export class Entry implements DynamicReportNode {
-	constructor(
-		public text: string,
-		public quantity: number,
-		public id: string | null = null,
-		public visible = true,
-		public autoHide = false,
-		public link: string | null = null,
-		public heading = false,
-		public bordered = false,
-	) {}
-	
-	calculate(_parent: DynamicReport | DynamicReportNode) {}
-}
-
-export class Computed extends Entry {
-	constructor(
-		public text: string,
-		public calc: Function,
-		public id: string | null = null,
-		public visible = true,
-		public autoHide = false,
-		public link: string | null = null,
-		public heading = false,
-		public bordered = false,
-	) {
-		super(text, null!, id, visible, autoHide, link, heading, bordered);
-	}
-	
-	calculate(_parent: DynamicReport | DynamicReportNode) {
-		// Calculate the value of this entry
-		this.quantity = this.calc();
-	}
-}
-
-export class Section implements DynamicReportNode {
-	constructor(
-		public title: string | null,
-		public entries: DynamicReportNode[] = [],
-		public id: string | null = null,
-		public visible = true,
-		public autoHide = false,
-	) {}
-	
-	calculate(_parent: DynamicReport | DynamicReportNode) {
-		for (const entry of this.entries) {
-			entry.calculate(this);
-		}
-	}
-	
-	byId(id: string): DynamicReportNode | null {
-		// Get the DynamicReportNode with the given ID
-		for (const entry of this.entries) {
-			if (entry.id === id) {
-				return entry;
-			}
-			if (entry instanceof Section) {
-				const result = entry.byId(id);
-				if (result) {
-					return result;
-				}
-			}
-		}
-		return null;
-	}
-}
-
-export class Spacer implements DynamicReportNode {
-	id = null;
-	
-	calculate(_parent: DynamicReport | DynamicReportNode) {}
-}
-
-export class Subtotal extends Entry {
-	constructor(
-		public text: string,
-		public id: string | null = null,
-		public visible = true,
-		public bordered = false,
-		public floor = 0,
-	) {
-		super(text, null!, id, visible, false /* autoHide */, null /* link */, true /* heading */, bordered);
-	}
-	
-	calculate(parent: DynamicReport | DynamicReportNode) {
-		// Calculate total amount
-		if (!(parent instanceof Section)) {
-			throw new Error('Attempt to calculate Subtotal not in Section');
-		}
-		
-		this.quantity = 0;
-		for (const entry of parent.entries) {
-			if (entry instanceof Entry && entry !== this) {
-				this.quantity += entry.quantity;
-			}
-		}
-	}
+export interface Spacer {
 }

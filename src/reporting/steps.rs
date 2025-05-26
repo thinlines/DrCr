@@ -37,8 +37,9 @@ use super::dynamic_report::{
 };
 use super::executor::ReportingExecutionError;
 use super::types::{
-	BalancesBetween, DateArgs, MultipleDateArgs, ReportingContext, ReportingProductKind,
-	ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId, VoidArgs,
+	BalancesBetween, DateArgs, MultipleDateArgs, MultipleDateStartDateEndArgs, ReportingContext,
+	ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId,
+	VoidArgs,
 };
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
@@ -50,6 +51,7 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 	CombineOrdinaryTransactions::register_lookup_fn(context);
 	CurrentYearEarningsToEquity::register_lookup_fn(context);
 	DBBalances::register_lookup_fn(context);
+	IncomeStatement::register_lookup_fn(context);
 	PostUnreconciledStatementLines::register_lookup_fn(context);
 	RetainedEarningsToEquity::register_lookup_fn(context);
 }
@@ -861,6 +863,180 @@ impl ReportingStep for DBBalances {
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(balances),
+		);
+
+		Ok(())
+	}
+}
+
+/// Generates an income statement [DynamicReport]
+#[derive(Debug)]
+pub struct IncomeStatement {
+	pub args: MultipleDateStartDateEndArgs,
+}
+
+impl IncomeStatement {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"IncomeStatement",
+			&[ReportingProductKind::Generic],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<MultipleDateStartDateEndArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(IncomeStatement {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for IncomeStatement {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+impl ReportingStep for IncomeStatement {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "IncomeStatement",
+			product_kinds: &[ReportingProductKind::Generic],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
+		let mut result = Vec::new();
+
+		// IncomeStatement depends on AllTransactionsExceptEarningsToEquity in each requested period
+		for date_args in self.args.dates.iter() {
+			result.push(ReportingProductId {
+				name: "AllTransactionsExceptEarningsToEquity",
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(date_args.clone()),
+			});
+		}
+
+		result
+	}
+
+	fn execute(
+		&self,
+		context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &mut ReportingProducts,
+	) -> Result<(), ReportingExecutionError> {
+		// Get balances for each period
+		let mut balances: Vec<&HashMap<String, QuantityInt>> = Vec::new();
+		for date_args in self.args.dates.iter() {
+			let product = products.get_or_err(&ReportingProductId {
+				name: "AllTransactionsExceptEarningsToEquity",
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(date_args.clone()),
+			})?;
+
+			balances.push(&product.downcast_ref::<BalancesBetween>().unwrap().balances);
+		}
+
+		// Get names of all income statement accounts
+		let kinds_for_account =
+			kinds_for_account(context.db_connection.get_account_configurations());
+
+		// Init report
+		let mut report = DynamicReport::new(
+			"Income statement".to_string(),
+			self.args
+				.dates
+				.iter()
+				.map(|d| d.date_end.to_string())
+				.collect(),
+			vec![
+				DynamicReportEntry::Section(Section::new(
+					"Income".to_string(),
+					Some("income".to_string()),
+					true,
+					false,
+					{
+						let mut entries =
+							entries_for_kind("drcr.income", true, &balances, &kinds_for_account);
+						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
+							calculate_fn: |report| LiteralRow {
+								text: "Total income".to_string(),
+								quantity: report.subtotal_for_id("income"),
+								id: Some("total_income".to_string()),
+								visible: true,
+								auto_hide: false,
+								link: None,
+								heading: true,
+								bordered: true,
+							},
+						}));
+						entries
+					},
+				)),
+				DynamicReportEntry::Spacer,
+				DynamicReportEntry::Section(Section::new(
+					"Expenses".to_string(),
+					Some("expenses".to_string()),
+					true,
+					false,
+					{
+						let mut entries =
+							entries_for_kind("drcr.expense", false, &balances, &kinds_for_account);
+						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
+							calculate_fn: |report| LiteralRow {
+								text: "Total expenses".to_string(),
+								quantity: report.subtotal_for_id("expenses"),
+								id: Some("total_expenses".to_string()),
+								visible: true,
+								auto_hide: false,
+								link: None,
+								heading: true,
+								bordered: true,
+							},
+						}));
+						entries
+					},
+				)),
+				DynamicReportEntry::Spacer,
+				DynamicReportEntry::CalculatedRow(CalculatedRow {
+					calculate_fn: |report| LiteralRow {
+						text: "Net surplus (deficit)".to_string(),
+						quantity: report
+							.quantity_for_id("total_income") // Get total income row
+							.iter()
+							.zip(report.quantity_for_id("total_expenses").iter()) // Zip with total expenses row
+							.map(|(i, e)| i - e) // Compute net surplus
+							.collect(),
+						id: Some("net_surplus".to_string()),
+						visible: true,
+						auto_hide: false,
+						link: None,
+						heading: true,
+						bordered: true,
+					},
+				}),
+			],
+		);
+
+		report.calculate();
+		report.auto_hide();
+
+		// Store the result
+		products.insert(
+			ReportingProductId {
+				name: "IncomeStatement",
+				kind: ReportingProductKind::Generic,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(report),
 		);
 
 		Ok(())

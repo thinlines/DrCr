@@ -103,25 +103,25 @@ impl DynamicReport {
 		for entry in self.entries.iter() {
 			match entry.try_borrow() {
 				Ok(entry) => match &*entry {
-				DynamicReportEntry::Section(section) => {
-					if let Some(i) = &section.id {
-						if i == id {
+					DynamicReportEntry::Section(section) => {
+						if let Some(i) = &section.id {
+							if i == id {
 								return Some(entry.clone());
+							}
+						}
+						if let Some(e) = section.by_id(id) {
+							return Some(e);
 						}
 					}
-					if let Some(e) = section.by_id(id) {
-						return Some(e);
-					}
-				}
-				DynamicReportEntry::LiteralRow(row) => {
-					if let Some(i) = &row.id {
-						if i == id {
+					DynamicReportEntry::LiteralRow(row) => {
+						if let Some(i) = &row.id {
+							if i == id {
 								return Some(entry.clone());
+							}
 						}
 					}
-				}
-				DynamicReportEntry::CalculatedRow(_) => (),
-				DynamicReportEntry::Spacer => (),
+					DynamicReportEntry::CalculatedRow(_) => (),
+					DynamicReportEntry::Spacer => (),
 				},
 				Err(err) => panic!(
 					"Attempt to call by_id on DynamicReportEntry which is mutably borrowed: {}",
@@ -140,6 +140,16 @@ impl DynamicReport {
 			section.subtotal(&self)
 		} else {
 			panic!("Called subtotal_for_id on non-Section");
+		}
+	}
+
+	// Return the quantities for the [LiteralRow] with the given id
+	pub fn quantity_for_id(&self, id: &str) -> Vec<QuantityInt> {
+		let entry = self.by_id(id).expect("Invalid id");
+		if let DynamicReportEntry::LiteralRow(row) = entry {
+			row.quantity
+		} else {
+			panic!("Called quantity_for_id on non-LiteralRow");
 		}
 	}
 
@@ -256,25 +266,25 @@ impl Section {
 		for entry in self.entries.iter() {
 			match entry.try_borrow() {
 				Ok(entry) => match &*entry {
-				DynamicReportEntry::Section(section) => {
-					if let Some(i) = &section.id {
-						if i == id {
+					DynamicReportEntry::Section(section) => {
+						if let Some(i) = &section.id {
+							if i == id {
 								return Some(entry.clone());
+							}
+						}
+						if let Some(e) = section.by_id(id) {
+							return Some(e);
 						}
 					}
-					if let Some(e) = section.by_id(id) {
-						return Some(e);
-					}
-				}
-				DynamicReportEntry::LiteralRow(row) => {
-					if let Some(i) = &row.id {
-						if i == id {
+					DynamicReportEntry::LiteralRow(row) => {
+						if let Some(i) = &row.id {
+							if i == id {
 								return Some(entry.clone());
+							}
 						}
 					}
-				}
-				DynamicReportEntry::CalculatedRow(_) => (),
-				DynamicReportEntry::Spacer => (),
+					DynamicReportEntry::CalculatedRow(_) => (),
+					DynamicReportEntry::Spacer => (),
 				},
 				Err(err) => panic!(
 					"Attempt to call by_id on DynamicReportEntry which is mutably borrowed: {}",

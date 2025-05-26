@@ -30,6 +30,7 @@ use crate::{util::format_date, QuantityInt};
 
 pub struct DbConnection {
 	sqlx_connection: RefCell<SqliteConnection>,
+	metadata: DbMetadata,
 }
 
 fn run_blocking<F: Future>(future: F) -> F::Output {
@@ -40,13 +41,21 @@ fn run_blocking<F: Future>(future: F) -> F::Output {
 impl DbConnection {
 	/// Connect to the given Sqlite database
 	pub fn connect(url: &str) -> Self {
+		run_blocking(DbConnection::connect_async(url))
+	}
+
+	async fn connect_async(url: &str) -> Self {
+		let mut connection = SqliteConnection::connect(url).await.expect("SQL error");
+		let metadata = DbMetadata::from_database(&mut connection).await;
+
 		Self {
-			sqlx_connection: RefCell::new(run_blocking(Self::connect_async(url))),
+			sqlx_connection: RefCell::new(connection),
+			metadata,
 		}
 	}
 
-	async fn connect_async(url: &str) -> SqliteConnection {
-		SqliteConnection::connect(url).await.expect("SQL error")
+	pub fn metadata(&self) -> &DbMetadata {
+		&self.metadata
 	}
 
 	/// Get account balances from the database
@@ -120,5 +129,60 @@ impl DbConnection {
 		});
 
 		account_configurations
+	}
+}
+
+/// Container for cached database-related metadata
+pub struct DbMetadata {
+	pub version: u32,
+	pub eofy_date: NaiveDate,
+	pub reporting_commodity: String,
+	pub dps: u32,
+}
+
+impl DbMetadata {
+	/// Initialise [DbMetadata] with values from the metadata database table
+	async fn from_database(connection: &mut SqliteConnection) -> Self {
+		let version = sqlx::query("SELECT value FROM metadata WHERE key = 'version'")
+			.map(|r: SqliteRow| {
+				r.get::<String, _>(0)
+					.parse()
+					.expect("Invalid metadata.version")
+			})
+			.fetch_one(&mut *connection)
+			.await
+			.expect("SQL error");
+
+		let eofy_date = sqlx::query("SELECT value FROM metadata WHERE key ='eofy_date'")
+			.map(|r: SqliteRow| {
+				NaiveDate::parse_from_str(r.get(0), "%Y-%m-%d").expect("Invalid metadata.eofy_date")
+			})
+			.fetch_one(&mut *connection)
+			.await
+			.expect("SQL error");
+
+		let reporting_commodity =
+			sqlx::query("SELECT value FROM metadata WHERE key = 'reporting_commodity'")
+				.map(|r: SqliteRow| r.get(0))
+				.fetch_one(&mut *connection)
+				.await
+				.expect("SQL error");
+
+		let dps = sqlx::query("SELECT value FROM metadata WHERE key = 'amount_dps'")
+			.map(|r: SqliteRow| {
+				r.get::<String, _>(0)
+					.parse()
+					.expect("Invalid metadata.amount_dps")
+			})
+			.fetch_one(&mut *connection)
+			.await
+			.expect("SQL error");
+
+		DbMetadata {
+			version,
+			eofy_date,
+			reporting_commodity,
+			dps,
+		}
 	}
 }

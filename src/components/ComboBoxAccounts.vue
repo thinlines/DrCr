@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-	import { defineProps, ref } from 'vue';
+	import { ref } from 'vue';
 	
 	import { db } from '../db.ts';
 	import ComboBox from './ComboBox.vue';

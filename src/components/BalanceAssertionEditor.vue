@@ -55,8 +55,6 @@
 	
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	
-	import { defineProps } from 'vue';
-	
 	import { DT_FORMAT, db, deserialiseAmount } from '../db.ts';
 	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	

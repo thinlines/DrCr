@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -43,7 +43,7 @@
 <script setup lang="ts">
 	import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/24/outline';
 	
-	import { defineModel, defineProps, ref } from 'vue';
+	import { ref } from 'vue';
 	
 	const { values } = defineProps<{ values: [string | null, [string, string][]][] }>();  // Array of [category name, [internal identifier, pretty name]]
 	

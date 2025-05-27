@@ -92,6 +92,7 @@ pub fn run() {
 			set_open_filename,
 			libdrcr_bridge::get_balance_sheet,
 			libdrcr_bridge::get_income_statement,
+			libdrcr_bridge::get_trial_balance,
 			sql::sql_transaction_begin,
 			sql::sql_transaction_execute,
 			sql::sql_transaction_select,

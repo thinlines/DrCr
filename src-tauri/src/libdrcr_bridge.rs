@@ -33,10 +33,9 @@ use tokio::sync::Mutex;
 
 use crate::AppState;
 
-#[tauri::command]
-pub(crate) async fn get_balance_sheet(
+async fn get_dynamic_report(
 	state: State<'_, Mutex<AppState>>,
-	dates: Vec<String>,
+	target: ReportingProductId,
 ) -> Result<String, ()> {
 	let state = state.lock().await;
 	let db_filename = state.db_filename.clone().unwrap();
@@ -51,19 +50,37 @@ pub(crate) async fn get_balance_sheet(
 	register_lookup_fns(&mut context);
 	register_dynamic_builders(&mut context);
 
-	// Get balance sheet
-	let mut date_args = Vec::new();
-	for date in dates.iter() {
-		date_args.push(DateArgs {
-			date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
-		})
-	}
+	// Get dynamic report
 	let targets = vec![
 		ReportingProductId {
 			name: "CalculateIncomeTax",
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
+		target.clone(),
+	];
+	let products = generate_report(targets, Arc::new(context)).await.unwrap();
+	let result = products.get_or_err(&target).unwrap();
+
+	let dynamic_report = result.downcast_ref::<DynamicReport>().unwrap().to_json();
+
+	Ok(dynamic_report)
+}
+
+#[tauri::command]
+pub(crate) async fn get_balance_sheet(
+	state: State<'_, Mutex<AppState>>,
+	dates: Vec<String>,
+) -> Result<String, ()> {
+	let mut date_args = Vec::new();
+	for date in dates.iter() {
+		date_args.push(DateArgs {
+			date: NaiveDate::parse_from_str(date, "%Y-%m-%d").expect("Invalid date"),
+		})
+	}
+
+	get_dynamic_report(
+		state,
 		ReportingProductId {
 			name: "BalanceSheet",
 			kind: ReportingProductKind::Generic,
@@ -71,21 +88,8 @@ pub(crate) async fn get_balance_sheet(
 				dates: date_args.clone(),
 			}),
 		},
-	];
-
-	// Run report
-	let products = generate_report(targets, Arc::new(context)).await.unwrap();
-	let result = products
-		.get_or_err(&ReportingProductId {
-			name: "BalanceSheet",
-			kind: ReportingProductKind::Generic,
-			args: Box::new(MultipleDateArgs { dates: date_args }),
-		})
-		.unwrap();
-
-	let balance_sheet = result.downcast_ref::<DynamicReport>().unwrap().to_json();
-
-	Ok(balance_sheet)
+	)
+	.await
 }
 
 #[tauri::command]
@@ -93,33 +97,16 @@ pub(crate) async fn get_income_statement(
 	state: State<'_, Mutex<AppState>>,
 	dates: Vec<(String, String)>,
 ) -> Result<String, ()> {
-	let state = state.lock().await;
-	let db_filename = state.db_filename.clone().unwrap();
-
-	// Connect to database
-	let db_connection =
-		DbConnection::new(format!("sqlite:{}", db_filename.as_str()).as_str()).await;
-
-	// Initialise ReportingContext
-	let eofy_date = db_connection.metadata().eofy_date;
-	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
-	register_lookup_fns(&mut context);
-	register_dynamic_builders(&mut context);
-
-	// Get income statement
 	let mut date_args = Vec::new();
 	for (date_start, date_end) in dates.iter() {
 		date_args.push(DateStartDateEndArgs {
-			date_start: NaiveDate::parse_from_str(date_start, "%Y-%m-%d").unwrap(),
-			date_end: NaiveDate::parse_from_str(date_end, "%Y-%m-%d").unwrap(),
+			date_start: NaiveDate::parse_from_str(date_start, "%Y-%m-%d").expect("Invalid date"),
+			date_end: NaiveDate::parse_from_str(date_end, "%Y-%m-%d").expect("Invalid date"),
 		})
 	}
-	let targets = vec![
-		ReportingProductId {
-			name: "CalculateIncomeTax",
-			kind: ReportingProductKind::Transactions,
-			args: Box::new(VoidArgs {}),
-		},
+
+	get_dynamic_report(
+		state,
 		ReportingProductId {
 			name: "IncomeStatement",
 			kind: ReportingProductKind::Generic,
@@ -127,19 +114,24 @@ pub(crate) async fn get_income_statement(
 				dates: date_args.clone(),
 			}),
 		},
-	];
+	)
+	.await
+}
 
-	// Run report
-	let products = generate_report(targets, Arc::new(context)).await.unwrap();
-	let result = products
-		.get_or_err(&ReportingProductId {
-			name: "IncomeStatement",
+#[tauri::command]
+pub(crate) async fn get_trial_balance(
+	state: State<'_, Mutex<AppState>>,
+	date: String,
+) -> Result<String, ()> {
+	let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").expect("Invalid date");
+
+	get_dynamic_report(
+		state,
+		ReportingProductId {
+			name: "TrialBalance",
 			kind: ReportingProductKind::Generic,
-			args: Box::new(MultipleDateStartDateEndArgs { dates: date_args }),
-		})
-		.unwrap();
-
-	let income_statement = result.downcast_ref::<DynamicReport>().unwrap().to_json();
-
-	Ok(income_statement)
+			args: Box::new(DateArgs { date }),
+		},
+	)
+	.await
 }

@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -43,7 +43,7 @@ async function initApp() {
 		{ path: '/statement-lines', name: 'statement-lines', component: () => import('./pages/StatementLinesView.vue') },
 		{ path: '/statement-lines/import', name: 'import-statement', component: () => import('./pages/ImportStatementView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
-		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./pages/TrialBalanceView.vue') },
+		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./reports/TrialBalanceReport.vue') },
 	];
 	const router = createRouter({
 		history: createWebHistory(),

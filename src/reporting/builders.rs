@@ -33,7 +33,7 @@ use super::executor::ReportingExecutionError;
 use super::types::{
 	BalancesAt, BalancesBetween, DateArgs, DateStartDateEndArgs, ReportingContext,
 	ReportingProductId, ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs,
-	ReportingStepDynamicBuilder, ReportingStepId, Transactions,
+	ReportingStepDynamicBuilder, ReportingStepId, Transactions, VoidArgs,
 };
 
 /// Call [ReportingContext::register_dynamic_builder] for all dynamic builders provided by this module
@@ -241,11 +241,39 @@ impl GenerateBalances {
 	) -> bool {
 		// Check for Transactions -> BalancesAt
 		if kind == ReportingProductKind::BalancesAt {
+			// Try DateArgs
 			match has_step_or_can_build(
 				&ReportingProductId {
 					name,
 					kind: ReportingProductKind::Transactions,
 					args: args.clone(),
+				},
+				steps,
+				dependencies,
+				context,
+			) {
+				HasStepOrCanBuild::HasStep(step) => {
+					// Check for () -> Transactions
+					if dependencies.dependencies_for_step(&step.id()).len() == 0 {
+						return true;
+					}
+				}
+				HasStepOrCanBuild::CanLookup(lookup_fn) => {
+					// Check for () -> Transactions
+					let step = lookup_fn(args.clone());
+					if step.requires(context).len() == 0 {
+						return true;
+					}
+				}
+				HasStepOrCanBuild::CanBuild(_) | HasStepOrCanBuild::None => {}
+			}
+
+			// Try VoidArgs
+			match has_step_or_can_build(
+				&ReportingProductId {
+					name,
+					kind: ReportingProductKind::Transactions,
+					args: Box::new(VoidArgs {}),
 				},
 				steps,
 				dependencies,
@@ -301,31 +329,66 @@ impl ReportingStep for GenerateBalances {
 		}
 	}
 
-	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
-		// GenerateBalances depends on Transactions
-		vec![ReportingProductId {
-			name: self.step_name,
-			kind: ReportingProductKind::Transactions,
-			args: Box::new(self.args.clone()),
-		}]
+	fn init_graph(
+		&self,
+		steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &mut ReportingGraphDependencies,
+		context: &ReportingContext,
+	) {
+		// Add a dependency on the Transactions result
+		// Look up that step, so we can extract the appropriate args
+
+		// Try DateArgs
+		match has_step_or_can_build(
+			&ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(self.args.clone()),
+			},
+			steps,
+			dependencies,
+			context,
+		) {
+			HasStepOrCanBuild::HasStep(_)
+			| HasStepOrCanBuild::CanLookup(_)
+			| HasStepOrCanBuild::CanBuild(_) => {
+				dependencies.add_dependency(
+					self.id(),
+					ReportingProductId {
+						name: self.step_name,
+						kind: ReportingProductKind::Transactions,
+						args: Box::new(self.args.clone()),
+					},
+				);
+				return;
+			}
+			HasStepOrCanBuild::None => (),
+		}
+
+		// Must be VoidArgs (as checked in can_build)
+		dependencies.add_dependency(
+			self.id(),
+			ReportingProductId {
+				name: self.step_name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(VoidArgs {}),
+			},
+		);
 	}
 
 	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
-		_dependencies: &ReportingGraphDependencies,
+		dependencies: &ReportingGraphDependencies,
 		products: &RwLock<ReportingProducts>,
 	) -> Result<ReportingProducts, ReportingExecutionError> {
 		let products = products.read().await;
 
 		// Get the transactions
+		let transactions_product = &dependencies.dependencies_for_step(&self.id())[0].product;
 		let transactions = &products
-			.get_or_err(&ReportingProductId {
-				name: self.step_name,
-				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
-			})?
+			.get_or_err(transactions_product)?
 			.downcast_ref::<Transactions>()
 			.unwrap()
 			.transactions;

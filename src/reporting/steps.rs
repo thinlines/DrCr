@@ -1075,9 +1075,7 @@ impl ReportingStep for IncomeStatement {
 
 /// Generate transactions for unreconciled statement lines
 #[derive(Debug)]
-pub struct PostUnreconciledStatementLines {
-	pub args: DateArgs,
-}
+pub struct PostUnreconciledStatementLines {}
 
 impl PostUnreconciledStatementLines {
 	fn register_lookup_fn(context: &mut ReportingContext) {
@@ -1090,13 +1088,11 @@ impl PostUnreconciledStatementLines {
 	}
 
 	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
-		args.is::<DateArgs>()
+		args.is::<VoidArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
-		Box::new(PostUnreconciledStatementLines {
-			args: *args.downcast().unwrap(),
-		})
+	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(PostUnreconciledStatementLines {})
 	}
 }
 
@@ -1112,22 +1108,59 @@ impl ReportingStep for PostUnreconciledStatementLines {
 		ReportingStepId {
 			name: "PostUnreconciledStatementLines",
 			product_kinds: &[ReportingProductKind::Transactions],
-			args: Box::new(self.args.clone()),
+			args: Box::new(VoidArgs {}),
 		}
 	}
 
 	async fn execute(
 		&self,
-		_context: &ReportingContext,
+		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_products: &RwLock<ReportingProducts>,
 	) -> Result<ReportingProducts, ReportingExecutionError> {
-		eprintln!("Stub: PostUnreconciledStatementLines.execute");
+		let unreconciled_statement_lines = context
+			.db_connection
+			.get_unreconciled_statement_lines()
+			.await;
 
-		let transactions = Transactions {
+		// Post unreconciled statement lines
+		let mut transactions = Transactions {
 			transactions: Vec::new(),
 		};
+
+		for line in unreconciled_statement_lines {
+			let unclassified_account = if line.quantity >= 0 {
+				"Unclassified Statement Line Debits"
+			} else {
+				"Unclassified Statement Line Credits"
+			};
+			transactions.transactions.push(TransactionWithPostings {
+				transaction: Transaction {
+					id: None,
+					dt: line.dt,
+					description: line.description.clone(),
+				},
+				postings: vec![
+					Posting {
+						id: None,
+						transaction_id: None,
+						description: None,
+						account: line.source_account.clone(),
+						quantity: line.quantity,
+						commodity: line.commodity.clone(),
+					},
+					Posting {
+						id: None,
+						transaction_id: None,
+						description: None,
+						account: unclassified_account.to_string(),
+						quantity: -line.quantity,
+						commodity: line.commodity.clone(),
+					},
+				],
+			});
+		}
 
 		// Store result
 		let mut result = ReportingProducts::new();
@@ -1135,7 +1168,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: Box::new(VoidArgs {}),
 			},
 			Box::new(transactions),
 		);

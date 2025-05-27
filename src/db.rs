@@ -18,11 +18,12 @@
 
 use std::collections::HashMap;
 
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime};
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Connection, Row, SqliteConnection};
 
 use crate::account_config::AccountConfiguration;
+use crate::statements::StatementLine;
 use crate::{util::format_date, QuantityInt};
 
 pub struct DbConnection {
@@ -49,6 +50,39 @@ impl DbConnection {
 		SqliteConnection::connect(&self.url)
 			.await
 			.expect("SQL error")
+	}
+
+	/// Get account configurations from the database
+	pub async fn get_account_configurations(&self) -> Vec<AccountConfiguration> {
+		let mut connection = self.connect().await;
+
+		let mut account_configurations =
+			sqlx::query("SELECT id, account, kind, data FROM account_configurations")
+				.map(|r: SqliteRow| AccountConfiguration {
+					id: r.get("id"),
+					account: r.get("account"),
+					kind: r.get("kind"),
+					data: r.get("data"),
+				})
+				.fetch_all(&mut connection)
+				.await
+				.expect("SQL error");
+
+		// System accounts
+		account_configurations.push(AccountConfiguration {
+			id: None,
+			account: "Current Year Earnings".to_string(),
+			kind: "drcr.equity".to_string(),
+			data: None,
+		});
+		account_configurations.push(AccountConfiguration {
+			id: None,
+			account: "Retained Earnings".to_string(),
+			kind: "drcr.equity".to_string(),
+			data: None,
+		});
+
+		account_configurations
 	}
 
 	/// Get account balances from the database
@@ -83,37 +117,26 @@ impl DbConnection {
 		balances
 	}
 
-	/// Get account configurations from the database
-	pub async fn get_account_configurations(&self) -> Vec<AccountConfiguration> {
+	/// Get unreconciled statement lines from the database
+	pub async fn get_unreconciled_statement_lines(&self) -> Vec<StatementLine> {
 		let mut connection = self.connect().await;
 
-		let mut account_configurations =
-			sqlx::query("SELECT id, account, kind, data FROM account_configurations")
-				.map(|r: SqliteRow| AccountConfiguration {
-					id: r.get("id"),
-					account: r.get("account"),
-					kind: r.get("kind"),
-					data: r.get("data"),
-				})
-				.fetch_all(&mut connection)
-				.await
-				.expect("SQL error");
+		let rows = sqlx::query(
+			// On testing, JOIN is much faster than WHERE NOT EXISTS
+		"SELECT statement_lines.* FROM statement_lines
+			LEFT JOIN statement_line_reconciliations ON statement_lines.id = statement_line_reconciliations.statement_line_id
+			WHERE statement_line_reconciliations.id IS NULL"
+		).map(|r: SqliteRow| StatementLine {
+			id: Some(r.get("id")),
+			source_account: r.get("source_account"),
+			dt: NaiveDateTime::parse_from_str(r.get("dt"), "%Y-%m-%d").expect("Invalid statement_lines.dt"),
+			description: r.get("description"),
+			quantity: r.get("quantity"),
+			balance: r.get("balance"),
+			commodity: r.get("commodity"),
+		}).fetch_all(&mut connection).await.expect("SQL error");
 
-		// System accounts
-		account_configurations.push(AccountConfiguration {
-			id: None,
-			account: "Current Year Earnings".to_string(),
-			kind: "drcr.equity".to_string(),
-			data: None,
-		});
-		account_configurations.push(AccountConfiguration {
-			id: None,
-			account: "Retained Earnings".to_string(),
-			kind: "drcr.equity".to_string(),
-			data: None,
-		});
-
-		account_configurations
+		rows
 	}
 }
 

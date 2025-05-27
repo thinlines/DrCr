@@ -73,7 +73,7 @@ async fn get_report(
 pub(crate) async fn get_all_transactions_except_earnings_to_equity(
 	state: State<'_, Mutex<AppState>>,
 ) -> Result<String, ()> {
-	Ok(get_report(
+	let transactions = get_report(
 		state,
 		&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity",
@@ -84,9 +84,40 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity(
 		},
 	)
 	.await
-	.downcast_ref::<Transactions>()
+	.downcast::<Transactions>()
 	.unwrap()
-	.to_json())
+	.transactions;
+
+	Ok(serde_json::to_string(&transactions).unwrap())
+}
+
+#[tauri::command]
+pub(crate) async fn get_all_transactions_except_earnings_to_equity_for_account(
+	state: State<'_, Mutex<AppState>>,
+	account: String,
+) -> Result<String, ()> {
+	let transactions = get_report(
+		state,
+		&ReportingProductId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
+			}),
+		},
+	)
+	.await
+	.downcast::<Transactions>()
+	.unwrap()
+	.transactions;
+
+	// Filter only transactions affecting this account
+	let filtered_transactions = transactions
+		.into_iter()
+		.filter(|t| t.postings.iter().any(|p| p.account == account))
+		.collect::<Vec<_>>();
+
+	Ok(serde_json::to_string(&filtered_transactions).unwrap())
 }
 
 #[tauri::command]

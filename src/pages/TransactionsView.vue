@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -38,15 +38,13 @@
 </template>
 
 <script setup lang="ts">
-	import { PlusIcon } from '@heroicons/vue/24/outline';
-	
+	import { PlusIcon } from '@heroicons/vue/24/outline';	
+	import { invoke } from '@tauri-apps/api/core';
 	import { UnlistenFn, listen } from '@tauri-apps/api/event';
-	
 	import { onUnmounted, ref } from 'vue';
 	import { useRoute } from 'vue-router';
 	
-	import { Transaction, db } from '../db.ts';
-	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
+	import { Transaction } from '../db.ts';
 	import TransactionsWithCommodityView from './TransactionsWithCommodityView.vue';
 	import TransactionsWithoutCommodityView from './TransactionsWithoutCommodityView.vue';
 	
@@ -56,24 +54,20 @@
 	const transactions = ref([] as Transaction[]);
 	
 	async function load() {
-		const session = await db.load();
-		const reportingWorkflow = new ReportingWorkflow();
-		await reportingWorkflow.generate(session);  // This also ensures running balances are up to date
-		
-		const transactionsRaw = reportingWorkflow.getTransactionsAtStage(ReportingStage.FINAL_STAGE);
-		
-		// Filter only transactions affecting this account
-		const filteredTransactions = transactionsRaw.filter((t) => t.postings.some((p) => p.account === route.params.account));
+		const transactionsRaw = JSON.parse(await invoke(
+			'get_all_transactions_except_earnings_to_equity_for_account',
+			{ account: route.params.account }
+		)) as Transaction[];
 		
 		// In order to correctly sort API transactions, we need to remember their indexes
-		const filteredTxnsWithIndexes = filteredTransactions.map((t, index) => [t, index] as [Transaction, number]);
+		const transactionsRawWithIndexes = transactionsRaw.map((t, index) => [t, index] as [Transaction, number]);
 		
 		// Sort transactions in reverse chronological order
 		// We must sort here because they are returned by reportingWorkflow in order of ReportingStage
 		// Use Number.MAX_SAFE_INTEGER as ID for API transactions
-		filteredTxnsWithIndexes.sort(([t1, i1], [t2, i2]) => (t2.dt.localeCompare(t1.dt)) || ((t2.id ?? Number.MAX_SAFE_INTEGER) - (t1.id ?? Number.MAX_SAFE_INTEGER) || (i2 - i1)));
+		transactionsRawWithIndexes.sort(([t1, i1], [t2, i2]) => (t2.dt.localeCompare(t1.dt)) || ((t2.id ?? Number.MAX_SAFE_INTEGER) - (t1.id ?? Number.MAX_SAFE_INTEGER) || (i2 - i1)));
 		
-		transactions.value = filteredTxnsWithIndexes.map(([t, _idx]) => t);
+		transactions.value = transactionsRawWithIndexes.map(([t, _idx]) => t);
 	}
 	load();
 	

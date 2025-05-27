@@ -36,7 +36,7 @@ use crate::QuantityInt;
 use super::calculator::ReportingGraphDependencies;
 use super::dynamic_report::{
 	entries_for_kind, CalculatableDynamicReport, CalculatableDynamicReportEntry,
-	CalculatableSection, CalculatedRow, LiteralRow,
+	CalculatableSection, CalculatedRow, DynamicReport, DynamicReportEntry, LiteralRow,
 };
 use super::executor::ReportingExecutionError;
 use super::types::{
@@ -57,6 +57,7 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 	IncomeStatement::register_lookup_fn(context);
 	PostUnreconciledStatementLines::register_lookup_fn(context);
 	RetainedEarningsToEquity::register_lookup_fn(context);
+	TrialBalance::register_lookup_fn(context);
 }
 
 /// Target representing all transactions except charging current year and retained earnings to equity
@@ -1309,6 +1310,156 @@ impl ReportingStep for RetainedEarningsToEquity {
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(transactions),
+		);
+		Ok(result)
+	}
+}
+
+/// Generates a trial balance [DynamicReport]
+#[derive(Debug)]
+pub struct TrialBalance {
+	pub args: DateArgs,
+}
+
+impl TrialBalance {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"TrialBalance",
+			&[ReportingProductKind::Generic],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<DateArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(TrialBalance {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for TrialBalance {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+#[async_trait]
+impl ReportingStep for TrialBalance {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "TrialBalance",
+			product_kinds: &[ReportingProductKind::Generic],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
+		let mut result = Vec::new();
+
+		// TrialBalance depends on AllTransactionsExceptEarningsToEquity at the requested date
+		result.push(ReportingProductId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			kind: ReportingProductKind::BalancesAt,
+			args: Box::new(self.args.clone()),
+		});
+
+		result
+	}
+
+	async fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
+		// Get balances for each period
+		let balances = &products
+			.get_or_err(&ReportingProductId {
+				name: "AllTransactionsExceptEarningsToEquity",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(self.args.clone()),
+			})?
+			.downcast_ref::<BalancesAt>()
+			.unwrap()
+			.balances;
+
+		// Get sorted list of accounts
+		let mut accounts = balances.keys().collect::<Vec<_>>();
+		accounts.sort();
+
+		// Get total debits and credits
+		let total_dr = balances.values().filter(|b| **b >= 0).sum::<i64>();
+		let total_cr = -balances.values().filter(|b| **b < 0).sum::<i64>();
+
+		// Init report
+		let mut report = DynamicReport::new(
+			"Trial balance".to_string(),
+			vec!["Dr".to_string(), "Cr".to_string()],
+			{
+				let mut entries = Vec::new();
+
+				// Entry for each account
+				for account in accounts {
+					entries.push(DynamicReportEntry::LiteralRow(LiteralRow {
+						text: account.clone(),
+						quantity: vec![
+							// Dr cell
+							if balances[account] >= 0 {
+								balances[account]
+							} else {
+								0
+							},
+							// Cr cell
+							if balances[account] < 0 {
+								-balances[account]
+							} else {
+								0
+							},
+						],
+						id: None,
+						visible: true,
+						auto_hide: true,
+						link: None,
+						heading: false,
+						bordered: false,
+					}));
+				}
+
+				// Total row
+				entries.push(DynamicReportEntry::LiteralRow(LiteralRow {
+					text: "Totals".to_string(),
+					quantity: vec![total_dr, total_cr],
+					id: Some("totals".to_string()),
+					visible: true,
+					auto_hide: false,
+					link: None,
+					heading: true,
+					bordered: true,
+				}));
+
+				entries
+			},
+		);
+
+		report.auto_hide();
+
+		// Store result
+		let mut result = ReportingProducts::new();
+		result.insert(
+			ReportingProductId {
+				name: "TrialBalance",
+				kind: ReportingProductKind::Generic,
+				args: Box::new(self.args.clone()),
+			},
+			Box::new(report),
 		);
 		Ok(result)
 	}

@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::QuantityInt;
 
-use super::types::{GenericReportingProduct, ReportingProduct};
+use super::types::ReportingProduct;
 
 /// Represents a dynamically generated report composed of [CalculatableDynamicReportEntry]
 #[derive(Clone, Debug)]
@@ -184,6 +184,14 @@ pub struct DynamicReport {
 }
 
 impl DynamicReport {
+	pub fn new(title: String, columns: Vec<String>, entries: Vec<DynamicReportEntry>) -> Self {
+		Self {
+			title,
+			columns,
+			entries,
+		}
+	}
+
 	/// Remove all entries from the report where auto_hide is enabled and quantity is zero
 	pub fn auto_hide(&mut self) {
 		self.entries.retain_mut(|e| match e {
@@ -212,7 +220,6 @@ impl DynamicReport {
 	}
 }
 
-impl GenericReportingProduct for DynamicReport {}
 impl ReportingProduct for DynamicReport {}
 
 #[derive(Clone, Debug)]

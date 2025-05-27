@@ -145,4 +145,40 @@ async fn main() {
 		"{}",
 		result.downcast_ref::<DynamicReport>().unwrap().to_json()
 	);
+
+	// Get trial balance
+
+	let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "TrialBalance",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
+			}),
+		},
+	];
+
+	let products = generate_report(targets, Arc::clone(&context))
+		.await
+		.unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "TrialBalance",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
+			}),
+		})
+		.unwrap();
+
+	println!("Trial balance:");
+	println!(
+		"{}",
+		result.downcast_ref::<DynamicReport>().unwrap().to_json()
+	);
 }

@@ -16,6 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::sync::Arc;
+
 use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
 use libdrcr::reporting::builders::register_dynamic_builders;
@@ -72,7 +74,7 @@ pub(crate) async fn get_balance_sheet(
 	];
 
 	// Run report
-	let products = generate_report(targets, &context).await.unwrap();
+	let products = generate_report(targets, Arc::new(context)).await.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "BalanceSheet",
@@ -128,7 +130,7 @@ pub(crate) async fn get_income_statement(
 	];
 
 	// Run report
-	let products = generate_report(targets, &context).await.unwrap();
+	let products = generate_report(targets, Arc::new(context)).await.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "IncomeStatement",

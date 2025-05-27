@@ -694,6 +694,29 @@ impl ReportingStep for UpdateBalancesBetween {
 				args: parent_step.id().args,
 			},
 		);
+
+		// Look up the BalancesBetween step
+		let dependencies_for_step = dependencies.dependencies_for_step(&parent_step.id());
+		let balances_between_product = &dependencies_for_step[0].product; // Existence and uniqueness checked in can_build
+
+		if *balances_between_product
+			.args
+			.downcast_ref::<DateStartDateEndArgs>()
+			.unwrap() == self.args
+		{
+			// Directly depends on BalanceBetween -> Transaction with appropriate date
+			// Do not need to add extra dependencies
+		} else {
+			// Depends on BalanceBetween with appropriate date
+			dependencies.add_dependency(
+				self.id(),
+				ReportingProductId {
+					name: balances_between_product.name,
+					kind: ReportingProductKind::BalancesBetween,
+					args: Box::new(self.args.clone()),
+				},
+			);
+		}
 	}
 
 	async fn execute(
@@ -733,7 +756,11 @@ impl ReportingStep for UpdateBalancesBetween {
 
 		// Get opening balances
 		let opening_balances = &products
-			.get_or_err(balances_between_product)?
+			.get_or_err(&ReportingProductId {
+				name: balances_between_product.name,
+				kind: ReportingProductKind::BalancesBetween,
+				args: Box::new(self.args.clone()),
+			})?
 			.downcast_ref::<BalancesBetween>()
 			.unwrap()
 			.balances;

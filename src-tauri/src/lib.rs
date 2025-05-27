@@ -90,6 +90,7 @@ pub fn run() {
 		.invoke_handler(tauri::generate_handler![
 			get_open_filename,
 			set_open_filename,
+			libdrcr_bridge::get_all_transactions_except_earnings_to_equity,
 			libdrcr_bridge::get_balance_sheet,
 			libdrcr_bridge::get_income_statement,
 			libdrcr_bridge::get_trial_balance,

@@ -60,16 +60,13 @@
 
 <script setup lang="ts">
 	import Clusterize from 'clusterize.js';
-	
 	import dayjs from 'dayjs';
-	
 	import { PencilIcon, PlusIcon } from '@heroicons/vue/24/outline';
-	
+	import { invoke } from '@tauri-apps/api/core';
 	import { onUnmounted, ref, watch } from 'vue';
 	
-	import { Transaction, db } from '../db.ts';
+	import { Transaction } from '../db.ts';
 	import { pp, ppWithCommodity } from '../display.ts';
-	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
 	import { renderComponent } from '../webutil.ts';
 	
 	const commodityDetail = ref(false);
@@ -78,14 +75,9 @@
 	let clusterize: Clusterize | null = null;
 	
 	async function load() {
-		const session = await db.load();
-		const reportingWorkflow = new ReportingWorkflow();
-		await reportingWorkflow.generate(session);
+		transactions.value = JSON.parse(await invoke('get_all_transactions_except_earnings_to_equity'));
 		
-		transactions.value = reportingWorkflow.getTransactionsAtStage(ReportingStage.FINAL_STAGE);
-		
-		// Display transactions in reverse chronological order
-		// We must sort here because they are returned by reportingWorkflow in order of ReportingStage
+		// Display transactions in reverse chronological order - they are returned in arbitrary order
 		transactions.value.sort((a, b) => (b.dt.localeCompare(a.dt)) || ((b.id ?? 0) - (a.id ?? 0)));
 	}
 	

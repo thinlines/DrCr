@@ -26,17 +26,18 @@ use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
 	DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
-	ReportingContext, ReportingProductId, ReportingProductKind, VoidArgs,
+	ReportingContext, ReportingProduct, ReportingProductId, ReportingProductKind, Transactions,
+	VoidArgs,
 };
 use tauri::State;
 use tokio::sync::Mutex;
 
 use crate::AppState;
 
-async fn get_dynamic_report(
+async fn get_report(
 	state: State<'_, Mutex<AppState>>,
-	target: ReportingProductId,
-) -> Result<String, ()> {
+	target: &ReportingProductId,
+) -> Box<dyn ReportingProduct> {
 	let state = state.lock().await;
 	let db_filename = state.db_filename.clone().unwrap();
 
@@ -60,11 +61,29 @@ async fn get_dynamic_report(
 		target.clone(),
 	];
 	let products = generate_report(targets, Arc::new(context)).await.unwrap();
-	let result = products.get_or_err(&target).unwrap();
+	let result = products.get_owned_or_err(&target).unwrap();
 
-	let dynamic_report = result.downcast_ref::<DynamicReport>().unwrap().to_json();
+	result
+}
 
-	Ok(dynamic_report)
+#[tauri::command]
+pub(crate) async fn get_all_transactions_except_earnings_to_equity(
+	state: State<'_, Mutex<AppState>>,
+) -> Result<String, ()> {
+	Ok(get_report(
+		state,
+		&ReportingProductId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
+			}),
+		},
+	)
+	.await
+	.downcast_ref::<Transactions>()
+	.unwrap()
+	.to_json())
 }
 
 #[tauri::command]
@@ -79,9 +98,9 @@ pub(crate) async fn get_balance_sheet(
 		})
 	}
 
-	get_dynamic_report(
+	Ok(get_report(
 		state,
-		ReportingProductId {
+		&ReportingProductId {
 			name: "BalanceSheet",
 			kind: ReportingProductKind::Generic,
 			args: Box::new(MultipleDateArgs {
@@ -90,6 +109,9 @@ pub(crate) async fn get_balance_sheet(
 		},
 	)
 	.await
+	.downcast_ref::<DynamicReport>()
+	.unwrap()
+	.to_json())
 }
 
 #[tauri::command]
@@ -105,9 +127,9 @@ pub(crate) async fn get_income_statement(
 		})
 	}
 
-	get_dynamic_report(
+	Ok(get_report(
 		state,
-		ReportingProductId {
+		&ReportingProductId {
 			name: "IncomeStatement",
 			kind: ReportingProductKind::Generic,
 			args: Box::new(MultipleDateStartDateEndArgs {
@@ -116,6 +138,9 @@ pub(crate) async fn get_income_statement(
 		},
 	)
 	.await
+	.downcast_ref::<DynamicReport>()
+	.unwrap()
+	.to_json())
 }
 
 #[tauri::command]
@@ -125,13 +150,16 @@ pub(crate) async fn get_trial_balance(
 ) -> Result<String, ()> {
 	let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").expect("Invalid date");
 
-	get_dynamic_report(
+	Ok(get_report(
 		state,
-		ReportingProductId {
+		&ReportingProductId {
 			name: "TrialBalance",
 			kind: ReportingProductKind::Generic,
 			args: Box::new(DateArgs { date }),
 		},
 	)
 	.await
+	.downcast_ref::<DynamicReport>()
+	.unwrap()
+	.to_json())
 }

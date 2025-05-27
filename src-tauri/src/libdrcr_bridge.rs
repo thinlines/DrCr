@@ -28,7 +28,6 @@ use libdrcr::reporting::types::{
 };
 use tauri::State;
 use tokio::sync::Mutex;
-use tokio::task::spawn_blocking;
 
 use crate::AppState;
 
@@ -40,55 +39,51 @@ pub(crate) async fn get_balance_sheet(
 	let state = state.lock().await;
 	let db_filename = state.db_filename.clone().unwrap();
 
-	spawn_blocking(move || {
-		// Connect to database
-		let db_connection =
-			DbConnection::connect(format!("sqlite:{}", db_filename.as_str()).as_str());
+	// Connect to database
+	let db_connection =
+		DbConnection::new(format!("sqlite:{}", db_filename.as_str()).as_str()).await;
 
-		// Initialise ReportingContext
-		let eofy_date = db_connection.metadata().eofy_date;
-		let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
-		register_lookup_fns(&mut context);
-		register_dynamic_builders(&mut context);
+	// Initialise ReportingContext
+	let eofy_date = db_connection.metadata().eofy_date;
+	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
+	register_lookup_fns(&mut context);
+	register_dynamic_builders(&mut context);
 
-		// Get balance sheet
-		let mut date_args = Vec::new();
-		for date in dates.iter() {
-			date_args.push(DateArgs {
-				date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
-			})
-		}
-		let targets = vec![
-			ReportingProductId {
-				name: "CalculateIncomeTax",
-				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
-			},
-			ReportingProductId {
-				name: "BalanceSheet",
-				kind: ReportingProductKind::Generic,
-				args: Box::new(MultipleDateArgs {
-					dates: date_args.clone(),
-				}),
-			},
-		];
+	// Get balance sheet
+	let mut date_args = Vec::new();
+	for date in dates.iter() {
+		date_args.push(DateArgs {
+			date: NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap(),
+		})
+	}
+	let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "BalanceSheet",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateArgs {
+				dates: date_args.clone(),
+			}),
+		},
+	];
 
-		// Run report
-		let products = generate_report(targets, &context).unwrap();
-		let result = products
-			.get_or_err(&ReportingProductId {
-				name: "BalanceSheet",
-				kind: ReportingProductKind::Generic,
-				args: Box::new(MultipleDateArgs { dates: date_args }),
-			})
-			.unwrap();
+	// Run report
+	let products = generate_report(targets, &context).await.unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "BalanceSheet",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateArgs { dates: date_args }),
+		})
+		.unwrap();
 
-		let balance_sheet = result.downcast_ref::<DynamicReport>().unwrap().to_json();
+	let balance_sheet = result.downcast_ref::<DynamicReport>().unwrap().to_json();
 
-		Ok(balance_sheet)
-	})
-	.await
-	.unwrap()
+	Ok(balance_sheet)
 }
 
 #[tauri::command]
@@ -99,54 +94,50 @@ pub(crate) async fn get_income_statement(
 	let state = state.lock().await;
 	let db_filename = state.db_filename.clone().unwrap();
 
-	spawn_blocking(move || {
-		// Connect to database
-		let db_connection =
-			DbConnection::connect(format!("sqlite:{}", db_filename.as_str()).as_str());
+	// Connect to database
+	let db_connection =
+		DbConnection::new(format!("sqlite:{}", db_filename.as_str()).as_str()).await;
 
-		// Initialise ReportingContext
-		let eofy_date = db_connection.metadata().eofy_date;
-		let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
-		register_lookup_fns(&mut context);
-		register_dynamic_builders(&mut context);
+	// Initialise ReportingContext
+	let eofy_date = db_connection.metadata().eofy_date;
+	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
+	register_lookup_fns(&mut context);
+	register_dynamic_builders(&mut context);
 
-		// Get income statement
-		let mut date_args = Vec::new();
-		for (date_start, date_end) in dates.iter() {
-			date_args.push(DateStartDateEndArgs {
-				date_start: NaiveDate::parse_from_str(date_start, "%Y-%m-%d").unwrap(),
-				date_end: NaiveDate::parse_from_str(date_end, "%Y-%m-%d").unwrap(),
-			})
-		}
-		let targets = vec![
-			ReportingProductId {
-				name: "CalculateIncomeTax",
-				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
-			},
-			ReportingProductId {
-				name: "IncomeStatement",
-				kind: ReportingProductKind::Generic,
-				args: Box::new(MultipleDateStartDateEndArgs {
-					dates: date_args.clone(),
-				}),
-			},
-		];
+	// Get income statement
+	let mut date_args = Vec::new();
+	for (date_start, date_end) in dates.iter() {
+		date_args.push(DateStartDateEndArgs {
+			date_start: NaiveDate::parse_from_str(date_start, "%Y-%m-%d").unwrap(),
+			date_end: NaiveDate::parse_from_str(date_end, "%Y-%m-%d").unwrap(),
+		})
+	}
+	let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "IncomeStatement",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateStartDateEndArgs {
+				dates: date_args.clone(),
+			}),
+		},
+	];
 
-		// Run report
-		let products = generate_report(targets, &context).unwrap();
-		let result = products
-			.get_or_err(&ReportingProductId {
-				name: "IncomeStatement",
-				kind: ReportingProductKind::Generic,
-				args: Box::new(MultipleDateStartDateEndArgs { dates: date_args }),
-			})
-			.unwrap();
+	// Run report
+	let products = generate_report(targets, &context).await.unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "IncomeStatement",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateStartDateEndArgs { dates: date_args }),
+		})
+		.unwrap();
 
-		let income_statement = result.downcast_ref::<DynamicReport>().unwrap().to_json();
+	let income_statement = result.downcast_ref::<DynamicReport>().unwrap().to_json();
 
-		Ok(income_statement)
-	})
-	.await
-	.unwrap()
+	Ok(income_statement)
 }

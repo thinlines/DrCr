@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -48,8 +48,8 @@
 				<td class="py-0.5 px-1 text-gray-900 text-end">{{ pp(Math.abs(assertion.quantity)) }}</td>
 				<td class="py-0.5 pr-1 text-gray-900">{{ assertion.quantity >= 0 ? 'Dr' : 'Cr' }}</td>
 				<td class="py-0.5 px-1 text-gray-900">
-					<CheckIcon class="w-4 h-4" v-if="assertion.isValid" />
-					<XMarkIcon class="w-4 h-4 text-red-500" v-if="!assertion.isValid" />
+					<CheckIcon class="w-4 h-4" v-if="assertion.is_valid" />
+					<XMarkIcon class="w-4 h-4 text-red-500" v-if="!assertion.is_valid" />
 				</td>
 				<td class="py-0.5 pl-1 text-gray-900 text-end">
 					<a :href="'/balance-assertions/edit/' + assertion.id" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">
@@ -63,14 +63,12 @@
 
 <script setup lang="ts">
 	import dayjs from 'dayjs';
-	
-	import { ref } from 'vue';
-	
-	import { db } from '../db.ts';
-	import { pp } from '../display.ts';
-	import { ReportingStage, ReportingWorkflow } from '../reporting.ts';
 	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 	import { PlusIcon } from '@heroicons/vue/16/solid';
+	import { invoke } from '@tauri-apps/api/core';
+	import { ref } from 'vue';
+	
+	import { pp } from '../display.ts';
 	
 	const balanceAssertions = ref([] as ValidatedBalanceAssertion[]);
 	
@@ -81,42 +79,11 @@
 		account: string,
 		quantity: number,
 		commodity: string,
-		isValid: boolean,
+		is_valid: boolean,
 	}
 	
 	async function load() {
-		const session = await db.load();
-		
-		const rawBalanceAssertions: any[] = await session.select(
-			`SELECT *
-			FROM balance_assertions
-			ORDER BY dt DESC, id DESC`
-		);
-		
-		// Get transactions
-		const reportingWorkflow = new ReportingWorkflow();
-		await reportingWorkflow.generate(session);
-		const transactions = reportingWorkflow.getTransactionsAtStage(ReportingStage.OrdinaryAPITransactions);
-		
-		for (const balanceAssertion of rawBalanceAssertions) {
-			// Check assertion status
-			const balanceAssertionDt = dayjs(balanceAssertion.dt);
-			
-			let accountBalance = 0;
-			for (const transaction of transactions) {
-				if (dayjs(transaction.dt) <= balanceAssertionDt) {
-					for (const posting of transaction.postings) {
-						if (posting.account === balanceAssertion.account) {
-							accountBalance += posting.quantity_ascost!;
-						}
-					}
-				}
-			}
-			
-			balanceAssertion.isValid = balanceAssertion.quantity === accountBalance && balanceAssertion.commodity === db.metadata.reporting_commodity;
-		}
-		
-		balanceAssertions.value = rawBalanceAssertions as ValidatedBalanceAssertion[];
+		balanceAssertions.value = JSON.parse(await invoke('get_validated_balance_assertions'));
 	}
 	
 	load();

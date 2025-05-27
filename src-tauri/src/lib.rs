@@ -94,6 +94,7 @@ pub fn run() {
 			libdrcr_bridge::get_balance_sheet,
 			libdrcr_bridge::get_income_statement,
 			libdrcr_bridge::get_trial_balance,
+			libdrcr_bridge::get_validated_balance_assertions,
 			sql::sql_transaction_begin,
 			sql::sql_transaction_execute,
 			sql::sql_transaction_select,

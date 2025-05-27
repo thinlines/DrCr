@@ -16,19 +16,22 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
+use libdrcr::model::assertions::BalanceAssertion;
 use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
-	DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
+	BalancesAt, DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
 	ReportingContext, ReportingProduct, ReportingProductId, ReportingProductKind, Transactions,
 	VoidArgs,
 };
+use serde::{Deserialize, Serialize};
 use tauri::State;
 use tokio::sync::Mutex;
 
@@ -162,4 +165,89 @@ pub(crate) async fn get_trial_balance(
 	.downcast_ref::<DynamicReport>()
 	.unwrap()
 	.to_json())
+}
+
+#[derive(Deserialize, Serialize)]
+struct ValidatedBalanceAssertion {
+	#[serde(flatten)]
+	assertion: BalanceAssertion,
+	is_valid: bool,
+}
+
+#[tauri::command]
+pub(crate) async fn get_validated_balance_assertions(
+	state: State<'_, Mutex<AppState>>,
+) -> Result<String, ()> {
+	let state = state.lock().await;
+	let db_filename = state.db_filename.clone().unwrap();
+
+	// Connect to database
+	let db_connection =
+		DbConnection::new(format!("sqlite:{}", db_filename.as_str()).as_str()).await;
+
+	let reporting_commodity = db_connection.metadata().reporting_commodity.clone(); // Needed later
+
+	// First get balance assertions from database
+	let balance_assertions = db_connection.get_balance_assertions().await;
+
+	// Get dates of balance assertions
+	let dates = balance_assertions
+		.iter()
+		.map(|b| b.dt)
+		.collect::<HashSet<_>>();
+
+	// Initialise ReportingContext
+	let eofy_date = db_connection.metadata().eofy_date;
+	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
+	register_lookup_fns(&mut context);
+	register_dynamic_builders(&mut context);
+
+	// Get report targets
+	let mut targets = vec![ReportingProductId {
+		name: "CalculateIncomeTax",
+		kind: ReportingProductKind::Transactions,
+		args: Box::new(VoidArgs {}),
+	}];
+	for dt in dates {
+		// Request ordinary transaction balances at each balance assertion date
+		targets.push(ReportingProductId {
+			name: "CombineOrdinaryTransactions",
+			kind: ReportingProductKind::BalancesAt,
+			args: Box::new(DateArgs { date: dt.date() }),
+		});
+	}
+
+	// Run report
+	let products = generate_report(targets, Arc::new(context)).await.unwrap();
+
+	// Validate each balance assertion
+	let mut validated_assertions = Vec::new();
+	for balance_assertion in balance_assertions {
+		let balances_at_date = products
+			.get_or_err(&ReportingProductId {
+				name: "CombineOrdinaryTransactions",
+				kind: ReportingProductKind::BalancesAt,
+				args: Box::new(DateArgs {
+					date: balance_assertion.dt.date(),
+				}),
+			})
+			.unwrap()
+			.downcast_ref::<BalancesAt>()
+			.unwrap();
+
+		let account_balance = *balances_at_date
+			.balances
+			.get(&balance_assertion.account)
+			.unwrap_or(&0);
+
+		let is_valid = balance_assertion.quantity == account_balance
+			&& balance_assertion.commodity == reporting_commodity;
+
+		validated_assertions.push(ValidatedBalanceAssertion {
+			assertion: balance_assertion,
+			is_valid,
+		});
+	}
+
+	Ok(serde_json::to_string(&validated_assertions).unwrap())
 }

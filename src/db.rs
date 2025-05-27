@@ -24,6 +24,7 @@ use sqlx::{Connection, Row, SqliteConnection};
 
 use crate::account_config::AccountConfiguration;
 use crate::statements::StatementLine;
+use crate::transaction::{Posting, Transaction, TransactionWithPostings};
 use crate::{util::format_date, QuantityInt};
 
 pub struct DbConnection {
@@ -90,7 +91,7 @@ impl DbConnection {
 		let mut connection = self.connect().await;
 
 		let rows = sqlx::query(
-		"-- Get last transaction for each account
+			"-- Get last transaction for each account
 			WITH max_dt_by_account AS (
 				SELECT account, max(dt) AS max_dt
 				FROM joined_transactions
@@ -117,13 +118,56 @@ impl DbConnection {
 		balances
 	}
 
+	/// Get transactions from the database
+	pub async fn get_transactions(&self) -> Vec<TransactionWithPostings> {
+		let mut connection = self.connect().await;
+
+		let rows = sqlx::query(
+			"SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity, quantity_ascost
+			FROM transactions_with_quantity_ascost
+			ORDER BY dt, transaction_id, id"
+		).fetch_all(&mut connection).await.expect("SQL error");
+
+		// Un-flatten transaction list
+		let mut transactions: Vec<TransactionWithPostings> = Vec::new();
+
+		for row in rows {
+			if transactions.is_empty()
+				|| transactions.last().unwrap().transaction.id != row.get("transaction_id")
+			{
+				// New transaction
+				transactions.push(TransactionWithPostings {
+					transaction: Transaction {
+						id: row.get("transaction_id"),
+						dt: NaiveDateTime::parse_from_str(row.get("dt"), "%Y-%m-%d %H:%M:%S.%6f")
+							.expect("Invalid transactions.dt"),
+						description: row.get("transaction_description"),
+					},
+					postings: Vec::new(),
+				});
+			}
+
+			transactions.last_mut().unwrap().postings.push(Posting {
+				id: row.get("id"),
+				transaction_id: row.get("transaction_id"),
+				description: row.get("description"),
+				account: row.get("account"),
+				quantity: row.get("quantity"),
+				commodity: row.get("commodity"),
+				quantity_ascost: row.get("quantity_ascost"),
+			});
+		}
+
+		transactions
+	}
+
 	/// Get unreconciled statement lines from the database
 	pub async fn get_unreconciled_statement_lines(&self) -> Vec<StatementLine> {
 		let mut connection = self.connect().await;
 
 		let rows = sqlx::query(
 			// On testing, JOIN is much faster than WHERE NOT EXISTS
-		"SELECT statement_lines.* FROM statement_lines
+			"SELECT statement_lines.* FROM statement_lines
 			LEFT JOIN statement_line_reconciliations ON statement_lines.id = statement_line_reconciliations.statement_line_id
 			WHERE statement_line_reconciliations.id IS NULL"
 		).map(|r: SqliteRow| StatementLine {

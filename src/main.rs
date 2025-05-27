@@ -26,13 +26,13 @@ use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
-	DateArgs, DateStartDateEndArgs, MultipleDateArgs, ReportingContext, ReportingProductId,
-	ReportingProductKind, VoidArgs,
+	DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
+	ReportingContext, ReportingProductId, ReportingProductKind, VoidArgs,
 };
 
 #[tokio::main]
 async fn main() {
-	const YEAR: i32 = 2023;
+	const YEAR: i32 = 2025;
 
 	// Connect to database
 	let db_connection = DbConnection::new("sqlite:drcr_testing.db").await;
@@ -56,12 +56,29 @@ async fn main() {
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
+		// ReportingProductId {
+		// 	name: "AllTransactionsExceptEarningsToEquity",
+		// 	kind: ReportingProductKind::Transactions,
+		// 	args: Box::new(DateArgs {
+		// 		date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
+		// 	}),
+		// },
 		ReportingProductId {
 			name: "BalanceSheet",
 			kind: ReportingProductKind::Generic,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
+				}],
+			}),
+		},
+		ReportingProductId {
+			name: "IncomeStatement",
+			kind: ReportingProductKind::Generic,
+			args: Box::new(MultipleDateStartDateEndArgs {
+				dates: vec![DateStartDateEndArgs {
+					date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
+					date_end: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
 			}),
 		},
@@ -181,4 +198,40 @@ async fn main() {
 		"{}",
 		result.downcast_ref::<DynamicReport>().unwrap().to_json()
 	);
+
+	// Get all transactions
+
+	/*let targets = vec![
+		ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(VoidArgs {}),
+		},
+		ReportingProductId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
+			}),
+		},
+	];
+
+	let products = generate_report(targets, Arc::clone(&context))
+		.await
+		.unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(DateArgs {
+				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
+			}),
+		})
+		.unwrap();
+
+	println!("All transactions:");
+	println!(
+		"{}",
+		result.downcast_ref::<Transactions>().unwrap().to_json()
+	);*/
 }

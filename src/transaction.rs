@@ -19,23 +19,26 @@
 use std::collections::HashMap;
 
 use chrono::NaiveDateTime;
+use serde::{Deserialize, Serialize};
 
 use crate::QuantityInt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Transaction {
 	pub id: Option<u64>,
+	#[serde(with = "crate::serde::naivedatetime_to_js")]
 	pub dt: NaiveDateTime,
 	pub description: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TransactionWithPostings {
+	#[serde(flatten)]
 	pub transaction: Transaction,
 	pub postings: Vec<Posting>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Posting {
 	pub id: Option<u64>,
 	pub transaction_id: Option<u64>,
@@ -43,9 +46,14 @@ pub struct Posting {
 	pub account: String,
 	pub quantity: QuantityInt,
 	pub commodity: String,
+	pub quantity_ascost: Option<QuantityInt>,
+	//pub running_balance: Option<QuantityInt>,
 }
 
-pub(crate) fn update_balances_from_transactions<'a, I: Iterator<Item = &'a TransactionWithPostings>>(
+pub(crate) fn update_balances_from_transactions<
+	'a,
+	I: Iterator<Item = &'a TransactionWithPostings>,
+>(
 	balances: &mut HashMap<String, QuantityInt>,
 	transactions: I,
 ) {

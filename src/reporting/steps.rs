@@ -48,30 +48,100 @@ use super::types::{
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
 pub fn register_lookup_fns(context: &mut ReportingContext) {
 	AllTransactionsExceptEarningsToEquity::register_lookup_fn(context);
+	AllTransactionsExceptEarningsToEquityBalances::register_lookup_fn(context);
 	AllTransactionsIncludingEarningsToEquity::register_lookup_fn(context);
 	BalanceSheet::register_lookup_fn(context);
 	CalculateIncomeTax::register_lookup_fn(context);
 	CombineOrdinaryTransactions::register_lookup_fn(context);
+	CombineOrdinaryTransactionsBalances::register_lookup_fn(context);
 	CurrentYearEarningsToEquity::register_lookup_fn(context);
 	DBBalances::register_lookup_fn(context);
+	DBTransactions::register_lookup_fn(context);
 	IncomeStatement::register_lookup_fn(context);
 	PostUnreconciledStatementLines::register_lookup_fn(context);
 	RetainedEarningsToEquity::register_lookup_fn(context);
 	TrialBalance::register_lookup_fn(context);
 }
 
-/// Target representing all transactions except charging current year and retained earnings to equity
+/// Target representing all transactions except charging current year and retained earnings to equity (returns transaction list)
 ///
 /// By default, this is [CombineOrdinaryTransactions] and, if requested, [CalculateIncomeTax].
 ///
 /// Used as the basis for the income statement.
 #[derive(Debug)]
 pub struct AllTransactionsExceptEarningsToEquity {
+	pub args: DateArgs,
+}
+
+impl AllTransactionsExceptEarningsToEquity {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"AllTransactionsExceptEarningsToEquity",
+			&[ReportingProductKind::Transactions],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<DateArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(AllTransactionsExceptEarningsToEquity {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for AllTransactionsExceptEarningsToEquity {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+#[async_trait]
+impl ReportingStep for AllTransactionsExceptEarningsToEquity {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "AllTransactionsExceptEarningsToEquity",
+			product_kinds: &[ReportingProductKind::Transactions],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
+		// AllTransactionsExceptEarningsToEquity always depends on CombineOrdinaryTransactions at least
+		vec![ReportingProductId {
+			name: "CombineOrdinaryTransactions",
+			kind: ReportingProductKind::Transactions,
+			args: Box::new(self.args.clone()),
+		}]
+	}
+
+	async fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		combine_transactions_of_all_dependencies(self.id(), dependencies, products).await
+	}
+}
+
+/// Target representing all transactions except charging current year and retained earnings to equity (returns balances)
+///
+/// By default, this is [CombineOrdinaryTransactions] and, if requested, [CalculateIncomeTax].
+///
+/// Used as the basis for the income statement.
+#[derive(Debug)]
+pub struct AllTransactionsExceptEarningsToEquityBalances {
 	pub product_kinds: &'static [ReportingProductKind; 1], // Must have single member - represented as static array for compatibility with ReportingStepId
 	pub args: Box<dyn ReportingStepArgs>,
 }
 
-impl AllTransactionsExceptEarningsToEquity {
+impl AllTransactionsExceptEarningsToEquityBalances {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
 			"AllTransactionsExceptEarningsToEquity",
@@ -96,21 +166,21 @@ impl AllTransactionsExceptEarningsToEquity {
 		product_kinds: &'static [ReportingProductKind; 1],
 		args: Box<dyn ReportingStepArgs>,
 	) -> Box<dyn ReportingStep> {
-		Box::new(AllTransactionsExceptEarningsToEquity {
+		Box::new(AllTransactionsExceptEarningsToEquityBalances {
 			product_kinds,
 			args,
 		})
 	}
 }
 
-impl Display for AllTransactionsExceptEarningsToEquity {
+impl Display for AllTransactionsExceptEarningsToEquityBalances {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("{}", self.id()))
 	}
 }
 
 #[async_trait]
-impl ReportingStep for AllTransactionsExceptEarningsToEquity {
+impl ReportingStep for AllTransactionsExceptEarningsToEquityBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "AllTransactionsExceptEarningsToEquity",
@@ -141,6 +211,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 		let step_dependencies = dependencies.dependencies_for_step(&self.id());
 
 		// Identify the product_kind dependency most recently generated
+		// TODO: Make this deterministic - parallel execution may cause the order to vary
 		let product_kind = self.product_kinds[0];
 
 		for (product_id, product) in products.map().iter().rev() {
@@ -502,8 +573,8 @@ impl CalculateIncomeTax {
 		);
 	}
 
-	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
-		true
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<VoidArgs>()
 	}
 
 	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
@@ -546,14 +617,20 @@ impl ReportingStep for CalculateIncomeTax {
 		_context: &ReportingContext,
 	) {
 		for other in steps {
-			if let Some(other) = other.downcast_ref::<AllTransactionsExceptEarningsToEquity>() {
+			if let Some(other) =
+				other.downcast_ref::<AllTransactionsExceptEarningsToEquityBalances>()
+			{
 				// AllTransactionsExceptEarningsToEquity depends on CalculateIncomeTax
 				dependencies.add_dependency(
 					other.id(),
 					ReportingProductId {
 						name: self.id().name,
 						kind: other.product_kinds[0],
-						args: other.id().args,
+						args: if other.product_kinds[0] == ReportingProductKind::Transactions {
+							Box::new(VoidArgs {})
+						} else {
+							other.id().args
+						},
 					},
 				);
 			}
@@ -586,9 +663,9 @@ impl ReportingStep for CalculateIncomeTax {
 	}
 }
 
-/// Combines all steps producing ordinary transactions
+/// Combines all steps producing ordinary transactions (returns transaction list)
 ///
-/// By default, these are [DBBalances] and [PostUnreconciledStatementLines]
+/// By default, these are [DBTransactions] and [PostUnreconciledStatementLines].
 #[derive(Debug)]
 pub struct CombineOrdinaryTransactions {
 	pub args: DateArgs,
@@ -598,7 +675,7 @@ impl CombineOrdinaryTransactions {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
 			"CombineOrdinaryTransactions",
-			&[ReportingProductKind::BalancesAt],
+			&[ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -623,6 +700,79 @@ impl Display for CombineOrdinaryTransactions {
 
 #[async_trait]
 impl ReportingStep for CombineOrdinaryTransactions {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "CombineOrdinaryTransactions",
+			product_kinds: &[ReportingProductKind::Transactions],
+			args: Box::new(self.args.clone()),
+		}
+	}
+
+	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
+		vec![
+			// CombineOrdinaryTransactions depends on DBTransactions
+			ReportingProductId {
+				name: "DBTransactions",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(VoidArgs {}),
+			},
+			// CombineOrdinaryTransactions depends on PostUnreconciledStatementLines
+			ReportingProductId {
+				name: "PostUnreconciledStatementLines",
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(VoidArgs {}),
+			},
+		]
+	}
+
+	async fn execute(
+		&self,
+		_context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		dependencies: &ReportingGraphDependencies,
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		combine_transactions_of_all_dependencies(self.id(), dependencies, products).await
+	}
+}
+
+/// Combines all steps producing ordinary transactions (returns balances)
+///
+/// By default, these are [DBBalances] and [PostUnreconciledStatementLines].
+#[derive(Debug)]
+pub struct CombineOrdinaryTransactionsBalances {
+	pub args: DateArgs,
+}
+
+impl CombineOrdinaryTransactionsBalances {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"CombineOrdinaryTransactions",
+			&[ReportingProductKind::BalancesAt],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<DateArgs>()
+	}
+
+	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(CombineOrdinaryTransactionsBalances {
+			args: *args.downcast().unwrap(),
+		})
+	}
+}
+
+impl Display for CombineOrdinaryTransactionsBalances {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+#[async_trait]
+impl ReportingStep for CombineOrdinaryTransactionsBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "CombineOrdinaryTransactions",
@@ -795,6 +945,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 								account: account.clone(),
 								quantity: -balance,
 								commodity: context.reporting_commodity.clone(),
+								quantity_ascost: None,
 							},
 							Posting {
 								id: None,
@@ -803,6 +954,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 								account: "Current Year Earnings".to_string(),
 								quantity: *balance,
 								commodity: context.reporting_commodity.clone(),
+								quantity_ascost: None,
 							},
 						],
 					})
@@ -888,6 +1040,71 @@ impl ReportingStep for DBBalances {
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(balances),
+		);
+		Ok(result)
+	}
+}
+
+/// Look up transactions from the database
+#[derive(Debug)]
+pub struct DBTransactions {}
+
+impl DBTransactions {
+	fn register_lookup_fn(context: &mut ReportingContext) {
+		context.register_lookup_fn(
+			"DBTransactions",
+			&[ReportingProductKind::Transactions],
+			Self::takes_args,
+			Self::from_args,
+		);
+	}
+
+	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+		args.is::<VoidArgs>()
+	}
+
+	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+		Box::new(DBTransactions {})
+	}
+}
+
+impl Display for DBTransactions {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("{}", self.id()))
+	}
+}
+
+#[async_trait]
+impl ReportingStep for DBTransactions {
+	fn id(&self) -> ReportingStepId {
+		ReportingStepId {
+			name: "DBTransactions",
+			product_kinds: &[ReportingProductKind::Transactions],
+			args: Box::new(VoidArgs {}),
+		}
+	}
+
+	async fn execute(
+		&self,
+		context: &ReportingContext,
+		_steps: &Vec<Box<dyn ReportingStep>>,
+		_dependencies: &ReportingGraphDependencies,
+		_products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		// Get transactions from DB
+		let transactions = Transactions {
+			transactions: context.db_connection.get_transactions().await,
+		};
+
+		// Store result
+		let mut result = ReportingProducts::new();
+		result.insert(
+			ReportingProductId {
+				name: self.id().name,
+				kind: ReportingProductKind::Transactions,
+				args: Box::new(VoidArgs {}),
+			},
+			Box::new(transactions),
 		);
 		Ok(result)
 	}
@@ -1150,6 +1367,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 						account: line.source_account.clone(),
 						quantity: line.quantity,
 						commodity: line.commodity.clone(),
+						quantity_ascost: None,
 					},
 					Posting {
 						id: None,
@@ -1158,6 +1376,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 						account: unclassified_account.to_string(),
 						quantity: -line.quantity,
 						commodity: line.commodity.clone(),
+						quantity_ascost: None,
 					},
 				],
 			});
@@ -1286,6 +1505,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 								account: account.clone(),
 								quantity: -balance,
 								commodity: context.reporting_commodity.clone(),
+								quantity_ascost: None,
 							},
 							Posting {
 								id: None,
@@ -1294,6 +1514,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 								account: "Retained Earnings".to_string(),
 								quantity: *balance,
 								commodity: context.reporting_commodity.clone(),
+								quantity_ascost: None,
 							},
 						],
 					})
@@ -1463,4 +1684,46 @@ impl ReportingStep for TrialBalance {
 		);
 		Ok(result)
 	}
+}
+
+/// Combines the transactions of all dependencies and returns [Transactions] as [ReportingProducts] for the given step
+///
+/// Used to implement [CombineOrdinaryTransactions] and [AllTransactionsExceptEarningsToEquity].
+async fn combine_transactions_of_all_dependencies(
+	step_id: ReportingStepId,
+	dependencies: &ReportingGraphDependencies,
+	products: &RwLock<ReportingProducts>,
+) -> Result<ReportingProducts, ReportingExecutionError> {
+	let products = products.read().await;
+
+	// Combine transactions of all dependencies
+
+	let mut transactions = Transactions {
+		transactions: Vec::new(),
+	};
+
+	for dependency in dependencies.dependencies_for_step(&step_id) {
+		let dependency_transactions = &products
+			.get_or_err(&dependency.product)?
+			.downcast_ref::<Transactions>()
+			.unwrap()
+			.transactions;
+
+		for transaction in dependency_transactions.iter() {
+			transactions.transactions.push(transaction.clone());
+		}
+	}
+
+	// Store result
+	let mut result = ReportingProducts::new();
+	result.insert(
+		ReportingProductId {
+			name: step_id.name,
+			kind: ReportingProductKind::Transactions,
+			args: step_id.args,
+		},
+		Box::new(transactions),
+	);
+
+	Ok(result)
 }

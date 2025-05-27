@@ -134,6 +134,31 @@ fn build_step_for_product(
 		}
 		HasStepOrCanBuild::CanLookup(from_args_fn) => {
 			new_step = from_args_fn(product.args.clone());
+
+			// Check new step meets the dependency
+			if new_step.id().name != product.name {
+				panic!(
+					"Unexpected step returned from lookup function (expected name {}, got {})",
+					product.name,
+					new_step.id().name
+				);
+			}
+			if new_step.id().args != product.args {
+				panic!(
+					"Unexpected step returned from lookup function {} (expected args {:?}, got {:?})",
+					product.name,
+					product.args,
+					new_step.id().args
+				);
+			}
+			if !new_step.id().product_kinds.contains(&product.kind) {
+				panic!(
+					"Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})",
+					product.name,
+					product.kind,
+					new_step.id().product_kinds
+				);
+			}
 		}
 		HasStepOrCanBuild::CanBuild(builder) => {
 			new_step = (builder.build)(
@@ -144,35 +169,38 @@ fn build_step_for_product(
 				&dependencies,
 				&context,
 			);
+
+			// Check new step meets the dependency
+			if new_step.id().name != product.name {
+				panic!(
+					"Unexpected step returned from builder {} (expected name {}, got {})",
+					builder.name,
+					product.name,
+					new_step.id().name
+				);
+			}
+			if new_step.id().args != product.args {
+				panic!(
+					"Unexpected step returned from builder {} for {} (expected args {:?}, got {:?})",
+					builder.name,
+					product.name,
+					product.args,
+					new_step.id().args
+				);
+			}
+			if !new_step.id().product_kinds.contains(&product.kind) {
+				panic!(
+					"Unexpected step returned from builder {} for {} (expected kind {:?}, got {:?})",
+					builder.name,
+					product.name,
+					product.kind,
+					new_step.id().product_kinds
+				);
+			}
 		}
 		HasStepOrCanBuild::None => {
 			return None;
 		}
-	}
-
-	// Check new step meets the dependency
-	if new_step.id().name != product.name {
-		panic!(
-			"Unexpected step returned from lookup function (expected name {}, got {})",
-			product.name,
-			new_step.id().name
-		);
-	}
-	if new_step.id().args != product.args {
-		panic!(
-			"Unexpected step returned from lookup function {} (expected args {:?}, got {:?})",
-			product.name,
-			product.args,
-			new_step.id().args
-		);
-	}
-	if !new_step.id().product_kinds.contains(&product.kind) {
-		panic!(
-			"Unexpected step returned from lookup function {} (expected kind {:?}, got {:?})",
-			product.name,
-			product.kind,
-			new_step.id().product_kinds
-		);
 	}
 
 	Some(new_step)
@@ -231,6 +259,10 @@ pub fn steps_for_targets(
 					dependencies.add_dependency(new_step.id(), dependency);
 				}
 				new_step.init_graph(&steps, &mut dependencies, &context);
+			} else {
+				return Err(ReportingCalculationError::NoStepForProduct {
+					message: format!("No step builds target product {}", target),
+				});
 			}
 		}
 	}

@@ -42,6 +42,31 @@ pub async fn execute_steps(
 			.execute(context, &steps, &dependencies, &products)
 			.await?;
 
+		// Sanity check the new products
+		for (product_id, _product) in new_products.map().iter() {
+			if product_id.name != step.id().name {
+				panic!(
+					"Unexpected product name {} from step {}",
+					product_id,
+					step.id()
+				);
+			}
+			if !step.id().product_kinds.contains(&product_id.kind) {
+				panic!(
+					"Unexpected product kind {} from step {}",
+					product_id,
+					step.id()
+				);
+			}
+			if product_id.args != step.id().args {
+				panic!(
+					"Unexpected product args {} from step {}",
+					product_id,
+					step.id()
+				);
+			}
+		}
+
 		// Insert the new products
 		products.write().await.append(&mut new_products);
 	}

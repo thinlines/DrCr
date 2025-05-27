@@ -48,7 +48,7 @@ impl From<ReportingExecutionError> for ReportingError {
 /// Calculate the steps required to generate the requested [ReportingProductId]s and then execute them
 ///
 /// Helper function to call [steps_for_targets] followed by [execute_steps].
-pub fn generate_report(
+pub async fn generate_report(
 	targets: Vec<ReportingProductId>,
 	context: &ReportingContext,
 ) -> Result<ReportingProducts, ReportingError> {
@@ -56,7 +56,7 @@ pub fn generate_report(
 	let (sorted_steps, dependencies) = steps_for_targets(targets, context)?;
 
 	// Execute steps
-	let products = execute_steps(sorted_steps, dependencies, context)?;
+	let products = execute_steps(sorted_steps, dependencies, context).await?;
 
 	Ok(products)
 }

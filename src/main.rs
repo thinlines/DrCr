@@ -28,11 +28,12 @@ use libdrcr::reporting::types::{
 	ReportingProductKind, VoidArgs,
 };
 
-fn main() {
+#[tokio::main]
+async fn main() {
 	const YEAR: i32 = 2023;
 
 	// Connect to database
-	let db_connection = DbConnection::connect("sqlite:drcr_testing.db");
+	let db_connection = DbConnection::new("sqlite:drcr_testing.db").await;
 
 	// Initialise ReportingContext
 	let mut context = ReportingContext::new(
@@ -85,7 +86,7 @@ fn main() {
 		},
 	];
 
-	let products = generate_report(targets, &context).unwrap();
+	let products = generate_report(targets, &context).await.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity",
@@ -119,7 +120,7 @@ fn main() {
 		},
 	];
 
-	let products = generate_report(targets, &context).unwrap();
+	let products = generate_report(targets, &context).await.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "BalanceSheet",

@@ -16,23 +16,35 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use super::{calculator::ReportingGraphDependencies, types::{ReportingContext, ReportingProducts, ReportingStep}};
+use tokio::sync::RwLock;
+
+use super::{
+	calculator::ReportingGraphDependencies,
+	types::{ReportingContext, ReportingProducts, ReportingStep},
+};
 
 #[derive(Debug)]
 pub enum ReportingExecutionError {
-	DependencyNotAvailable { message: String }
+	DependencyNotAvailable { message: String },
 }
 
-pub fn execute_steps(
+pub async fn execute_steps(
 	steps: Vec<Box<dyn ReportingStep>>,
 	dependencies: ReportingGraphDependencies,
 	context: &ReportingContext,
 ) -> Result<ReportingProducts, ReportingExecutionError> {
-	let mut products = ReportingProducts::new();
+	let products = RwLock::new(ReportingProducts::new());
 
 	for step in steps.iter() {
-		step.execute(context, &steps, &dependencies, &mut products)?;
+		// Execute the step
+		// TODO: Do this in parallel
+		let mut new_products = step
+			.execute(context, &steps, &dependencies, &products)
+			.await?;
+
+		// Insert the new products
+		products.write().await.append(&mut new_products);
 	}
 
-	Ok(products)
+	Ok(products.into_inner())
 }

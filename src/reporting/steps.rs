@@ -21,7 +21,9 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
+use async_trait::async_trait;
 use chrono::Datelike;
+use tokio::sync::RwLock;
 
 use crate::account_config::kinds_for_account;
 use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
@@ -33,7 +35,8 @@ use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
 use super::dynamic_report::{
-	entries_for_kind, CalculatedRow, DynamicReport, DynamicReportEntry, LiteralRow, Section,
+	entries_for_kind, CalculatableDynamicReport, CalculatableDynamicReportEntry,
+	CalculatableSection, CalculatedRow, LiteralRow,
 };
 use super::executor::ReportingExecutionError;
 use super::types::{
@@ -105,6 +108,7 @@ impl Display for AllTransactionsExceptEarningsToEquity {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -123,13 +127,15 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 		}]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Get all dependencies
 		let step_dependencies = dependencies.dependencies_for_step(&self.id());
 
@@ -139,7 +145,8 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 		for (product_id, product) in products.map().iter().rev() {
 			if step_dependencies.iter().any(|d| d.product == *product_id) {
 				// Store the result
-				products.insert(
+				let mut result = ReportingProducts::new();
+				result.insert(
 					ReportingProductId {
 						name: self.id().name,
 						kind: product_kind,
@@ -147,8 +154,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 					},
 					product.clone(),
 				);
-
-				return Ok(());
+				return Ok(result);
 			}
 		}
 
@@ -197,6 +203,7 @@ impl Display for AllTransactionsIncludingEarningsToEquity {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -229,13 +236,15 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Get opening balances from AllTransactionsExceptEarningsToEquity
 		let opening_balances = products
 			.get_or_err(&ReportingProductId {
@@ -280,7 +289,8 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		);
 
 		// Store result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesAt,
@@ -288,8 +298,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -326,6 +335,7 @@ impl Display for BalanceSheet {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for BalanceSheet {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -350,13 +360,15 @@ impl ReportingStep for BalanceSheet {
 		result
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Get balances for each period
 		let mut balances: Vec<&HashMap<String, QuantityInt>> = Vec::new();
 		for date_args in self.args.dates.iter() {
@@ -371,14 +383,14 @@ impl ReportingStep for BalanceSheet {
 
 		// Get names of all balance sheet accounts
 		let kinds_for_account =
-			kinds_for_account(context.db_connection.get_account_configurations());
+			kinds_for_account(context.db_connection.get_account_configurations().await);
 
 		// Init report
-		let mut report = DynamicReport::new(
+		let report = CalculatableDynamicReport::new(
 			"Balance sheet".to_string(),
 			self.args.dates.iter().map(|d| d.date.to_string()).collect(),
 			vec![
-				DynamicReportEntry::Section(Section::new(
+				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
 					"Assets".to_string(),
 					Some("assets".to_string()),
 					true,
@@ -386,23 +398,25 @@ impl ReportingStep for BalanceSheet {
 					{
 						let mut entries =
 							entries_for_kind("drcr.asset", false, &balances, &kinds_for_account);
-						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
-							calculate_fn: |report| LiteralRow {
-								text: "Total assets".to_string(),
-								quantity: report.subtotal_for_id("assets"),
-								id: Some("total_assets".to_string()),
-								visible: true,
-								auto_hide: false,
-								link: None,
-								heading: true,
-								bordered: true,
+						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
+							CalculatedRow {
+								calculate_fn: |report| LiteralRow {
+									text: "Total assets".to_string(),
+									quantity: report.subtotal_for_id("assets"),
+									id: Some("total_assets".to_string()),
+									visible: true,
+									auto_hide: false,
+									link: None,
+									heading: true,
+									bordered: true,
+								},
 							},
-						}));
+						));
 						entries
 					},
 				)),
-				DynamicReportEntry::Spacer,
-				DynamicReportEntry::Section(Section::new(
+				CalculatableDynamicReportEntry::Spacer,
+				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
 					"Liabilities".to_string(),
 					Some("liabilities".to_string()),
 					true,
@@ -410,23 +424,25 @@ impl ReportingStep for BalanceSheet {
 					{
 						let mut entries =
 							entries_for_kind("drcr.liability", true, &balances, &kinds_for_account);
-						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
-							calculate_fn: |report| LiteralRow {
-								text: "Total liabilities".to_string(),
-								quantity: report.subtotal_for_id("liabilities"),
-								id: Some("total_liabilities".to_string()),
-								visible: true,
-								auto_hide: false,
-								link: None,
-								heading: true,
-								bordered: true,
+						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
+							CalculatedRow {
+								calculate_fn: |report| LiteralRow {
+									text: "Total liabilities".to_string(),
+									quantity: report.subtotal_for_id("liabilities"),
+									id: Some("total_liabilities".to_string()),
+									visible: true,
+									auto_hide: false,
+									link: None,
+									heading: true,
+									bordered: true,
+								},
 							},
-						}));
+						));
 						entries
 					},
 				)),
-				DynamicReportEntry::Spacer,
-				DynamicReportEntry::Section(Section::new(
+				CalculatableDynamicReportEntry::Spacer,
+				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
 					"Equity".to_string(),
 					Some("equity".to_string()),
 					true,
@@ -434,29 +450,32 @@ impl ReportingStep for BalanceSheet {
 					{
 						let mut entries =
 							entries_for_kind("drcr.equity", true, &balances, &kinds_for_account);
-						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
-							calculate_fn: |report| LiteralRow {
-								text: "Total equity".to_string(),
-								quantity: report.subtotal_for_id("equity"),
-								id: Some("total_equity".to_string()),
-								visible: true,
-								auto_hide: false,
-								link: None,
-								heading: true,
-								bordered: true,
+						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
+							CalculatedRow {
+								calculate_fn: |report| LiteralRow {
+									text: "Total equity".to_string(),
+									quantity: report.subtotal_for_id("equity"),
+									id: Some("total_equity".to_string()),
+									visible: true,
+									auto_hide: false,
+									link: None,
+									heading: true,
+									bordered: true,
+								},
 							},
-						}));
+						));
 						entries
 					},
 				)),
 			],
 		);
 
-		report.calculate();
+		let mut report = report.calculate();
 		report.auto_hide();
 
 		// Store the result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: "BalanceSheet",
 				kind: ReportingProductKind::Generic,
@@ -464,8 +483,7 @@ impl ReportingStep for BalanceSheet {
 			},
 			Box::new(report),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -498,6 +516,7 @@ impl Display for CalculateIncomeTax {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for CalculateIncomeTax {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -540,20 +559,21 @@ impl ReportingStep for CalculateIncomeTax {
 		}
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		_products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
 		eprintln!("Stub: CalculateIncomeTax.execute");
 
 		let transactions = Transactions {
 			transactions: Vec::new(),
 		};
 
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
@@ -561,8 +581,7 @@ impl ReportingStep for CalculateIncomeTax {
 			},
 			Box::new(transactions),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -601,6 +620,7 @@ impl Display for CombineOrdinaryTransactions {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for CombineOrdinaryTransactions {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -627,13 +647,15 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Sum balances of all dependencies
 
 		let mut balances = BalancesAt {
@@ -653,7 +675,8 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		}
 
 		// Store result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesAt,
@@ -661,8 +684,7 @@ impl ReportingStep for CombineOrdinaryTransactions {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -699,6 +721,7 @@ impl Display for CurrentYearEarningsToEquity {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for CurrentYearEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -722,13 +745,14 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		}]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
 		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
 
 		// Get balances for this financial year
@@ -746,7 +770,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 
 		// Get income and expense accounts
 		let kinds_for_account =
-			kinds_for_account(context.db_connection.get_account_configurations());
+			kinds_for_account(context.db_connection.get_account_configurations().await);
 
 		// Transfer income and expense balances to current year earnings
 		let mut transactions = Transactions {
@@ -789,7 +813,8 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		}
 
 		// Store product
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
@@ -797,8 +822,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 			},
 			Box::new(transactions),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -835,6 +859,7 @@ impl Display for DBBalances {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for DBBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -844,19 +869,21 @@ impl ReportingStep for DBBalances {
 		}
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		_products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
 		// Get balances from DB
 		let balances = BalancesAt {
-			balances: context.db_connection.get_balances(self.args.date),
+			balances: context.db_connection.get_balances(self.args.date).await,
 		};
 
-		products.insert(
+		// Store result
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesAt,
@@ -864,8 +891,7 @@ impl ReportingStep for DBBalances {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -902,6 +928,7 @@ impl Display for IncomeStatement {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for IncomeStatement {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -926,13 +953,15 @@ impl ReportingStep for IncomeStatement {
 		result
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Get balances for each period
 		let mut balances: Vec<&HashMap<String, QuantityInt>> = Vec::new();
 		for date_args in self.args.dates.iter() {
@@ -947,10 +976,10 @@ impl ReportingStep for IncomeStatement {
 
 		// Get names of all income statement accounts
 		let kinds_for_account =
-			kinds_for_account(context.db_connection.get_account_configurations());
+			kinds_for_account(context.db_connection.get_account_configurations().await);
 
 		// Init report
-		let mut report = DynamicReport::new(
+		let report = CalculatableDynamicReport::new(
 			"Income statement".to_string(),
 			self.args
 				.dates
@@ -958,7 +987,7 @@ impl ReportingStep for IncomeStatement {
 				.map(|d| d.date_end.to_string())
 				.collect(),
 			vec![
-				DynamicReportEntry::Section(Section::new(
+				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
 					"Income".to_string(),
 					Some("income".to_string()),
 					true,
@@ -966,23 +995,25 @@ impl ReportingStep for IncomeStatement {
 					{
 						let mut entries =
 							entries_for_kind("drcr.income", true, &balances, &kinds_for_account);
-						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
-							calculate_fn: |report| LiteralRow {
-								text: "Total income".to_string(),
-								quantity: report.subtotal_for_id("income"),
-								id: Some("total_income".to_string()),
-								visible: true,
-								auto_hide: false,
-								link: None,
-								heading: true,
-								bordered: true,
+						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
+							CalculatedRow {
+								calculate_fn: |report| LiteralRow {
+									text: "Total income".to_string(),
+									quantity: report.subtotal_for_id("income"),
+									id: Some("total_income".to_string()),
+									visible: true,
+									auto_hide: false,
+									link: None,
+									heading: true,
+									bordered: true,
+								},
 							},
-						}));
+						));
 						entries
 					},
 				)),
-				DynamicReportEntry::Spacer,
-				DynamicReportEntry::Section(Section::new(
+				CalculatableDynamicReportEntry::Spacer,
+				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
 					"Expenses".to_string(),
 					Some("expenses".to_string()),
 					true,
@@ -990,23 +1021,25 @@ impl ReportingStep for IncomeStatement {
 					{
 						let mut entries =
 							entries_for_kind("drcr.expense", false, &balances, &kinds_for_account);
-						entries.push(DynamicReportEntry::CalculatedRow(CalculatedRow {
-							calculate_fn: |report| LiteralRow {
-								text: "Total expenses".to_string(),
-								quantity: report.subtotal_for_id("expenses"),
-								id: Some("total_expenses".to_string()),
-								visible: true,
-								auto_hide: false,
-								link: None,
-								heading: true,
-								bordered: true,
+						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
+							CalculatedRow {
+								calculate_fn: |report| LiteralRow {
+									text: "Total expenses".to_string(),
+									quantity: report.subtotal_for_id("expenses"),
+									id: Some("total_expenses".to_string()),
+									visible: true,
+									auto_hide: false,
+									link: None,
+									heading: true,
+									bordered: true,
+								},
 							},
-						}));
+						));
 						entries
 					},
 				)),
-				DynamicReportEntry::Spacer,
-				DynamicReportEntry::CalculatedRow(CalculatedRow {
+				CalculatableDynamicReportEntry::Spacer,
+				CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
 					calculate_fn: |report| LiteralRow {
 						text: "Net surplus (deficit)".to_string(),
 						quantity: report
@@ -1026,11 +1059,12 @@ impl ReportingStep for IncomeStatement {
 			],
 		);
 
-		report.calculate();
+		let mut report = report.calculate();
 		report.auto_hide();
 
 		// Store the result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: "IncomeStatement",
 				kind: ReportingProductKind::Generic,
@@ -1038,8 +1072,7 @@ impl ReportingStep for IncomeStatement {
 			},
 			Box::new(report),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -1076,6 +1109,7 @@ impl Display for PostUnreconciledStatementLines {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for PostUnreconciledStatementLines {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -1085,20 +1119,22 @@ impl ReportingStep for PostUnreconciledStatementLines {
 		}
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		_products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
 		eprintln!("Stub: PostUnreconciledStatementLines.execute");
 
 		let transactions = Transactions {
 			transactions: Vec::new(),
 		};
 
-		products.insert(
+		// Store result
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
@@ -1106,8 +1142,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 			},
 			Box::new(transactions),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -1144,6 +1179,7 @@ impl Display for RetainedEarningsToEquity {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for RetainedEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -1167,13 +1203,14 @@ impl ReportingStep for RetainedEarningsToEquity {
 		}]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
 		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
 		let last_eofy_date = eofy_date.with_year(eofy_date.year() - 1).unwrap();
 
@@ -1191,7 +1228,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 
 		// Get income and expense accounts
 		let kinds_for_account =
-			kinds_for_account(context.db_connection.get_account_configurations());
+			kinds_for_account(context.db_connection.get_account_configurations().await);
 
 		// Transfer income and expense balances to retained earnings
 		let mut transactions = Transactions {
@@ -1234,7 +1271,8 @@ impl ReportingStep for RetainedEarningsToEquity {
 		}
 
 		// Store product
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
@@ -1242,7 +1280,6 @@ impl ReportingStep for RetainedEarningsToEquity {
 			},
 			Box::new(transactions),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }

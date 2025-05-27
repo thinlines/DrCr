@@ -17,39 +17,26 @@
 */
 
 use std::collections::HashMap;
-use std::ops::DerefMut;
-use std::{cell::RefCell, future::Future};
 
 use chrono::NaiveDate;
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Connection, Row, SqliteConnection};
-use tokio::runtime::Runtime;
 
 use crate::account_config::AccountConfiguration;
 use crate::{util::format_date, QuantityInt};
 
 pub struct DbConnection {
-	sqlx_connection: RefCell<SqliteConnection>,
+	url: String,
 	metadata: DbMetadata,
 }
 
-fn run_blocking<F: Future>(future: F) -> F::Output {
-	let rt = Runtime::new().unwrap();
-	rt.block_on(future)
-}
-
 impl DbConnection {
-	/// Connect to the given Sqlite database
-	pub fn connect(url: &str) -> Self {
-		run_blocking(DbConnection::connect_async(url))
-	}
-
-	async fn connect_async(url: &str) -> Self {
+	pub async fn new(url: &str) -> Self {
 		let mut connection = SqliteConnection::connect(url).await.expect("SQL error");
 		let metadata = DbMetadata::from_database(&mut connection).await;
 
 		Self {
-			sqlx_connection: RefCell::new(connection),
+			url: url.to_string(),
 			metadata,
 		}
 	}
@@ -58,13 +45,15 @@ impl DbConnection {
 		&self.metadata
 	}
 
-	/// Get account balances from the database
-	pub fn get_balances(&self, date: NaiveDate) -> HashMap<String, QuantityInt> {
-		run_blocking(self.get_balances_async(date))
+	pub async fn connect(&self) -> SqliteConnection {
+		SqliteConnection::connect(&self.url)
+			.await
+			.expect("SQL error")
 	}
 
-	async fn get_balances_async(&self, date: NaiveDate) -> HashMap<String, QuantityInt> {
-		let mut connection = self.sqlx_connection.borrow_mut();
+	/// Get account balances from the database
+	pub async fn get_balances(&self, date: NaiveDate) -> HashMap<String, QuantityInt> {
+		let mut connection = self.connect().await;
 
 		let rows = sqlx::query(
 		"-- Get last transaction for each account
@@ -84,7 +73,7 @@ impl DbConnection {
 			SELECT max_tid_by_account.account, running_balance AS quantity
 			FROM max_tid_by_account
 			JOIN transactions_with_running_balances ON max_tid = transactions_with_running_balances.transaction_id AND max_tid_by_account.account = transactions_with_running_balances.account"
-		).bind(format_date(date)).fetch_all(connection.deref_mut()).await.expect("SQL error");
+		).bind(format_date(date)).fetch_all(&mut connection).await.expect("SQL error");
 
 		let mut balances = HashMap::new();
 		for row in rows {
@@ -95,12 +84,8 @@ impl DbConnection {
 	}
 
 	/// Get account configurations from the database
-	pub fn get_account_configurations(&self) -> Vec<AccountConfiguration> {
-		run_blocking(self.get_account_configurations_async())
-	}
-
-	async fn get_account_configurations_async(&self) -> Vec<AccountConfiguration> {
-		let mut connection = self.sqlx_connection.borrow_mut();
+	pub async fn get_account_configurations(&self) -> Vec<AccountConfiguration> {
+		let mut connection = self.connect().await;
 
 		let mut account_configurations =
 			sqlx::query("SELECT id, account, kind, data FROM account_configurations")
@@ -110,7 +95,7 @@ impl DbConnection {
 					kind: r.get("kind"),
 					data: r.get("data"),
 				})
-				.fetch_all(connection.deref_mut())
+				.fetch_all(&mut connection)
 				.await
 				.expect("SQL error");
 

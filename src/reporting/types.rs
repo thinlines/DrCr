@@ -20,12 +20,14 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
+use async_trait::async_trait;
 use chrono::NaiveDate;
 use downcast_rs::Downcast;
 use dyn_clone::DynClone;
 use dyn_eq::DynEq;
 use dyn_hash::DynHash;
 use indexmap::IndexMap;
+use tokio::sync::RwLock;
 
 use crate::db::DbConnection;
 use crate::transaction::TransactionWithPostings;
@@ -159,7 +161,7 @@ pub enum ReportingProductKind {
 }
 
 /// Represents the result of a [ReportingStep]
-pub trait ReportingProduct: Debug + Downcast + DynClone {}
+pub trait ReportingProduct: Debug + Downcast + DynClone + Send + Sync {}
 
 downcast_rs::impl_downcast!(ReportingProduct);
 dyn_clone::clone_trait_object!(ReportingProduct);
@@ -205,12 +207,23 @@ impl ReportingProducts {
 		}
 	}
 
+	/// Returns a reference to the underlying [IndexMap]
 	pub fn map(&self) -> &IndexMap<ReportingProductId, Box<dyn ReportingProduct>> {
 		&self.map
 	}
 
+	/// Insert a key-value pair in the map
+	///
+	/// See [IndexMap::insert].
 	pub fn insert(&mut self, key: ReportingProductId, value: Box<dyn ReportingProduct>) {
 		self.map.insert(key, value);
+	}
+
+	/// Moves all key-value pairs from `other` into `self`, leaving `other` empty
+	///
+	/// See [IndexMap::append].
+	pub fn append(&mut self, other: &mut ReportingProducts) {
+		self.map.append(&mut other.map);
 	}
 
 	pub fn get_or_err(
@@ -260,7 +273,8 @@ impl Display for ReportingStepId {
 }
 
 /// Represents a step in a reporting job
-pub trait ReportingStep: Debug + Display + Downcast {
+#[async_trait]
+pub trait ReportingStep: Debug + Display + Downcast + Send + Sync {
 	/// Get the [ReportingStepId] for this [ReportingStep]
 	fn id(&self) -> ReportingStepId;
 
@@ -293,14 +307,16 @@ pub trait ReportingStep: Debug + Display + Downcast {
 	}
 
 	/// Called to generate the [ReportingProduct] for this [ReportingStep]
+	///
+	/// Returns a [ReportingProducts] containing (only) the new [ReportingProduct]s.
 	#[allow(unused_variables)]
-	fn execute(
+	async fn execute(
 		&self,
 		context: &ReportingContext,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
 		todo!("{}", self);
 	}
 }
@@ -311,7 +327,10 @@ downcast_rs::impl_downcast!(ReportingStep);
 // REPORTING STEP ARGUMENTS
 
 /// Represents arguments to a [ReportingStep]
-pub trait ReportingStepArgs: Debug + Display + Downcast + DynClone + DynEq + DynHash {}
+pub trait ReportingStepArgs:
+	Debug + Display + Downcast + DynClone + DynEq + DynHash + Send + Sync
+{
+}
 
 downcast_rs::impl_downcast!(ReportingStepArgs);
 dyn_clone::clone_trait_object!(ReportingStepArgs);

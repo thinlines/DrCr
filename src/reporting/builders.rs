@@ -23,6 +23,9 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
+use async_trait::async_trait;
+use tokio::sync::RwLock;
+
 use crate::transaction::update_balances_from_transactions;
 
 use super::calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies};
@@ -124,6 +127,7 @@ impl Display for BalancesAtToBalancesBetween {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for BalancesAtToBalancesBetween {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -153,13 +157,15 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Get balances at dates
 		let balances_start = &products
 			.get_or_err(&ReportingProductId {
@@ -196,7 +202,8 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		}
 
 		// Store result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesBetween,
@@ -204,8 +211,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -285,6 +291,7 @@ impl Display for GenerateBalances {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for GenerateBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -303,13 +310,15 @@ impl ReportingStep for GenerateBalances {
 		}]
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Get the transactions
 		let transactions = &products
 			.get_or_err(&ReportingProductId {
@@ -328,7 +337,8 @@ impl ReportingStep for GenerateBalances {
 		update_balances_from_transactions(&mut balances.balances, transactions.iter());
 
 		// Store result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
@@ -336,8 +346,7 @@ impl ReportingStep for GenerateBalances {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -441,6 +450,7 @@ impl Display for UpdateBalancesAt {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for UpdateBalancesAt {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -499,13 +509,15 @@ impl ReportingStep for UpdateBalancesAt {
 		}
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Look up the parent step, so we can extract the appropriate args
 		let parent_step = steps
 			.iter()
@@ -566,7 +578,8 @@ impl ReportingStep for UpdateBalancesAt {
 		);
 
 		// Store result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesAt,
@@ -574,8 +587,7 @@ impl ReportingStep for UpdateBalancesAt {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }
 
@@ -646,6 +658,7 @@ impl Display for UpdateBalancesBetween {
 	}
 }
 
+#[async_trait]
 impl ReportingStep for UpdateBalancesBetween {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
@@ -683,13 +696,15 @@ impl ReportingStep for UpdateBalancesBetween {
 		);
 	}
 
-	fn execute(
+	async fn execute(
 		&self,
 		_context: &ReportingContext,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
-		products: &mut ReportingProducts,
-	) -> Result<(), ReportingExecutionError> {
+		products: &RwLock<ReportingProducts>,
+	) -> Result<ReportingProducts, ReportingExecutionError> {
+		let products = products.read().await;
+
 		// Look up the parent step, so we can extract the appropriate args
 		let parent_step = steps
 			.iter()
@@ -736,7 +751,8 @@ impl ReportingStep for UpdateBalancesBetween {
 		);
 
 		// Store result
-		products.insert(
+		let mut result = ReportingProducts::new();
+		result.insert(
 			ReportingProductId {
 				name: self.step_name,
 				kind: ReportingProductKind::BalancesBetween,
@@ -744,7 +760,6 @@ impl ReportingStep for UpdateBalancesBetween {
 			},
 			Box::new(balances),
 		);
-
-		Ok(())
+		Ok(result)
 	}
 }

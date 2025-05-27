@@ -23,8 +23,9 @@ use sqlx::sqlite::SqliteRow;
 use sqlx::{Connection, Row, SqliteConnection};
 
 use crate::account_config::AccountConfiguration;
-use crate::statements::StatementLine;
-use crate::transaction::{Posting, Transaction, TransactionWithPostings};
+use crate::model::assertions::BalanceAssertion;
+use crate::model::statements::StatementLine;
+use crate::model::transaction::{Posting, Transaction, TransactionWithPostings};
 use crate::{util::format_date, QuantityInt};
 
 pub struct DbConnection {
@@ -84,6 +85,31 @@ impl DbConnection {
 		});
 
 		account_configurations
+	}
+
+	/// Get balance assertions from the database
+	pub async fn get_balance_assertions(&self) -> Vec<BalanceAssertion> {
+		let mut connection = self.connect().await;
+
+		let balance_assertions = sqlx::query(
+			"SELECT id, dt, description, account, quantity, commodity
+			FROM balance_assertions
+			ORDER BY dt DESC, id DESC",
+		)
+		.map(|r: SqliteRow| BalanceAssertion {
+			id: r.get("id"),
+			dt: NaiveDateTime::parse_from_str(r.get("dt"), "%Y-%m-%d %H:%M:%S.%6f")
+				.expect("Invalid balance_assertions.dt"),
+			description: r.get("description"),
+			account: r.get("account"),
+			quantity: r.get("quantity"),
+			commodity: r.get("commodity"),
+		})
+		.fetch_all(&mut connection)
+		.await
+		.expect("SQL error");
+
+		balance_assertions
 	}
 
 	/// Get account balances from the database

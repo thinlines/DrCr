@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::db::DbConnection;
-use crate::transaction::TransactionWithPostings;
+use crate::model::transaction::TransactionWithPostings;
 use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
@@ -171,13 +171,6 @@ dyn_clone::clone_trait_object!(ReportingProduct);
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Transactions {
 	pub transactions: Vec<TransactionWithPostings>,
-}
-
-impl Transactions {
-	/// Serialise the product (as JSON) using serde
-	pub fn to_json(&self) -> String {
-		serde_json::to_string(&self.transactions).unwrap()
-	}
 }
 
 impl ReportingProduct for Transactions {}

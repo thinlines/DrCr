@@ -26,7 +26,7 @@ use std::fmt::Display;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use crate::transaction::update_balances_from_transactions;
+use crate::model::transaction::update_balances_from_transactions;
 
 use super::calculator::{has_step_or_can_build, HasStepOrCanBuild, ReportingGraphDependencies};
 use super::executor::ReportingExecutionError;

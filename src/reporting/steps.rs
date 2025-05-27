@@ -26,10 +26,10 @@ use chrono::Datelike;
 use tokio::sync::RwLock;
 
 use crate::account_config::kinds_for_account;
-use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
-use crate::transaction::{
+use crate::model::transaction::{
 	update_balances_from_transactions, Posting, Transaction, TransactionWithPostings,
 };
+use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
 use crate::util::{get_eofy, sofy_from_eofy};
 use crate::QuantityInt;
 

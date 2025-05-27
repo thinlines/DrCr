@@ -16,6 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::sync::Arc;
+
 use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
 use libdrcr::reporting::builders::register_dynamic_builders;
@@ -41,9 +43,10 @@ async fn main() {
 		NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
 		"$".to_string(),
 	);
-
 	register_lookup_fns(&mut context);
 	register_dynamic_builders(&mut context);
+
+	let context = Arc::new(context);
 
 	// Print Graphviz
 
@@ -86,7 +89,9 @@ async fn main() {
 		},
 	];
 
-	let products = generate_report(targets, &context).await.unwrap();
+	let products = generate_report(targets, Arc::clone(&context))
+		.await
+		.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity",
@@ -120,7 +125,9 @@ async fn main() {
 		},
 	];
 
-	let products = generate_report(targets, &context).await.unwrap();
+	let products = generate_report(targets, Arc::clone(&context))
+		.await
+		.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "BalanceSheet",

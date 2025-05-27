@@ -179,7 +179,7 @@ fn build_step_for_product(
 }
 
 /// Check whether the [ReportingStep] would be ready to execute, if the given previous steps have already completed
-fn would_be_ready_to_execute(
+pub(crate) fn would_be_ready_to_execute(
 	step: &Box<dyn ReportingStep>,
 	steps: &Vec<Box<dyn ReportingStep>>,
 	dependencies: &ReportingGraphDependencies,

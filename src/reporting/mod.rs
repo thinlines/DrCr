@@ -16,6 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use std::sync::Arc;
+
 use calculator::{steps_for_targets, ReportingCalculationError};
 use executor::{execute_steps, ReportingExecutionError};
 use types::{ReportingContext, ReportingProductId, ReportingProducts};
@@ -50,10 +52,10 @@ impl From<ReportingExecutionError> for ReportingError {
 /// Helper function to call [steps_for_targets] followed by [execute_steps].
 pub async fn generate_report(
 	targets: Vec<ReportingProductId>,
-	context: &ReportingContext,
+	context: Arc<ReportingContext>,
 ) -> Result<ReportingProducts, ReportingError> {
 	// Solve dependencies
-	let (sorted_steps, dependencies) = steps_for_targets(targets, context)?;
+	let (sorted_steps, dependencies) = steps_for_targets(targets, &*context)?;
 
 	// Execute steps
 	let products = execute_steps(sorted_steps, dependencies, context).await?;

@@ -535,13 +535,23 @@ pub fn entries_for_kind(
 			.map(|b| b.get(account).unwrap_or(&0) * if invert { -1 } else { 1 })
 			.collect::<Vec<_>>();
 
+		// Some exceptions for the link
+		let link;
+		if account == crate::CURRENT_YEAR_EARNINGS {
+			link = Some("/income-statement".to_string());
+		} else if account == crate::RETAINED_EARNINGS {
+			link = None
+		} else {
+			link = Some(format!("/transactions/{}", account));
+		}
+
 		let entry = LiteralRow {
 			text: account.to_string(),
 			quantity: quantities,
 			id: None,
 			visible: true,
 			auto_hide: true,
-			link: None,
+			link,
 			heading: false,
 			bordered: false,
 		};

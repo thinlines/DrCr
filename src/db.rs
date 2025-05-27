@@ -73,13 +73,13 @@ impl DbConnection {
 		// System accounts
 		account_configurations.push(AccountConfiguration {
 			id: None,
-			account: "Current Year Earnings".to_string(),
+			account: crate::CURRENT_YEAR_EARNINGS.to_string(),
 			kind: "drcr.equity".to_string(),
 			data: None,
 		});
 		account_configurations.push(AccountConfiguration {
 			id: None,
-			account: "Retained Earnings".to_string(),
+			account: crate::RETAINED_EARNINGS.to_string(),
 			kind: "drcr.equity".to_string(),
 			data: None,
 		});

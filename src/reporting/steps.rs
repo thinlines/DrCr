@@ -732,15 +732,13 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 	}
 
 	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
-		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
-
 		// CurrentYearEarningsToEquity depends on AllTransactionsExceptEarningsToEquity
 		vec![ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity",
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
-				date_start: sofy_from_eofy(eofy_date),
-				date_end: eofy_date,
+				date_start: sofy_from_eofy(get_eofy(&self.args.date, &context.eofy_date)),
+				date_end: self.args.date,
 			}),
 		}]
 	}
@@ -753,7 +751,6 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		products: &RwLock<ReportingProducts>,
 	) -> Result<ReportingProducts, ReportingExecutionError> {
 		let products = products.read().await;
-		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
 
 		// Get balances for this financial year
 		let balances = products
@@ -761,8 +758,8 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 				name: "AllTransactionsExceptEarningsToEquity",
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(DateStartDateEndArgs {
-					date_start: sofy_from_eofy(eofy_date),
-					date_end: eofy_date,
+					date_start: sofy_from_eofy(get_eofy(&self.args.date, &context.eofy_date)),
+					date_end: self.args.date,
 				}),
 			})?
 			.downcast_ref::<BalancesBetween>()
@@ -786,7 +783,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 					transactions.transactions.push(TransactionWithPostings {
 						transaction: Transaction {
 							id: None,
-							dt: eofy_date.and_hms_opt(0, 0, 0).unwrap(),
+							dt: self.args.date.and_hms_opt(0, 0, 0).unwrap(),
 							description: "Current year earnings".to_string(),
 						},
 						postings: vec![

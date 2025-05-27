@@ -82,7 +82,9 @@ impl CalculatableDynamicReport {
 
 					calculated_entries.push(DynamicReportEntry::LiteralRow(updated_row));
 				}
-				CalculatableDynamicReportEntry::Spacer => (),
+				CalculatableDynamicReportEntry::Spacer => {
+					calculated_entries.push(DynamicReportEntry::Spacer);
+				}
 			}
 		}
 

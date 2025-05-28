@@ -17,7 +17,7 @@
 -->
 
 <template>
-	<DynamicReportComponent :report="report">
+	<DynamicReportComponent :report="report" :columns="reportColumns">
 		<div class="my-2 py-2 flex">
 			<div class="grow flex gap-x-2 items-baseline">
 				<input type="date" class="bordered-field" v-model.lazy="dtStart">
@@ -48,6 +48,7 @@
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
 	const report = ref(null as DynamicReport | null);
+	const reportColumns = ref([] as string[]);
 	
 	const dt = ref(null as string | null);
 	const dtStart = ref(null as string | null);
@@ -71,7 +72,9 @@
 	async function updateReport() {
 		const dayjsDt = dayjs(dt.value!);
 		const dayjsDtStart = dayjs(dtStart.value!);
+		
 		const reportDates = [];
+		let newReportColumns = [];
 		
 		for (let i = 0; i < comparePeriods.value; i++) {
 			let thisReportDt, thisReportDtStart;
@@ -80,6 +83,7 @@
 			if (compareUnit.value === 'years') {
 				thisReportDt = dayjsDt.subtract(i, 'year');
 				thisReportDtStart = dayjsDtStart.subtract(i, 'year');
+				newReportColumns.push(thisReportDt.format('YYYY'));
 			} else if (compareUnit.value === 'months') {
 				if (dayjsDt.add(1, 'day').isSame(dayjsDt.set('date', 1).add(1, 'month'))) {
 					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
@@ -89,6 +93,7 @@
 					thisReportDt = dayjsDt.subtract(i, 'month');
 					thisReportDtStart = dayjsDtStart.subtract(i, 'month');
 				}
+				newReportColumns.push(thisReportDt.format('YYYY-MM'));
 			} else {
 				throw new Error('Unexpected compareUnit');
 			}
@@ -96,7 +101,13 @@
 			reportDates.push([thisReportDtStart.format('YYYY-MM-DD'), thisReportDt.format('YYYY-MM-DD')]);
 		}
 		
+		if (comparePeriods.value === 1) {
+			// Override column headers if only one column
+			newReportColumns = ['$'];
+		}
+		
 		report.value = JSON.parse(await invoke('get_income_statement', { dates: reportDates }));
+		reportColumns.value = newReportColumns;  // Wait until report available to update this
 	}
 	
 	load();

@@ -28,7 +28,7 @@
 			<thead>
 				<tr class="border-b border-gray-300">
 					<th></th>
-					<th v-for="column of report.columns" class="py-0.5 pl-1 text-gray-900 font-semibold text-end">{{ column }}&nbsp;</th>
+					<th v-for="column of (columns ?? report.columns)" class="py-0.5 pl-1 text-gray-900 font-semibold text-end">{{ column }}&nbsp;</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -42,5 +42,5 @@
 	import { DynamicReport } from '../reports/base.ts';
 	import DynamicReportEntryComponent from './DynamicReportEntryComponent.vue';
 	
-	const { report } = defineProps<{ report: DynamicReport | null }>();
+	const { report, columns } = defineProps<{ report: DynamicReport | null, columns?: string[] }>();
 </script>

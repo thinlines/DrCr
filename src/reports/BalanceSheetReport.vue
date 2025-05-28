@@ -17,7 +17,7 @@
 -->
 
 <template>
-	<DynamicReportComponent :report="report">
+	<DynamicReportComponent :report="report" :columns="reportColumns">
 		<div class="my-2 py-2 flex">
 			<div class="grow flex gap-x-2 items-baseline">
 				<span class="whitespace-nowrap">As at</span>
@@ -59,6 +59,7 @@
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
 	const report = ref(null as DynamicReport | null);
+	const reportColumns = ref([] as string[]);
 	
 	const dt = ref(null as string | null);
 	const comparePeriods = ref(1);
@@ -79,12 +80,15 @@
 	
 	async function updateReport() {
 		const reportDates = [];
+		let newReportColumns = [];
+		
 		for (let i = 0; i < comparePeriods.value; i++) {
 			let thisReportDt;
 			
 			// Get period end date
 			if (compareUnit.value === 'years') {
 				thisReportDt = dayjs(dt.value!).subtract(i, 'year');
+				newReportColumns.push(thisReportDt.format('YYYY'));
 			} else if (compareUnit.value === 'months') {
 				if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
 					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
@@ -92,6 +96,7 @@
 				} else {
 					thisReportDt = dayjs(dt.value!).subtract(i, 'month');
 				}
+				newReportColumns.push(thisReportDt.format('YYYY-MM'));
 			} else {
 				throw new Error('Unexpected compareUnit');
 			}
@@ -99,7 +104,13 @@
 			reportDates.push(thisReportDt.format('YYYY-MM-DD'));
 		}
 		
+		if (comparePeriods.value === 1) {
+			// Override column headers if only one column
+			newReportColumns = ['$'];
+		}
+		
 		report.value = JSON.parse(await invoke('get_balance_sheet', { dates: reportDates }));
+		reportColumns.value = newReportColumns;  // Wait until report available to update this
 	}
 	
 	const doesBalance = computed(function() {

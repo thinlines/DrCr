@@ -397,7 +397,12 @@ impl ReportingStep for GenerateBalances {
 		let mut balances = BalancesAt {
 			balances: HashMap::new(),
 		};
-		update_balances_from_transactions(&mut balances.balances, transactions.iter());
+		update_balances_from_transactions(
+			&mut balances.balances,
+			transactions
+				.iter()
+				.filter(|t| t.transaction.dt.date() <= self.args.date),
+		);
 
 		// Store result
 		let mut result = ReportingProducts::new();

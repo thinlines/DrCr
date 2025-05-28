@@ -199,7 +199,7 @@ impl DbConnection {
 		).map(|r: SqliteRow| StatementLine {
 			id: Some(r.get("id")),
 			source_account: r.get("source_account"),
-			dt: NaiveDateTime::parse_from_str(r.get("dt"), "%Y-%m-%d").expect("Invalid statement_lines.dt"),
+			dt: NaiveDateTime::parse_from_str(r.get("dt"), "%Y-%m-%d %H:%M:%S.%6f").expect("Invalid statement_lines.dt"),
 			description: r.get("description"),
 			quantity: r.get("quantity"),
 			balance: r.get("balance"),

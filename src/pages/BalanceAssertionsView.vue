@@ -48,8 +48,8 @@
 				<td class="py-0.5 px-1 text-gray-900 text-end">{{ pp(Math.abs(assertion.quantity)) }}</td>
 				<td class="py-0.5 pr-1 text-gray-900">{{ assertion.quantity >= 0 ? 'Dr' : 'Cr' }}</td>
 				<td class="py-0.5 px-1 text-gray-900">
-					<CheckIcon class="w-4 h-4" v-if="assertion.is_valid" />
-					<XMarkIcon class="w-4 h-4 text-red-500" v-if="!assertion.is_valid" />
+					<CheckIcon class="w-4 h-4" v-if="assertion.is_valid === true" />
+					<XMarkIcon class="w-4 h-4 text-red-500" v-if="assertion.is_valid === false" />
 				</td>
 				<td class="py-0.5 pl-1 text-gray-900 text-end">
 					<a :href="'/balance-assertions/edit/' + assertion.id" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">
@@ -68,6 +68,7 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { ref } from 'vue';
 	
+	import { db } from '../db.ts';
 	import { pp } from '../display.ts';
 	
 	const balanceAssertions = ref([] as ValidatedBalanceAssertion[]);
@@ -83,6 +84,15 @@
 	}
 	
 	async function load() {
+		// Since validating the assertions takes a while, first load them from database
+		const session = await db.load();
+		balanceAssertions.value = await session.select(
+			`SELECT id, dt, description, account, quantity, commodity, NULL as is_valid
+			FROM balance_assertions
+			ORDER BY dt DESC, id DESC`
+		);
+		
+		// Then validate them in the background
 		balanceAssertions.value = JSON.parse(await invoke('get_validated_balance_assertions'));
 	}
 	

@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -62,7 +62,7 @@
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500">{{ db.metadata.reporting_commodity }}</span>
 							</div>
-							<input type="text" class="bordered-field pl-7" v-model="posting.amount_abs">
+							<input type="text" class="bordered-field pl-7" v-model="posting.amount_abs" @input="onAmountChange(posting)">
 						</div>
 					</td>
 					<td class="amount-cr py-1 pl-1"></td>
@@ -74,7 +74,7 @@
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500">{{ db.metadata.reporting_commodity }}</span>
 							</div>
-							<input type="text" class="bordered-field pl-7" v-model="posting.amount_abs">
+							<input type="text" class="bordered-field pl-7" v-model="posting.amount_abs" @input="onAmountChange(posting)">
 						</div>
 					</td>
 				</template>
@@ -311,5 +311,16 @@
 		await dbTransaction.commit();
 		
 		await getCurrentWindow().close();
+	}
+	
+	async function onAmountChange(posting: EditingPosting) {
+		// Synchronise the amounts if only two postings
+		if (transaction.postings.length == 2) {
+			for (const otherPosting of transaction.postings) {
+				if (otherPosting !== posting) {
+					otherPosting.amount_abs = posting.amount_abs;
+				}
+			}
+		}
 	}
 </script>

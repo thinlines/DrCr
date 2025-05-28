@@ -27,7 +27,7 @@
 				<div class="relative flex flex-grow items-stretch shadow-sm">
 					<input type="number" min="1" class="bordered-field w-[9.5em] pr-[6em]" v-model.lazy="comparePeriods">
 					<div class="absolute inset-y-0 right-0 flex items-center z-10">
-						<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600" v-model="compareUnit">
+						<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600" v-model="compareUnit" @change="onCompareUnitChange">
 							<option value="years">years</option>
 							<option value="months">months</option>
 						</select>
@@ -69,22 +69,25 @@
 	}
 	
 	async function updateReport() {
+		const dayjsDt = dayjs(dt.value!);
+		const dayjsDtStart = dayjs(dtStart.value!);
 		const reportDates = [];
+		
 		for (let i = 0; i < comparePeriods.value; i++) {
 			let thisReportDt, thisReportDtStart;
 			
 			// Get period start and end dates
 			if (compareUnit.value === 'years') {
-				thisReportDt = dayjs(dt.value!).subtract(i, 'year');
-				thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'year');
+				thisReportDt = dayjsDt.subtract(i, 'year');
+				thisReportDtStart = dayjsDtStart.subtract(i, 'year');
 			} else if (compareUnit.value === 'months') {
-				if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
+				if (dayjsDt.add(1, 'day').isSame(dayjsDt.set('date', 1).add(1, 'month'))) {
 					// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
-					thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
-					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month');
+					thisReportDt = dayjsDt.subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
+					thisReportDtStart = dayjsDtStart.subtract(i, 'month');
 				} else {
-					thisReportDt = dayjs(dt.value!).subtract(i, 'month');
-					thisReportDtStart = dayjs(dtStart.value!).subtract(i, 'month');
+					thisReportDt = dayjsDt.subtract(i, 'month');
+					thisReportDtStart = dayjsDtStart.subtract(i, 'month');
 				}
 			} else {
 				throw new Error('Unexpected compareUnit');
@@ -97,4 +100,25 @@
 	}
 	
 	load();
+	
+	function onCompareUnitChange() {
+		const dayjsDt = dayjs(dt.value!);
+		const dayjsDtStart = dayjs(dtStart.value!);
+		
+		if (compareUnit.value === 'years') {
+			if (dayjsDt.add(1, 'day').subtract(1, 'month').isSame(dayjsDtStart)) {
+				// Dates were previously set to one month - now compareUnit changed to years
+				// Automatically change dates to one year
+				dtStart.value = dayjsDt.add(1, 'day').subtract(1, 'year').format('YYYY-MM-DD');
+			}
+		} else if (compareUnit.value === 'months') {
+			if (dayjsDt.add(1, 'day').subtract(1, 'year').isSame(dayjsDtStart)) {
+				// Dates were previously set to one year - now compareUnit changed to months
+				// Automatically change dates to one month
+				dtStart.value = dayjsDt.add(1, 'day').subtract(1, 'month').format('YYYY-MM-DD');
+			}
+		} else {
+			throw new Error('Unexpected compareUnit');
+		}
+	}
 </script>

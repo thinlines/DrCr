@@ -152,12 +152,20 @@ impl Display for ReportingProductId {
 	}
 }
 
-/// Identifies a type of [ReportingProduct]
+/// Identifies a type of [Box]ed [ReportingProduct]
+///
+/// See [Box::downcast].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ReportingProductKind {
+	/// The [Box]ed [ReportingProduct] is a [Transactions]
 	Transactions,
+	/// The [Box]ed [ReportingProduct] is a [BalancesAt]
 	BalancesAt,
+	/// The [Box]ed [ReportingProduct] is a [BalancesBetween]
 	BalancesBetween,
+	/// The [Box]ed [ReportingProduct] is a [DynamicReport]
+	DynamicReport,
+	/// Unused in libdrcr - available for plugin use
 	Generic,
 }
 

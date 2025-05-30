@@ -384,7 +384,7 @@ impl BalanceSheet {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
 			"BalanceSheet",
-			&[ReportingProductKind::Generic],
+			&[ReportingProductKind::DynamicReport],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -412,7 +412,7 @@ impl ReportingStep for BalanceSheet {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "BalanceSheet",
-			product_kinds: &[ReportingProductKind::Generic],
+			product_kinds: &[ReportingProductKind::DynamicReport],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -550,7 +550,7 @@ impl ReportingStep for BalanceSheet {
 		result.insert(
 			ReportingProductId {
 				name: "BalanceSheet",
-				kind: ReportingProductKind::Generic,
+				kind: ReportingProductKind::DynamicReport,
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(report),
@@ -1120,7 +1120,7 @@ impl IncomeStatement {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
 			"IncomeStatement",
-			&[ReportingProductKind::Generic],
+			&[ReportingProductKind::DynamicReport],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -1148,7 +1148,7 @@ impl ReportingStep for IncomeStatement {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "IncomeStatement",
-			product_kinds: &[ReportingProductKind::Generic],
+			product_kinds: &[ReportingProductKind::DynamicReport],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -1282,7 +1282,7 @@ impl ReportingStep for IncomeStatement {
 		result.insert(
 			ReportingProductId {
 				name: "IncomeStatement",
-				kind: ReportingProductKind::Generic,
+				kind: ReportingProductKind::DynamicReport,
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(report),
@@ -1546,7 +1546,7 @@ impl TrialBalance {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
 			"TrialBalance",
-			&[ReportingProductKind::Generic],
+			&[ReportingProductKind::DynamicReport],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -1574,7 +1574,7 @@ impl ReportingStep for TrialBalance {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
 			name: "TrialBalance",
-			product_kinds: &[ReportingProductKind::Generic],
+			product_kinds: &[ReportingProductKind::DynamicReport],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -1677,7 +1677,7 @@ impl ReportingStep for TrialBalance {
 		result.insert(
 			ReportingProductId {
 				name: "TrialBalance",
-				kind: ReportingProductKind::Generic,
+				kind: ReportingProductKind::DynamicReport,
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(report),

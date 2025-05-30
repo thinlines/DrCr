@@ -65,7 +65,7 @@ async fn main() {
 		// },
 		ReportingProductId {
 			name: "BalanceSheet",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
@@ -74,7 +74,7 @@ async fn main() {
 		},
 		ReportingProductId {
 			name: "IncomeStatement",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateStartDateEndArgs {
 				dates: vec![DateStartDateEndArgs {
 					date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
@@ -133,7 +133,7 @@ async fn main() {
 		},
 		ReportingProductId {
 			name: "BalanceSheet",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
@@ -148,7 +148,7 @@ async fn main() {
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "BalanceSheet",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
@@ -173,7 +173,7 @@ async fn main() {
 		},
 		ReportingProductId {
 			name: "TrialBalance",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
@@ -186,7 +186,7 @@ async fn main() {
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "TrialBalance",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),

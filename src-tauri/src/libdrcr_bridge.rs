@@ -136,7 +136,7 @@ pub(crate) async fn get_balance_sheet(
 		state,
 		&ReportingProductId {
 			name: "BalanceSheet",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: date_args.clone(),
 			}),
@@ -165,7 +165,7 @@ pub(crate) async fn get_income_statement(
 		state,
 		&ReportingProductId {
 			name: "IncomeStatement",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateStartDateEndArgs {
 				dates: date_args.clone(),
 			}),
@@ -188,7 +188,7 @@ pub(crate) async fn get_trial_balance(
 		state,
 		&ReportingProductId {
 			name: "TrialBalance",
-			kind: ReportingProductKind::Generic,
+			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(DateArgs { date }),
 		},
 	)

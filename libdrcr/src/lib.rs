@@ -1,4 +1,5 @@
 pub mod account_config;
+pub mod austax;
 pub mod db;
 pub mod model;
 pub mod reporting;

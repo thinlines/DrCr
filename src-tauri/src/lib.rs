@@ -16,6 +16,7 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+mod libdrcr_austax;
 mod libdrcr_bridge;
 mod sql;
 
@@ -90,6 +91,7 @@ pub fn run() {
 		.invoke_handler(tauri::generate_handler![
 			get_open_filename,
 			set_open_filename,
+			libdrcr_austax::get_tax_summary,
 			libdrcr_bridge::get_all_transactions_except_earnings_to_equity,
 			libdrcr_bridge::get_all_transactions_except_earnings_to_equity_for_account,
 			libdrcr_bridge::get_balance_sheet,

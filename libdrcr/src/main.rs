@@ -20,11 +20,9 @@ use std::sync::Arc;
 
 use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
-use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::calculator::{steps_as_graphviz, steps_for_targets};
 use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
-use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
 	DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
 	ReportingContext, ReportingProductId, ReportingProductKind, VoidArgs,
@@ -43,8 +41,9 @@ async fn main() {
 		NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
 		"$".to_string(),
 	);
-	register_lookup_fns(&mut context);
-	register_dynamic_builders(&mut context);
+	libdrcr::reporting::steps::register_lookup_fns(&mut context);
+	libdrcr::reporting::builders::register_dynamic_builders(&mut context);
+	libdrcr::austax::register_lookup_fns(&mut context);
 
 	let context = Arc::new(context);
 
@@ -109,6 +108,18 @@ async fn main() {
 	let products = generate_report(targets, Arc::clone(&context))
 		.await
 		.unwrap();
+
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "CalculateIncomeTax",
+			kind: ReportingProductKind::DynamicReport,
+			args: Box::new(VoidArgs {}),
+		})
+		.unwrap();
+
+	println!("Tax summary:");
+	println!("{:?}", result);
+
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity",

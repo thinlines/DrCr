@@ -22,10 +22,8 @@ use std::sync::Arc;
 use chrono::NaiveDate;
 use libdrcr::db::DbConnection;
 use libdrcr::model::assertions::BalanceAssertion;
-use libdrcr::reporting::builders::register_dynamic_builders;
 use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
-use libdrcr::reporting::steps::register_lookup_fns;
 use libdrcr::reporting::types::{
 	BalancesAt, DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
 	ReportingContext, ReportingProduct, ReportingProductId, ReportingProductKind, Transactions,
@@ -37,7 +35,13 @@ use tokio::sync::Mutex;
 
 use crate::AppState;
 
-async fn get_report(
+fn prepare_reporting_context(context: &mut ReportingContext) {
+	libdrcr::austax::register_lookup_fns(context);
+	libdrcr::reporting::steps::register_lookup_fns(context);
+	libdrcr::reporting::builders::register_dynamic_builders(context);
+}
+
+pub(crate) async fn get_report(
 	state: State<'_, Mutex<AppState>>,
 	target: &ReportingProductId,
 ) -> Box<dyn ReportingProduct> {
@@ -51,11 +55,11 @@ async fn get_report(
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
 	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
-	register_lookup_fns(&mut context);
-	register_dynamic_builders(&mut context);
+	prepare_reporting_context(&mut context);
 
 	// Get dynamic report
 	let targets = vec![
+		// FIXME: Make this configurable
 		ReportingProductId {
 			name: "CalculateIncomeTax",
 			kind: ReportingProductKind::Transactions,
@@ -230,8 +234,7 @@ pub(crate) async fn get_validated_balance_assertions(
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
 	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
-	register_lookup_fns(&mut context);
-	register_dynamic_builders(&mut context);
+	prepare_reporting_context(&mut context);
 
 	// Get report targets
 	let mut targets = vec![ReportingProductId {

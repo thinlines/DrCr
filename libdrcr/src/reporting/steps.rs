@@ -51,7 +51,6 @@ pub fn register_lookup_fns(context: &mut ReportingContext) {
 	AllTransactionsExceptEarningsToEquityBalances::register_lookup_fn(context);
 	AllTransactionsIncludingEarningsToEquity::register_lookup_fn(context);
 	BalanceSheet::register_lookup_fn(context);
-	CalculateIncomeTax::register_lookup_fn(context);
 	CombineOrdinaryTransactions::register_lookup_fn(context);
 	CombineOrdinaryTransactionsBalances::register_lookup_fn(context);
 	CurrentYearEarningsToEquity::register_lookup_fn(context);
@@ -474,7 +473,7 @@ impl ReportingStep for BalanceSheet {
 							CalculatedRow {
 								calculate_fn: |report| LiteralRow {
 									text: "Total assets".to_string(),
-									quantity: report.subtotal_for_id("assets"),
+									quantity: report.subtotal_for_id("assets").unwrap(),
 									id: Some("total_assets".to_string()),
 									visible: true,
 									auto_hide: false,
@@ -500,7 +499,7 @@ impl ReportingStep for BalanceSheet {
 							CalculatedRow {
 								calculate_fn: |report| LiteralRow {
 									text: "Total liabilities".to_string(),
-									quantity: report.subtotal_for_id("liabilities"),
+									quantity: report.subtotal_for_id("liabilities").unwrap(),
 									id: Some("total_liabilities".to_string()),
 									visible: true,
 									auto_hide: false,
@@ -526,7 +525,7 @@ impl ReportingStep for BalanceSheet {
 							CalculatedRow {
 								calculate_fn: |report| LiteralRow {
 									text: "Total equity".to_string(),
-									quantity: report.subtotal_for_id("equity"),
+									quantity: report.subtotal_for_id("equity").unwrap(),
 									id: Some("total_equity".to_string()),
 									visible: true,
 									auto_hide: false,
@@ -554,110 +553,6 @@ impl ReportingStep for BalanceSheet {
 				args: Box::new(self.args.clone()),
 			},
 			Box::new(report),
-		);
-		Ok(result)
-	}
-}
-
-/// Calculates income tax
-#[derive(Debug)]
-pub struct CalculateIncomeTax {}
-
-impl CalculateIncomeTax {
-	fn register_lookup_fn(context: &mut ReportingContext) {
-		context.register_lookup_fn(
-			"CalculateIncomeTax",
-			&[ReportingProductKind::Transactions],
-			Self::takes_args,
-			Self::from_args,
-		);
-	}
-
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
-		args.is::<VoidArgs>()
-	}
-
-	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
-		Box::new(CalculateIncomeTax {})
-	}
-}
-
-impl Display for CalculateIncomeTax {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{}", self.id()))
-	}
-}
-
-#[async_trait]
-impl ReportingStep for CalculateIncomeTax {
-	fn id(&self) -> ReportingStepId {
-		ReportingStepId {
-			name: "CalculateIncomeTax",
-			product_kinds: &[ReportingProductKind::Transactions],
-			args: Box::new(VoidArgs {}),
-		}
-	}
-
-	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
-		// CalculateIncomeTax depends on CombineOrdinaryTransactions
-		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions",
-			kind: ReportingProductKind::BalancesBetween,
-			args: Box::new(DateStartDateEndArgs {
-				date_start: sofy_from_eofy(context.eofy_date),
-				date_end: context.eofy_date.clone(),
-			}),
-		}]
-	}
-
-	fn after_init_graph(
-		&self,
-		steps: &Vec<Box<dyn ReportingStep>>,
-		dependencies: &mut ReportingGraphDependencies,
-		_context: &ReportingContext,
-	) {
-		for other in steps {
-			if let Some(other) =
-				other.downcast_ref::<AllTransactionsExceptEarningsToEquityBalances>()
-			{
-				// AllTransactionsExceptEarningsToEquity depends on CalculateIncomeTax
-				dependencies.add_dependency(
-					other.id(),
-					ReportingProductId {
-						name: self.id().name,
-						kind: other.product_kinds[0],
-						args: if other.product_kinds[0] == ReportingProductKind::Transactions {
-							Box::new(VoidArgs {})
-						} else {
-							other.id().args
-						},
-					},
-				);
-			}
-		}
-	}
-
-	async fn execute(
-		&self,
-		_context: &ReportingContext,
-		_steps: &Vec<Box<dyn ReportingStep>>,
-		_dependencies: &ReportingGraphDependencies,
-		_products: &RwLock<ReportingProducts>,
-	) -> Result<ReportingProducts, ReportingExecutionError> {
-		eprintln!("Stub: CalculateIncomeTax.execute");
-
-		let transactions = Transactions {
-			transactions: Vec::new(),
-		};
-
-		let mut result = ReportingProducts::new();
-		result.insert(
-			ReportingProductId {
-				name: self.id().name,
-				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
-			},
-			Box::new(transactions),
 		);
 		Ok(result)
 	}
@@ -1214,7 +1109,7 @@ impl ReportingStep for IncomeStatement {
 							CalculatedRow {
 								calculate_fn: |report| LiteralRow {
 									text: "Total income".to_string(),
-									quantity: report.subtotal_for_id("income"),
+									quantity: report.subtotal_for_id("income").unwrap(),
 									id: Some("total_income".to_string()),
 									visible: true,
 									auto_hide: false,
@@ -1240,7 +1135,7 @@ impl ReportingStep for IncomeStatement {
 							CalculatedRow {
 								calculate_fn: |report| LiteralRow {
 									text: "Total expenses".to_string(),
-									quantity: report.subtotal_for_id("expenses"),
+									quantity: report.subtotal_for_id("expenses").unwrap(),
 									id: Some("total_expenses".to_string()),
 									visible: true,
 									auto_hide: false,
@@ -1258,9 +1153,10 @@ impl ReportingStep for IncomeStatement {
 					calculate_fn: |report| LiteralRow {
 						text: "Net surplus (deficit)".to_string(),
 						quantity: report
-							.quantity_for_id("total_income") // Get total income row
+							.quantity_for_id("total_income")
+							.unwrap() // Get total income row
 							.iter()
-							.zip(report.quantity_for_id("total_expenses").iter()) // Zip with total expenses row
+							.zip(report.quantity_for_id("total_expenses").unwrap().iter()) // Zip with total expenses row
 							.map(|(i, e)| i - e) // Compute net surplus
 							.collect(),
 						id: Some("net_surplus".to_string()),

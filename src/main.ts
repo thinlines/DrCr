@@ -44,6 +44,7 @@ async function initApp() {
 		{ path: '/statement-lines/import', name: 'import-statement', component: () => import('./pages/ImportStatementView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./reports/TrialBalanceReport.vue') },
+		{ path: '/austax/tax-summary', name: 'tax-summary', component: () => import('./austax/TaxSummaryReport.vue') },
 	];
 	const router = createRouter({
 		history: createWebHistory(),

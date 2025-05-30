@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -40,7 +40,8 @@
 		<div class="pl-4">
 			<h2 class="font-medium text-gray-700 mb-2">Advanced reports</h2>
 			<ul class="list-disc ml-6">
-				<!-- TODO: Plugin reports -->
+				<!-- TODO: Generate this list dynamically -->
+				<li><RouterLink :to="{ name: 'tax-summary' }" class="text-gray-900 hover:text-blue-700 hover:underline">Tax summary</RouterLink></li>
 			</ul>
 		</div>
 	</div>

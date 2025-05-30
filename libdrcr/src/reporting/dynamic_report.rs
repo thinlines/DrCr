@@ -155,22 +155,28 @@ impl CalculatableDynamicReport {
 	}
 
 	/// Calculate the subtotals for the [Section] with the given id
-	pub fn subtotal_for_id(&self, id: &str) -> Vec<QuantityInt> {
-		let entry = self.by_id(id).expect("Invalid id");
-		if let CalculatableDynamicReportEntry::CalculatableSection(section) = entry {
-			section.subtotal(&self)
+	pub fn subtotal_for_id(&self, id: &str) -> Option<Vec<QuantityInt>> {
+		if let Some(entry) = self.by_id(id) {
+			if let CalculatableDynamicReportEntry::CalculatableSection(section) = entry {
+				Some(section.subtotal(&self))
+			} else {
+				panic!("Called subtotal_for_id on non-Section");
+			}
 		} else {
-			panic!("Called subtotal_for_id on non-Section");
+			None
 		}
 	}
 
 	// Return the quantities for the [LiteralRow] with the given id
-	pub fn quantity_for_id(&self, id: &str) -> Vec<QuantityInt> {
-		let entry = self.by_id(id).expect("Invalid id");
-		if let CalculatableDynamicReportEntry::LiteralRow(row) = entry {
-			row.quantity
+	pub fn quantity_for_id(&self, id: &str) -> Option<Vec<QuantityInt>> {
+		if let Some(entry) = self.by_id(id) {
+			if let CalculatableDynamicReportEntry::LiteralRow(row) = entry {
+				Some(row.quantity)
+			} else {
+				panic!("Called quantity_for_id on non-LiteralRow");
+			}
 		} else {
-			panic!("Called quantity_for_id on non-LiteralRow");
+			None
 		}
 	}
 }
@@ -296,7 +302,9 @@ impl CalculatableSection {
 
 					calculated_entries.push(DynamicReportEntry::LiteralRow(updated_row));
 				}
-				CalculatableDynamicReportEntry::Spacer => (),
+				CalculatableDynamicReportEntry::Spacer => {
+					calculated_entries.push(DynamicReportEntry::Spacer);
+				}
 			}
 		}
 

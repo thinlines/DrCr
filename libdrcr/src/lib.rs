@@ -12,4 +12,6 @@ pub type QuantityInt = i64;
 // Magic strings
 // TODO: Make this configurable
 pub const CURRENT_YEAR_EARNINGS: &'static str = "Current Year Earnings";
+pub const INCOME_TAX: &'static str = "Income Tax";
+pub const INCOME_TAX_CONTROL: &'static str = "Income Tax Control";
 pub const RETAINED_EARNINGS: &'static str = "Retained Earnings";

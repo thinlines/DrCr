@@ -224,6 +224,59 @@ impl DynamicReport {
 	pub fn to_json(&self) -> String {
 		serde_json::to_string(self).unwrap()
 	}
+
+	/// Look up [DynamicReportEntry] by id
+	///
+	/// Returns a cloned copy of the [DynamicReportEntry]. This is necessary because the entry may be within a [Section], and [RefCell] semantics cannot express this type of nested borrow.
+	pub fn by_id(&self, id: &str) -> Option<DynamicReportEntry> {
+		// Manually iterate over self.entries rather than self.entries()
+		// To catch the situation where entry is already mutably borrowed
+		for entry in self.entries.iter() {
+			match entry {
+				DynamicReportEntry::Section(section) => {
+					if let Some(i) = &section.id {
+						if i == id {
+							return Some(entry.clone());
+						}
+					}
+					if let Some(e) = section.by_id(id) {
+						return Some(match e {
+							DynamicReportEntry::Section(section) => {
+								DynamicReportEntry::Section(section.clone())
+							}
+							DynamicReportEntry::LiteralRow(row) => {
+								DynamicReportEntry::LiteralRow(row.clone())
+							}
+							DynamicReportEntry::Spacer => DynamicReportEntry::Spacer,
+						});
+					}
+				}
+				DynamicReportEntry::LiteralRow(row) => {
+					if let Some(i) = &row.id {
+						if i == id {
+							return Some(entry.clone());
+						}
+					}
+				}
+				DynamicReportEntry::Spacer => (),
+			}
+		}
+
+		None
+	}
+
+	// Return the quantities for the [LiteralRow] with the given id
+	pub fn quantity_for_id(&self, id: &str) -> Option<Vec<QuantityInt>> {
+		if let Some(entry) = self.by_id(id) {
+			if let DynamicReportEntry::LiteralRow(row) = entry {
+				Some(row.quantity)
+			} else {
+				panic!("Called quantity_for_id on non-LiteralRow");
+			}
+		} else {
+			None
+		}
+	}
 }
 
 impl ReportingProduct for DynamicReport {}

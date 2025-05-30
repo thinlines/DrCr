@@ -27,6 +27,7 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::account_config::kinds_for_account;
+use crate::model::transaction::{Posting, Transaction, TransactionWithPostings};
 use crate::reporting::calculator::ReportingGraphDependencies;
 use crate::reporting::dynamic_report::{
 	entries_for_kind, CalculatableDynamicReport, CalculatableDynamicReportEntry,
@@ -40,7 +41,39 @@ use crate::reporting::types::{
 	Transactions, VoidArgs,
 };
 use crate::util::sofy_from_eofy;
-use crate::QuantityInt;
+use crate::{QuantityInt, INCOME_TAX, INCOME_TAX_CONTROL};
+
+// Constants and tax calculations
+fn get_grossedup_rfb(taxable_value: QuantityInt) -> QuantityInt {
+	// FIXME: May vary from year to year
+	((taxable_value as f64) * 2.0802) as QuantityInt
+}
+
+fn get_base_income_tax(net_taxable: QuantityInt) -> QuantityInt {
+	// FIXME: May vary from year to year
+	if net_taxable <= 18200_00 {
+		0
+	} else if net_taxable <= 45000_00 {
+		(0.16 * (net_taxable - 18200_00) as f64) as QuantityInt
+	} else if net_taxable <= 135000_00 {
+		4288_00 + (0.30 * (net_taxable - 45000_00) as f64) as QuantityInt
+	} else if net_taxable <= 190000_00 {
+		31288_00 + (0.37 * (net_taxable - 135000_00) as f64) as QuantityInt
+	} else {
+		51638_00 + (0.45 * (net_taxable - 190000_00) as f64) as QuantityInt
+	}
+}
+
+// fn get_medicare_levy(net_taxable: QuantityInt) -> QuantityInt {
+// 	todo!()
+// }
+
+// fn get_medicare_levy_surcharge(
+// 	net_taxable: QuantityInt,
+// 	rfb_grossedup: QuantityInt,
+// ) -> QuantityInt {
+// 	todo!()
+// }
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
 pub fn register_lookup_fns(context: &mut ReportingContext) {
@@ -157,6 +190,18 @@ impl ReportingStep for CalculateIncomeTax {
 		// Get taxable income and deduction accounts
 		let kinds_for_account =
 			kinds_for_account(context.db_connection.get_account_configurations().await);
+
+		// Pre-compute taxable value of reportable fringe benefits (required for MLS)
+		let rfb_taxable = balances
+			.iter()
+			.filter(|(acc, _)| {
+				kinds_for_account
+					.get(*acc)
+					.map(|kinds| kinds.iter().any(|k| k == "austax.rfb"))
+					.unwrap_or(false)
+			})
+			.map(|(_, bal)| *bal)
+			.sum();
 
 		// Generate tax summary report
 		let report = CalculatableDynamicReport::new(
@@ -603,15 +648,132 @@ impl ReportingStep for CalculateIncomeTax {
 						bordered: true,
 					},
 				}),
+				// Precompute RFB amount as this is required for MLS
+				CalculatableDynamicReportEntry::LiteralRow(LiteralRow {
+					text: "Taxable value of reportable fringe benefits".to_string(),
+					quantity: vec![rfb_taxable],
+					id: Some("rfb_taxable".to_string()),
+					visible: false,
+					auto_hide: false,
+					link: None,
+					heading: false,
+					bordered: false,
+				}),
+				CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
+					calculate_fn: |report| LiteralRow {
+						text: "Grossed-up value".to_string(),
+						quantity: vec![get_grossedup_rfb(
+							report.quantity_for_id("rfb_taxable").unwrap()[0],
+						)],
+						id: Some("rfb_grossedup".to_string()),
+						visible: false,
+						auto_hide: false,
+						link: None,
+						heading: false,
+						bordered: false,
+					},
+				}),
+				CalculatableDynamicReportEntry::Spacer,
+				CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
+					calculate_fn: |report| LiteralRow {
+						text: "Base income tax".to_string(),
+						quantity: vec![get_base_income_tax(
+							report.quantity_for_id("net_taxable").unwrap()[0],
+						)],
+						id: Some("tax_base".to_string()),
+						visible: true,
+						auto_hide: false,
+						link: None,
+						heading: false,
+						bordered: false,
+					},
+				}),
+				// CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
+				// 	calculate_fn: |report| LiteralRow {
+				// 		text: "Medicare levy".to_string(),
+				// 		quantity: vec![get_medicare_levy(
+				// 			report.quantity_for_id("net_taxable").unwrap()[0],
+				// 		)],
+				// 		id: Some("tax_ml".to_string()),
+				// 		visible: true,
+				// 		auto_hide: true,
+				// 		link: None,
+				// 		heading: false,
+				// 		bordered: false,
+				// 	},
+				// }),
+				// CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
+				// 	calculate_fn: |report| LiteralRow {
+				// 		text: "Medicare levy".to_string(),
+				// 		quantity: vec![get_medicare_levy_surcharge(
+				// 			report.quantity_for_id("net_taxable").unwrap()[0],
+				// 			report.quantity_for_id("rfb_grossedup").unwrap()[0],
+				// 		)],
+				// 		id: Some("tax_mls".to_string()),
+				// 		visible: true,
+				// 		auto_hide: true,
+				// 		link: None,
+				// 		heading: false,
+				// 		bordered: false,
+				// 	},
+				// }),
+				CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
+					calculate_fn: |report| LiteralRow {
+						text: "Total income tax".to_string(),
+						quantity: vec![
+							report.quantity_for_id("tax_base").unwrap()[0], // + report.quantity_for_id("tax_ml").map(|v| v[0]).unwrap_or(0)
+							                                                // + report.quantity_for_id("tax_mls").map(|v| v[0]).unwrap_or(0),
+						],
+						id: Some("total_tax".to_string()),
+						visible: true,
+						auto_hide: false,
+						link: None,
+						heading: true,
+						bordered: true,
+					},
+				}),
 			],
 		);
 
 		let mut report: DynamicReport = report.calculate();
 		report.auto_hide();
 
+		let total_tax = report.quantity_for_id("total_tax").unwrap()[0];
+
 		// Generate income tax transaction
 		let transactions = Transactions {
-			transactions: Vec::new(), // FIXME
+			transactions: vec![TransactionWithPostings {
+				transaction: Transaction {
+					id: None,
+					dt: context
+						.db_connection
+						.metadata()
+						.eofy_date
+						.and_hms_opt(0, 0, 0)
+						.unwrap(),
+					description: "Estimated income tax".to_string(),
+				},
+				postings: vec![
+					Posting {
+						id: None,
+						transaction_id: None,
+						description: None,
+						account: INCOME_TAX.to_string(),
+						quantity: total_tax,
+						commodity: context.db_connection.metadata().reporting_commodity.clone(),
+						quantity_ascost: Some(total_tax),
+					},
+					Posting {
+						id: None,
+						transaction_id: None,
+						description: None,
+						account: INCOME_TAX_CONTROL.to_string(),
+						quantity: -total_tax,
+						commodity: context.db_connection.metadata().reporting_commodity.clone(),
+						quantity_ascost: Some(total_tax),
+					},
+				],
+			}],
 		};
 
 		// Store products

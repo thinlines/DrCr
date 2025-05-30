@@ -19,21 +19,25 @@
 
 <template>
 	<template v-if="literalRow">
-		<tr :class="literalRow.bordered ? 'border-y border-gray-300' : null">
-			<component :is="literalRow.heading ? 'th' : 'td'" class="py-0.5 pr-1 text-gray-900 text-start" :class="{ 'font-semibold': literalRow.heading }">
-				<a :href="literalRow.link as string" class="hover:text-blue-700 hover:underline" v-if="literalRow.link !== null">{{ literalRow.text }}</a>
-				<template v-if="literalRow.link === null">{{ literalRow.text }}</template>
-			</component>
-			<component :is="literalRow.heading ? 'th' : 'td'" class="py-0.5 pl-1 text-gray-900 text-end" :class="{ 'font-semibold': literalRow.heading }" v-html="(cell !== 0 || literalRow.heading) ? ppBracketed(cell, literalRow.link ?? undefined) : ''" v-for="cell of literalRow.quantity">
-			</component>
-		</tr>
+		<template v-if="literalRow.visible">
+			<tr :class="literalRow.bordered ? 'border-y border-gray-300' : null">
+				<component :is="literalRow.heading ? 'th' : 'td'" class="py-0.5 pr-1 text-gray-900 text-start" :class="{ 'font-semibold': literalRow.heading }">
+					<a :href="literalRow.link as string" class="hover:text-blue-700 hover:underline" v-if="literalRow.link !== null">{{ literalRow.text }}</a>
+					<template v-if="literalRow.link === null">{{ literalRow.text }}</template>
+				</component>
+				<component :is="literalRow.heading ? 'th' : 'td'" class="py-0.5 pl-1 text-gray-900 text-end" :class="{ 'font-semibold': literalRow.heading }" v-html="(cell !== 0 || literalRow.heading) ? ppBracketed(cell, literalRow.link ?? undefined) : ''" v-for="cell of literalRow.quantity">
+				</component>
+			</tr>
+		</template>
 	</template>
 	<template v-if="section">
-		<tr v-if="section.text !== null">
-			<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">{{ section.text }}</th>
-			<th></th><!-- FIXME: Have correct colspan -->
-		</tr>
-		<DynamicReportEntryComponent :entry="child" v-for="child of section.entries" />
+		<template v-if="section.visible">
+			<tr v-if="section.text !== null">
+				<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">{{ section.text }}</th>
+				<th></th><!-- FIXME: Have correct colspan -->
+			</tr>
+			<DynamicReportEntryComponent :entry="child" v-for="child of section.entries" />
+		</template>
 	</template>
 	<template v-if="entry == 'Spacer'">
 		<tr><td colspan="2" class="py-0.5">&nbsp;</td></tr><!-- FIXME: Have correct colspan -->

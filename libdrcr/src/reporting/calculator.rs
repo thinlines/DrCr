@@ -104,7 +104,7 @@ pub fn has_step_or_can_build<'a, 'b>(
 	// No explicit step for product - try builders
 	for builder in context.step_dynamic_builders.iter() {
 		if (builder.can_build)(
-			product.name,
+			&product.name,
 			product.kind,
 			&product.args,
 			steps,
@@ -162,7 +162,7 @@ fn build_step_for_product(
 		}
 		HasStepOrCanBuild::CanBuild(builder) => {
 			new_step = (builder.build)(
-				product.name,
+				product.name.clone(),
 				product.kind,
 				product.args.clone(),
 				&steps,

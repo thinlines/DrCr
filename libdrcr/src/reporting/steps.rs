@@ -34,9 +34,7 @@ use crate::util::{get_eofy, sofy_from_eofy};
 use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
-use super::dynamic_report::{
-	entries_for_kind, DynamicReport, DynamicReportEntry, Row, Section,
-};
+use super::dynamic_report::{entries_for_kind, DynamicReport, DynamicReportEntry, Row, Section};
 use super::executor::ReportingExecutionError;
 use super::types::{
 	BalancesBetween, DateArgs, MultipleDateArgs, MultipleDateStartDateEndArgs, ReportingContext,
@@ -74,8 +72,8 @@ pub struct AllTransactionsExceptEarningsToEquity {
 impl AllTransactionsExceptEarningsToEquity {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"AllTransactionsExceptEarningsToEquity",
-			&[ReportingProductKind::Transactions],
+			"AllTransactionsExceptEarningsToEquity".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -102,8 +100,8 @@ impl Display for AllTransactionsExceptEarningsToEquity {
 impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "AllTransactionsExceptEarningsToEquity",
-			product_kinds: &[ReportingProductKind::Transactions],
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
+			product_kinds: vec![ReportingProductKind::Transactions],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -111,7 +109,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		// AllTransactionsExceptEarningsToEquity always depends on CombineOrdinaryTransactions at least
 		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions",
+			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(self.args.clone()),
 		}]
@@ -135,24 +133,24 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 /// Used as the basis for the income statement.
 #[derive(Debug)]
 pub struct AllTransactionsExceptEarningsToEquityBalances {
-	pub product_kinds: &'static [ReportingProductKind; 1], // Must have single member - represented as static array for compatibility with ReportingStepId
+	pub product_kind: ReportingProductKind,
 	pub args: Box<dyn ReportingStepArgs>,
 }
 
 impl AllTransactionsExceptEarningsToEquityBalances {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"AllTransactionsExceptEarningsToEquity",
-			&[ReportingProductKind::BalancesAt],
+			"AllTransactionsExceptEarningsToEquity".to_string(),
+			vec![ReportingProductKind::BalancesAt],
 			Self::takes_args,
-			|a| Self::from_args(&[ReportingProductKind::BalancesAt], a),
+			|a| Self::from_args(ReportingProductKind::BalancesAt, a),
 		);
 
 		context.register_lookup_fn(
-			"AllTransactionsExceptEarningsToEquity",
-			&[ReportingProductKind::BalancesBetween],
+			"AllTransactionsExceptEarningsToEquity".to_string(),
+			vec![ReportingProductKind::BalancesBetween],
 			Self::takes_args,
-			|a| Self::from_args(&[ReportingProductKind::BalancesBetween], a),
+			|a| Self::from_args(ReportingProductKind::BalancesBetween, a),
 		);
 	}
 
@@ -161,13 +159,10 @@ impl AllTransactionsExceptEarningsToEquityBalances {
 	}
 
 	fn from_args(
-		product_kinds: &'static [ReportingProductKind; 1],
+		product_kind: ReportingProductKind,
 		args: Box<dyn ReportingStepArgs>,
 	) -> Box<dyn ReportingStep> {
-		Box::new(AllTransactionsExceptEarningsToEquityBalances {
-			product_kinds,
-			args,
-		})
+		Box::new(AllTransactionsExceptEarningsToEquityBalances { product_kind, args })
 	}
 }
 
@@ -181,8 +176,8 @@ impl Display for AllTransactionsExceptEarningsToEquityBalances {
 impl ReportingStep for AllTransactionsExceptEarningsToEquityBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "AllTransactionsExceptEarningsToEquity",
-			product_kinds: self.product_kinds,
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
+			product_kinds: vec![self.product_kind],
 			args: self.args.clone(),
 		}
 	}
@@ -190,8 +185,8 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquityBalances {
 	fn requires(&self, _context: &ReportingContext) -> Vec<ReportingProductId> {
 		// AllTransactionsExceptEarningsToEquity always depends on CombineOrdinaryTransactions at least
 		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions",
-			kind: self.product_kinds[0],
+			name: "CombineOrdinaryTransactions".to_string(),
+			kind: self.product_kind,
 			args: self.args.clone(),
 		}]
 	}
@@ -210,8 +205,6 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquityBalances {
 
 		// Identify the product_kind dependency most recently generated
 		// TODO: Make this deterministic - parallel execution may cause the order to vary
-		let product_kind = self.product_kinds[0];
-
 		for (product_id, product) in products.map().iter().rev() {
 			if step_dependencies.iter().any(|d| d.product == *product_id) {
 				// Store the result
@@ -219,7 +212,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquityBalances {
 				result.insert(
 					ReportingProductId {
 						name: self.id().name,
-						kind: product_kind,
+						kind: self.product_kind,
 						args: self.args.clone(),
 					},
 					product.clone(),
@@ -231,7 +224,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquityBalances {
 		// No dependencies?! - this is likely a mistake
 		panic!(
 			"Requested {:?} but no available dependencies to provide it",
-			self.product_kinds[0]
+			self.product_kind
 		);
 	}
 }
@@ -249,8 +242,8 @@ pub struct AllTransactionsIncludingEarningsToEquity {
 impl AllTransactionsIncludingEarningsToEquity {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"AllTransactionsIncludingEarningsToEquity",
-			&[ReportingProductKind::BalancesAt],
+			"AllTransactionsIncludingEarningsToEquity".to_string(),
+			vec![ReportingProductKind::BalancesAt],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -277,8 +270,8 @@ impl Display for AllTransactionsIncludingEarningsToEquity {
 impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "AllTransactionsIncludingEarningsToEquity",
-			product_kinds: &[ReportingProductKind::BalancesAt],
+			name: "AllTransactionsIncludingEarningsToEquity".to_string(),
+			product_kinds: vec![ReportingProductKind::BalancesAt],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -287,19 +280,19 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		vec![
 			// AllTransactionsIncludingEarningsToEquity requires AllTransactionsExceptEarningsToEquity
 			ReportingProductId {
-				name: "AllTransactionsExceptEarningsToEquity",
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
 			// AllTransactionsIncludingEarningsToEquity requires CurrentYearEarningsToEquity
 			ReportingProductId {
-				name: "CurrentYearEarningsToEquity",
+				name: "CurrentYearEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(self.args.clone()),
 			},
 			// AllTransactionsIncludingEarningsToEquity requires RetainedEarningsToEquity
 			ReportingProductId {
-				name: "RetainedEarningsToEquity",
+				name: "RetainedEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(self.args.clone()),
 			},
@@ -318,7 +311,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		// Get opening balances from AllTransactionsExceptEarningsToEquity
 		let opening_balances = products
 			.get_or_err(&ReportingProductId {
-				name: "AllTransactionsExceptEarningsToEquity",
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			})?
@@ -328,7 +321,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		// Get CurrentYearEarningsToEquity transactions
 		let transactions_current = products
 			.get_or_err(&ReportingProductId {
-				name: "CurrentYearEarningsToEquity",
+				name: "CurrentYearEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(self.args.clone()),
 			})?
@@ -338,7 +331,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		// Get RetainedEarningsToEquity transactions
 		let transactions_retained = products
 			.get_or_err(&ReportingProductId {
-				name: "RetainedEarningsToEquity",
+				name: "RetainedEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(self.args.clone()),
 			})?
@@ -381,8 +374,8 @@ pub struct BalanceSheet {
 impl BalanceSheet {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"BalanceSheet",
-			&[ReportingProductKind::DynamicReport],
+			"BalanceSheet".to_string(),
+			vec![ReportingProductKind::DynamicReport],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -409,8 +402,8 @@ impl Display for BalanceSheet {
 impl ReportingStep for BalanceSheet {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "BalanceSheet",
-			product_kinds: &[ReportingProductKind::DynamicReport],
+			name: "BalanceSheet".to_string(),
+			product_kinds: vec![ReportingProductKind::DynamicReport],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -421,7 +414,7 @@ impl ReportingStep for BalanceSheet {
 		// BalanceSheet depends on AllTransactionsIncludingEarningsToEquity in each requested period
 		for date_args in self.args.dates.iter() {
 			result.push(ReportingProductId {
-				name: "AllTransactionsIncludingEarningsToEquity",
+				name: "AllTransactionsIncludingEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(date_args.clone()),
 			});
@@ -443,7 +436,7 @@ impl ReportingStep for BalanceSheet {
 		let mut balances: Vec<&HashMap<String, QuantityInt>> = Vec::new();
 		for date_args in self.args.dates.iter() {
 			let product = products.get_or_err(&ReportingProductId {
-				name: "AllTransactionsIncludingEarningsToEquity",
+				name: "AllTransactionsIncludingEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(date_args.clone()),
 			})?;
@@ -534,7 +527,7 @@ impl ReportingStep for BalanceSheet {
 		let mut result = ReportingProducts::new();
 		result.insert(
 			ReportingProductId {
-				name: "BalanceSheet",
+				name: "BalanceSheet".to_string(),
 				kind: ReportingProductKind::DynamicReport,
 				args: Box::new(self.args.clone()),
 			},
@@ -555,8 +548,8 @@ pub struct CombineOrdinaryTransactions {
 impl CombineOrdinaryTransactions {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"CombineOrdinaryTransactions",
-			&[ReportingProductKind::Transactions],
+			"CombineOrdinaryTransactions".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -583,8 +576,8 @@ impl Display for CombineOrdinaryTransactions {
 impl ReportingStep for CombineOrdinaryTransactions {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "CombineOrdinaryTransactions",
-			product_kinds: &[ReportingProductKind::Transactions],
+			name: "CombineOrdinaryTransactions".to_string(),
+			product_kinds: vec![ReportingProductKind::Transactions],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -593,13 +586,13 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		vec![
 			// CombineOrdinaryTransactions depends on DBTransactions
 			ReportingProductId {
-				name: "DBTransactions",
+				name: "DBTransactions".to_string(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(VoidArgs {}),
 			},
 			// CombineOrdinaryTransactions depends on PostUnreconciledStatementLines
 			ReportingProductId {
-				name: "PostUnreconciledStatementLines",
+				name: "PostUnreconciledStatementLines".to_string(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(VoidArgs {}),
 			},
@@ -628,8 +621,8 @@ pub struct CombineOrdinaryTransactionsBalances {
 impl CombineOrdinaryTransactionsBalances {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"CombineOrdinaryTransactions",
-			&[ReportingProductKind::BalancesAt],
+			"CombineOrdinaryTransactions".to_string(),
+			vec![ReportingProductKind::BalancesAt],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -656,8 +649,8 @@ impl Display for CombineOrdinaryTransactionsBalances {
 impl ReportingStep for CombineOrdinaryTransactionsBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "CombineOrdinaryTransactions",
-			product_kinds: &[ReportingProductKind::BalancesAt],
+			name: "CombineOrdinaryTransactions".to_string(),
+			product_kinds: vec![ReportingProductKind::BalancesAt],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -666,13 +659,13 @@ impl ReportingStep for CombineOrdinaryTransactionsBalances {
 		vec![
 			// CombineOrdinaryTransactions depends on DBBalances
 			ReportingProductId {
-				name: "DBBalances",
+				name: "DBBalances".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
 			// CombineOrdinaryTransactions depends on PostUnreconciledStatementLines
 			ReportingProductId {
-				name: "PostUnreconciledStatementLines",
+				name: "PostUnreconciledStatementLines".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
@@ -729,8 +722,8 @@ pub struct CurrentYearEarningsToEquity {
 impl CurrentYearEarningsToEquity {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"CurrentYearEarningsToEquity",
-			&[ReportingProductKind::Transactions],
+			"CurrentYearEarningsToEquity".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -757,8 +750,8 @@ impl Display for CurrentYearEarningsToEquity {
 impl ReportingStep for CurrentYearEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "CurrentYearEarningsToEquity",
-			product_kinds: &[ReportingProductKind::Transactions],
+			name: "CurrentYearEarningsToEquity".to_string(),
+			product_kinds: vec![ReportingProductKind::Transactions],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -766,7 +759,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
 		// CurrentYearEarningsToEquity depends on AllTransactionsExceptEarningsToEquity
 		vec![ReportingProductId {
-			name: "AllTransactionsExceptEarningsToEquity",
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
 				date_start: sofy_from_eofy(get_eofy(&self.args.date, &context.eofy_date)),
@@ -787,7 +780,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		// Get balances for this financial year
 		let balances = products
 			.get_or_err(&ReportingProductId {
-				name: "AllTransactionsExceptEarningsToEquity",
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(DateStartDateEndArgs {
 					date_start: sofy_from_eofy(get_eofy(&self.args.date, &context.eofy_date)),
@@ -866,8 +859,8 @@ pub struct DBBalances {
 impl DBBalances {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"DBBalances",
-			&[ReportingProductKind::BalancesAt],
+			"DBBalances".to_string(),
+			vec![ReportingProductKind::BalancesAt],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -894,8 +887,8 @@ impl Display for DBBalances {
 impl ReportingStep for DBBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "DBBalances",
-			product_kinds: &[ReportingProductKind::BalancesAt],
+			name: "DBBalances".to_string(),
+			product_kinds: vec![ReportingProductKind::BalancesAt],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -933,8 +926,8 @@ pub struct DBTransactions {}
 impl DBTransactions {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"DBTransactions",
-			&[ReportingProductKind::Transactions],
+			"DBTransactions".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -959,8 +952,8 @@ impl Display for DBTransactions {
 impl ReportingStep for DBTransactions {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "DBTransactions",
-			product_kinds: &[ReportingProductKind::Transactions],
+			name: "DBTransactions".to_string(),
+			product_kinds: vec![ReportingProductKind::Transactions],
 			args: Box::new(VoidArgs {}),
 		}
 	}
@@ -1000,8 +993,8 @@ pub struct IncomeStatement {
 impl IncomeStatement {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"IncomeStatement",
-			&[ReportingProductKind::DynamicReport],
+			"IncomeStatement".to_string(),
+			vec![ReportingProductKind::DynamicReport],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -1028,8 +1021,8 @@ impl Display for IncomeStatement {
 impl ReportingStep for IncomeStatement {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "IncomeStatement",
-			product_kinds: &[ReportingProductKind::DynamicReport],
+			name: "IncomeStatement".to_string(),
+			product_kinds: vec![ReportingProductKind::DynamicReport],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -1040,7 +1033,7 @@ impl ReportingStep for IncomeStatement {
 		// IncomeStatement depends on AllTransactionsExceptEarningsToEquity in each requested period
 		for date_args in self.args.dates.iter() {
 			result.push(ReportingProductId {
-				name: "AllTransactionsExceptEarningsToEquity",
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(date_args.clone()),
 			});
@@ -1062,7 +1055,7 @@ impl ReportingStep for IncomeStatement {
 		let mut balances: Vec<&HashMap<String, QuantityInt>> = Vec::new();
 		for date_args in self.args.dates.iter() {
 			let product = products.get_or_err(&ReportingProductId {
-				name: "AllTransactionsExceptEarningsToEquity",
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(date_args.clone()),
 			})?;
@@ -1154,7 +1147,7 @@ impl ReportingStep for IncomeStatement {
 		let mut result = ReportingProducts::new();
 		result.insert(
 			ReportingProductId {
-				name: "IncomeStatement",
+				name: "IncomeStatement".to_string(),
 				kind: ReportingProductKind::DynamicReport,
 				args: Box::new(self.args.clone()),
 			},
@@ -1171,8 +1164,8 @@ pub struct PostUnreconciledStatementLines {}
 impl PostUnreconciledStatementLines {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"PostUnreconciledStatementLines",
-			&[ReportingProductKind::Transactions],
+			"PostUnreconciledStatementLines".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -1197,8 +1190,8 @@ impl Display for PostUnreconciledStatementLines {
 impl ReportingStep for PostUnreconciledStatementLines {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "PostUnreconciledStatementLines",
-			product_kinds: &[ReportingProductKind::Transactions],
+			name: "PostUnreconciledStatementLines".to_string(),
+			product_kinds: vec![ReportingProductKind::Transactions],
 			args: Box::new(VoidArgs {}),
 		}
 	}
@@ -1278,8 +1271,8 @@ pub struct RetainedEarningsToEquity {
 impl RetainedEarningsToEquity {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"RetainedEarningsToEquity",
-			&[ReportingProductKind::Transactions],
+			"RetainedEarningsToEquity".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -1306,8 +1299,8 @@ impl Display for RetainedEarningsToEquity {
 impl ReportingStep for RetainedEarningsToEquity {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "RetainedEarningsToEquity",
-			product_kinds: &[ReportingProductKind::Transactions],
+			name: "RetainedEarningsToEquity".to_string(),
+			product_kinds: vec![ReportingProductKind::Transactions],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -1318,7 +1311,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 
 		// RetainedEarningsToEquity depends on CombineOrdinaryTransactions for last financial year
 		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions",
+			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::BalancesAt,
 			args: Box::new(DateArgs {
 				date: last_eofy_date,
@@ -1340,7 +1333,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 		// Get balances at end of last financial year
 		let balances_last_eofy = products
 			.get_or_err(&ReportingProductId {
-				name: "CombineOrdinaryTransactions",
+				name: "CombineOrdinaryTransactions".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
 					date: last_eofy_date.clone(),
@@ -1418,8 +1411,8 @@ pub struct TrialBalance {
 impl TrialBalance {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"TrialBalance",
-			&[ReportingProductKind::DynamicReport],
+			"TrialBalance".to_string(),
+			vec![ReportingProductKind::DynamicReport],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -1446,8 +1439,8 @@ impl Display for TrialBalance {
 impl ReportingStep for TrialBalance {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "TrialBalance",
-			product_kinds: &[ReportingProductKind::DynamicReport],
+			name: "TrialBalance".to_string(),
+			product_kinds: vec![ReportingProductKind::DynamicReport],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -1457,7 +1450,7 @@ impl ReportingStep for TrialBalance {
 
 		// TrialBalance depends on AllTransactionsExceptEarningsToEquity at the requested date
 		result.push(ReportingProductId {
-			name: "AllTransactionsExceptEarningsToEquity",
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesAt,
 			args: Box::new(self.args.clone()),
 		});
@@ -1477,7 +1470,7 @@ impl ReportingStep for TrialBalance {
 		// Get balances for each period
 		let balances = &products
 			.get_or_err(&ReportingProductId {
-				name: "AllTransactionsExceptEarningsToEquity",
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			})?
@@ -1551,7 +1544,7 @@ impl ReportingStep for TrialBalance {
 		let mut result = ReportingProducts::new();
 		result.insert(
 			ReportingProductId {
-				name: "TrialBalance",
+				name: "TrialBalance".to_string(),
 				kind: ReportingProductKind::DynamicReport,
 				args: Box::new(self.args.clone()),
 			},

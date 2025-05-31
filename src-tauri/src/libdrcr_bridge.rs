@@ -61,7 +61,7 @@ pub(crate) async fn get_report(
 	let targets = vec![
 		// FIXME: Make this configurable
 		ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
@@ -80,7 +80,7 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity(
 	let transactions = get_report(
 		state,
 		&ReportingProductId {
-			name: "AllTransactionsExceptEarningsToEquity",
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
@@ -103,7 +103,7 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity_for_account(
 	let transactions = get_report(
 		state,
 		&ReportingProductId {
-			name: "AllTransactionsExceptEarningsToEquity",
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
@@ -139,7 +139,7 @@ pub(crate) async fn get_balance_sheet(
 	Ok(get_report(
 		state,
 		&ReportingProductId {
-			name: "BalanceSheet",
+			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: date_args.clone(),
@@ -168,7 +168,7 @@ pub(crate) async fn get_income_statement(
 	Ok(get_report(
 		state,
 		&ReportingProductId {
-			name: "IncomeStatement",
+			name: "IncomeStatement".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateStartDateEndArgs {
 				dates: date_args.clone(),
@@ -191,7 +191,7 @@ pub(crate) async fn get_trial_balance(
 	Ok(get_report(
 		state,
 		&ReportingProductId {
-			name: "TrialBalance",
+			name: "TrialBalance".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(DateArgs { date }),
 		},
@@ -238,14 +238,14 @@ pub(crate) async fn get_validated_balance_assertions(
 
 	// Get report targets
 	let mut targets = vec![ReportingProductId {
-		name: "CalculateIncomeTax",
+		name: "CalculateIncomeTax".to_string(),
 		kind: ReportingProductKind::Transactions,
 		args: Box::new(VoidArgs {}),
 	}];
 	for dt in dates {
 		// Request ordinary transaction balances at each balance assertion date
 		targets.push(ReportingProductId {
-			name: "CombineOrdinaryTransactions",
+			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::BalancesAt,
 			args: Box::new(DateArgs { date: dt.date() }),
 		});
@@ -259,7 +259,7 @@ pub(crate) async fn get_validated_balance_assertions(
 	for balance_assertion in balance_assertions {
 		let balances_at_date = products
 			.get_or_err(&ReportingProductId {
-				name: "CombineOrdinaryTransactions",
+				name: "CombineOrdinaryTransactions".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
 					date: balance_assertion.dt.date(),

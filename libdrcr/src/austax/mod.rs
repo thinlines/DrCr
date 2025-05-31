@@ -136,8 +136,8 @@ pub struct CalculateIncomeTax {}
 impl CalculateIncomeTax {
 	fn register_lookup_fn(context: &mut ReportingContext) {
 		context.register_lookup_fn(
-			"CalculateIncomeTax",
-			&[ReportingProductKind::Transactions],
+			"CalculateIncomeTax".to_string(),
+			vec![ReportingProductKind::Transactions],
 			Self::takes_args,
 			Self::from_args,
 		);
@@ -162,8 +162,8 @@ impl Display for CalculateIncomeTax {
 impl ReportingStep for CalculateIncomeTax {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: "CalculateIncomeTax",
-			product_kinds: &[
+			name: "CalculateIncomeTax".to_string(),
+			product_kinds: vec![
 				ReportingProductKind::DynamicReport,
 				ReportingProductKind::Transactions,
 			],
@@ -174,7 +174,7 @@ impl ReportingStep for CalculateIncomeTax {
 	fn requires(&self, context: &ReportingContext) -> Vec<ReportingProductId> {
 		// CalculateIncomeTax depends on CombineOrdinaryTransactions
 		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions",
+			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
 				date_start: sofy_from_eofy(context.eofy_date),
@@ -198,8 +198,8 @@ impl ReportingStep for CalculateIncomeTax {
 					other.id(),
 					ReportingProductId {
 						name: self.id().name,
-						kind: other.product_kinds[0],
-						args: if other.product_kinds[0] == ReportingProductKind::Transactions {
+						kind: other.product_kind,
+						args: if other.product_kind == ReportingProductKind::Transactions {
 							Box::new(VoidArgs {})
 						} else {
 							other.id().args
@@ -222,7 +222,7 @@ impl ReportingStep for CalculateIncomeTax {
 		// Get balances for current year
 		let balances = &products
 			.get_or_err(&ReportingProductId {
-				name: "CombineOrdinaryTransactions",
+				name: "CombineOrdinaryTransactions".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(DateStartDateEndArgs {
 					date_start: sofy_from_eofy(context.eofy_date),

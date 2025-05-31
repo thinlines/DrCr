@@ -51,7 +51,7 @@ async fn main() {
 
 	let targets = vec![
 		ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
@@ -63,7 +63,7 @@ async fn main() {
 		// 	}),
 		// },
 		ReportingProductId {
-			name: "BalanceSheet",
+			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
@@ -72,7 +72,7 @@ async fn main() {
 			}),
 		},
 		ReportingProductId {
-			name: "IncomeStatement",
+			name: "IncomeStatement".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateStartDateEndArgs {
 				dates: vec![DateStartDateEndArgs {
@@ -91,12 +91,12 @@ async fn main() {
 
 	let targets = vec![
 		ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
 		ReportingProductId {
-			name: "AllTransactionsExceptEarningsToEquity",
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
 				date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
@@ -111,7 +111,7 @@ async fn main() {
 
 	let result = products
 		.get_or_err(&ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(VoidArgs {}),
 		})
@@ -122,7 +122,7 @@ async fn main() {
 
 	let result = products
 		.get_or_err(&ReportingProductId {
-			name: "AllTransactionsExceptEarningsToEquity",
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
 			args: Box::new(DateStartDateEndArgs {
 				date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
@@ -138,12 +138,12 @@ async fn main() {
 
 	let targets = vec![
 		ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
 		ReportingProductId {
-			name: "BalanceSheet",
+			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
@@ -158,7 +158,7 @@ async fn main() {
 		.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
-			name: "BalanceSheet",
+			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(MultipleDateArgs {
 				dates: vec![DateArgs {
@@ -178,12 +178,12 @@ async fn main() {
 
 	let targets = vec![
 		ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: Box::new(VoidArgs {}),
 		},
 		ReportingProductId {
-			name: "TrialBalance",
+			name: "TrialBalance".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
@@ -196,7 +196,7 @@ async fn main() {
 		.unwrap();
 	let result = products
 		.get_or_err(&ReportingProductId {
-			name: "TrialBalance",
+			name: "TrialBalance".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(DateArgs {
 				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),

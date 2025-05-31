@@ -49,7 +49,7 @@ pub struct ReportingContext {
 
 	// State
 	pub(crate) step_lookup_fn: HashMap<
-		(&'static str, &'static [ReportingProductKind]),
+		(String, Vec<ReportingProductKind>),
 		(ReportingStepTakesArgsFn, ReportingStepFromArgsFn),
 	>,
 	pub(crate) step_dynamic_builders: Vec<ReportingStepDynamicBuilder>,
@@ -76,8 +76,8 @@ impl ReportingContext {
 	/// A lookup function generates concrete [ReportingStep]s from a [ReportingStepId].
 	pub fn register_lookup_fn(
 		&mut self,
-		name: &'static str,
-		product_kinds: &'static [ReportingProductKind],
+		name: String,
+		product_kinds: Vec<ReportingProductKind>,
 		takes_args_fn: ReportingStepTakesArgsFn,
 		from_args_fn: ReportingStepFromArgsFn,
 	) {
@@ -118,7 +118,7 @@ pub type ReportingStepFromArgsFn = fn(args: Box<dyn ReportingStepArgs>) -> Box<d
 pub struct ReportingStepDynamicBuilder {
 	pub name: &'static str,
 	pub can_build: fn(
-		name: &'static str,
+		name: &str,
 		kind: ReportingProductKind,
 		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
@@ -126,7 +126,7 @@ pub struct ReportingStepDynamicBuilder {
 		context: &ReportingContext,
 	) -> bool,
 	pub build: fn(
-		name: &'static str,
+		name: String,
 		kind: ReportingProductKind,
 		args: Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
@@ -141,7 +141,7 @@ pub struct ReportingStepDynamicBuilder {
 /// Identifies a [ReportingProduct]
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ReportingProductId {
-	pub name: &'static str,
+	pub name: String,
 	pub kind: ReportingProductKind,
 	pub args: Box<dyn ReportingStepArgs>,
 }
@@ -276,8 +276,8 @@ impl Display for ReportingProducts {
 /// Identifies a [ReportingStep]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReportingStepId {
-	pub name: &'static str,
-	pub product_kinds: &'static [ReportingProductKind],
+	pub name: String,
+	pub product_kinds: Vec<ReportingProductKind>,
 	pub args: Box<dyn ReportingStepArgs>,
 }
 

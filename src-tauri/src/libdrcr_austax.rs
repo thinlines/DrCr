@@ -29,7 +29,7 @@ pub(crate) async fn get_tax_summary(state: State<'_, Mutex<AppState>>) -> Result
 	Ok(get_report(
 		state,
 		&ReportingProductId {
-			name: "CalculateIncomeTax",
+			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::DynamicReport,
 			args: Box::new(VoidArgs {}),
 		},

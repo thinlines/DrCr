@@ -49,7 +49,7 @@ pub fn register_dynamic_builders(context: &mut ReportingContext) {
 /// This dynamic builder automatically generates a [BalancesBetween] by subtracting [BalancesAt] between two dates
 #[derive(Debug)]
 pub struct BalancesAtToBalancesBetween {
-	step_name: &'static str,
+	step_name: String,
 	args: DateStartDateEndArgs,
 }
 
@@ -65,7 +65,7 @@ impl BalancesAtToBalancesBetween {
 	}
 
 	fn can_build(
-		name: &'static str,
+		name: &str,
 		kind: ReportingProductKind,
 		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
@@ -82,7 +82,7 @@ impl BalancesAtToBalancesBetween {
 
 			match has_step_or_can_build(
 				&ReportingProductId {
-					name,
+					name: name.to_string(),
 					kind: ReportingProductKind::BalancesAt,
 					args: Box::new(DateArgs {
 						date: args.date_start.clone(),
@@ -104,7 +104,7 @@ impl BalancesAtToBalancesBetween {
 	}
 
 	fn build(
-		name: &'static str,
+		name: String,
 		_kind: ReportingProductKind,
 		args: Box<dyn ReportingStepArgs>,
 		_steps: &Vec<Box<dyn ReportingStep>>,
@@ -131,8 +131,8 @@ impl Display for BalancesAtToBalancesBetween {
 impl ReportingStep for BalancesAtToBalancesBetween {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: self.step_name,
-			product_kinds: &[ReportingProductKind::BalancesBetween],
+			name: self.step_name.clone(),
+			product_kinds: vec![ReportingProductKind::BalancesBetween],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -141,14 +141,14 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		// BalancesAtToBalancesBetween depends on BalancesAt at both time points
 		vec![
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
 					date: self.args.date_start.pred_opt().unwrap(), // Opening balance is the closing balance of the preceding day
 				}),
 			},
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
 					date: self.args.date_end,
@@ -169,7 +169,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		// Get balances at dates
 		let balances_start = &products
 			.get_or_err(&ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
 					date: self.args.date_start.pred_opt().unwrap(), // Opening balance is the closing balance of the preceding day
@@ -181,7 +181,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 
 		let balances_end = &products
 			.get_or_err(&ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(DateArgs {
 					date: self.args.date_end,
@@ -218,7 +218,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 /// This dynamic builder automatically generates a [BalancesAt] from a step which has no dependencies and generates [Transactions] (e.g. [PostUnreconciledStatementLines][super::steps::PostUnreconciledStatementLines])
 #[derive(Debug)]
 pub struct GenerateBalances {
-	step_name: &'static str,
+	step_name: String,
 	args: DateArgs,
 }
 
@@ -232,7 +232,7 @@ impl GenerateBalances {
 	}
 
 	fn can_build(
-		name: &'static str,
+		name: &str,
 		kind: ReportingProductKind,
 		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
@@ -244,7 +244,7 @@ impl GenerateBalances {
 			// Try DateArgs
 			match has_step_or_can_build(
 				&ReportingProductId {
-					name,
+					name: name.to_string(),
 					kind: ReportingProductKind::Transactions,
 					args: args.clone(),
 				},
@@ -271,7 +271,7 @@ impl GenerateBalances {
 			// Try VoidArgs
 			match has_step_or_can_build(
 				&ReportingProductId {
-					name,
+					name: name.to_string(),
 					kind: ReportingProductKind::Transactions,
 					args: Box::new(VoidArgs {}),
 				},
@@ -299,7 +299,7 @@ impl GenerateBalances {
 	}
 
 	fn build(
-		name: &'static str,
+		name: String,
 		_kind: ReportingProductKind,
 		args: Box<dyn ReportingStepArgs>,
 		_steps: &Vec<Box<dyn ReportingStep>>,
@@ -323,8 +323,8 @@ impl Display for GenerateBalances {
 impl ReportingStep for GenerateBalances {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: self.step_name,
-			product_kinds: &[ReportingProductKind::BalancesAt],
+			name: self.step_name.clone(),
+			product_kinds: vec![ReportingProductKind::BalancesAt],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -341,7 +341,7 @@ impl ReportingStep for GenerateBalances {
 		// Try DateArgs
 		match has_step_or_can_build(
 			&ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(self.args.clone()),
 			},
@@ -355,7 +355,7 @@ impl ReportingStep for GenerateBalances {
 				dependencies.add_dependency(
 					self.id(),
 					ReportingProductId {
-						name: self.step_name,
+						name: self.step_name.clone(),
 						kind: ReportingProductKind::Transactions,
 						args: Box::new(self.args.clone()),
 					},
@@ -369,7 +369,7 @@ impl ReportingStep for GenerateBalances {
 		dependencies.add_dependency(
 			self.id(),
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
 				args: Box::new(VoidArgs {}),
 			},
@@ -408,7 +408,7 @@ impl ReportingStep for GenerateBalances {
 		let mut result = ReportingProducts::new();
 		result.insert(
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
@@ -423,7 +423,7 @@ impl ReportingStep for GenerateBalances {
 /// - a step which generates [Transactions] from [BalancesBetween], and for which a [BalancesAt] is also available
 #[derive(Debug)]
 pub struct UpdateBalancesAt {
-	step_name: &'static str,
+	step_name: String,
 	args: DateArgs,
 }
 
@@ -439,7 +439,7 @@ impl UpdateBalancesAt {
 	}
 
 	fn can_build(
-		name: &'static str,
+		name: &str,
 		kind: ReportingProductKind,
 		args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
@@ -474,7 +474,7 @@ impl UpdateBalancesAt {
 				{
 					match has_step_or_can_build(
 						&ReportingProductId {
-							name: dependencies_for_step[0].product.name,
+							name: dependencies_for_step[0].product.name.clone(),
 							kind: ReportingProductKind::BalancesAt,
 							args: Box::new(DateArgs {
 								date: args.downcast_ref::<DateArgs>().unwrap().date,
@@ -498,7 +498,7 @@ impl UpdateBalancesAt {
 	}
 
 	fn build(
-		name: &'static str,
+		name: String,
 		_kind: ReportingProductKind,
 		args: Box<dyn ReportingStepArgs>,
 		_steps: &Vec<Box<dyn ReportingStep>>,
@@ -522,8 +522,8 @@ impl Display for UpdateBalancesAt {
 impl ReportingStep for UpdateBalancesAt {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: self.step_name,
-			product_kinds: &[ReportingProductKind::BalancesAt],
+			name: self.step_name.clone(),
+			product_kinds: vec![ReportingProductKind::BalancesAt],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -549,7 +549,7 @@ impl ReportingStep for UpdateBalancesAt {
 		dependencies.add_dependency(
 			self.id(),
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
 				args: parent_step.id().args.clone(),
 			},
@@ -567,7 +567,7 @@ impl ReportingStep for UpdateBalancesAt {
 			dependencies.add_dependency(
 				self.id(),
 				ReportingProductId {
-					name: dependency.name,
+					name: dependency.name.clone(),
 					kind: ReportingProductKind::BalancesAt,
 					args: Box::new(DateArgs {
 						date: self.args.date,
@@ -600,7 +600,7 @@ impl ReportingStep for UpdateBalancesAt {
 		// Get transactions
 		let transactions = &products
 			.get_or_err(&ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
 				args: parent_step.id().args,
 			})?
@@ -624,7 +624,7 @@ impl ReportingStep for UpdateBalancesAt {
 			// As checked in can_build, must depend on BalancesBetween -> Transaction with a BalancesAt available
 			opening_balances_at = products
 				.get_or_err(&ReportingProductId {
-					name: dependency.name,
+					name: dependency.name.clone(),
 					kind: ReportingProductKind::BalancesAt,
 					args: Box::new(DateArgs {
 						date: self.args.date,
@@ -649,7 +649,7 @@ impl ReportingStep for UpdateBalancesAt {
 		let mut result = ReportingProducts::new();
 		result.insert(
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
 				args: Box::new(self.args.clone()),
 			},
@@ -662,7 +662,7 @@ impl ReportingStep for UpdateBalancesAt {
 /// This dynamic builder automatically generates a [BalancesBetween] from a step which generates [Transactions] from [BalancesBetween]
 #[derive(Debug)]
 pub struct UpdateBalancesBetween {
-	step_name: &'static str,
+	step_name: String,
 	args: DateStartDateEndArgs,
 }
 
@@ -676,7 +676,7 @@ impl UpdateBalancesBetween {
 	}
 
 	fn can_build(
-		name: &'static str,
+		name: &str,
 		kind: ReportingProductKind,
 		_args: &Box<dyn ReportingStepArgs>,
 		steps: &Vec<Box<dyn ReportingStep>>,
@@ -706,7 +706,7 @@ impl UpdateBalancesBetween {
 	}
 
 	fn build(
-		name: &'static str,
+		name: String,
 		_kind: ReportingProductKind,
 		args: Box<dyn ReportingStepArgs>,
 		_steps: &Vec<Box<dyn ReportingStep>>,
@@ -730,8 +730,8 @@ impl Display for UpdateBalancesBetween {
 impl ReportingStep for UpdateBalancesBetween {
 	fn id(&self) -> ReportingStepId {
 		ReportingStepId {
-			name: self.step_name,
-			product_kinds: &[ReportingProductKind::BalancesBetween],
+			name: self.step_name.clone(),
+			product_kinds: vec![ReportingProductKind::BalancesBetween],
 			args: Box::new(self.args.clone()),
 		}
 	}
@@ -757,7 +757,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		dependencies.add_dependency(
 			self.id(),
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
 				args: parent_step.id().args,
 			},
@@ -779,7 +779,7 @@ impl ReportingStep for UpdateBalancesBetween {
 			dependencies.add_dependency(
 				self.id(),
 				ReportingProductId {
-					name: balances_between_product.name,
+					name: balances_between_product.name.clone(),
 					kind: ReportingProductKind::BalancesBetween,
 					args: Box::new(self.args.clone()),
 				},
@@ -810,7 +810,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		// Get transactions
 		let transactions = &products
 			.get_or_err(&ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
 				args: parent_step.id().args,
 			})?
@@ -825,7 +825,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		// Get opening balances
 		let opening_balances = &products
 			.get_or_err(&ReportingProductId {
-				name: balances_between_product.name,
+				name: balances_between_product.name.clone(),
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(self.args.clone()),
 			})?
@@ -849,7 +849,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		let mut result = ReportingProducts::new();
 		result.insert(
 			ReportingProductId {
-				name: self.step_name,
+				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesBetween,
 				args: Box::new(self.args.clone()),
 			},

@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -67,54 +67,6 @@ export const db = reactive({
 	},
 });
 
-export async function totalBalances(session: ExtendedDatabase): Promise<Map<string, number>> {
-	const resultsRaw: {account: string, quantity: number}[] = await session.select(
-		`-- Get last transaction for each account
-		WITH max_dt_by_account AS (
-			SELECT account, max(dt) AS max_dt
-			FROM joined_transactions
-			GROUP BY account
-		),
-		max_tid_by_account AS (
-			SELECT max_dt_by_account.account, max(transaction_id) AS max_tid
-			FROM max_dt_by_account
-			JOIN joined_transactions ON max_dt_by_account.account = joined_transactions.account AND max_dt_by_account.max_dt = joined_transactions.dt
-			GROUP BY max_dt_by_account.account
-		)
-		-- Get running balance at last transaction for each account
-		SELECT max_tid_by_account.account, running_balance AS quantity
-		FROM max_tid_by_account
-		JOIN transactions_with_running_balances ON max_tid = transactions_with_running_balances.transaction_id AND max_tid_by_account.account = transactions_with_running_balances.account`
-	);
-	
-	return new Map(resultsRaw.map((x) => [x.account, x.quantity]));
-}
-
-export async function totalBalancesAtDate(session: ExtendedDatabase, dt: string): Promise<Map<string, number>> {
-	const resultsRaw: {account: string, quantity: number}[] = await session.select(
-		`-- Get last transaction for each account
-		WITH max_dt_by_account AS (
-			SELECT account, max(dt) AS max_dt
-			FROM joined_transactions
-			WHERE DATE(dt) <= DATE($1)
-			GROUP BY account
-		),
-		max_tid_by_account AS (
-			SELECT max_dt_by_account.account, max(transaction_id) AS max_tid
-			FROM max_dt_by_account
-			JOIN joined_transactions ON max_dt_by_account.account = joined_transactions.account AND max_dt_by_account.max_dt = joined_transactions.dt
-			GROUP BY max_dt_by_account.account
-		)
-		-- Get running balance at last transaction for each account
-		SELECT max_tid_by_account.account, running_balance AS quantity
-		FROM max_tid_by_account
-		JOIN transactions_with_running_balances ON max_tid = transactions_with_running_balances.transaction_id AND max_tid_by_account.account = transactions_with_running_balances.account`,
-		[dt]
-	);
-	
-	return new Map(resultsRaw.map((x) => [x.account, x.quantity]));
-}
-
 export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {
 	// Group postings into transactions
 	const transactions: Transaction[] = [];
@@ -141,18 +93,6 @@ export function joinedToTransactions(joinedTransactionPostings: JoinedTransactio
 	}
 	
 	return transactions;
-}
-
-export async function getAccountsForKind(session: ExtendedDatabase, kind: string): Promise<string[]> {
-	const rawAccountsForKind: {account: string}[] = await session.select(
-		`SELECT account
-		FROM account_configurations
-		WHERE kind = $1
-		ORDER BY account`,
-		[kind]
-	);
-	const accountsForKind = rawAccountsForKind.map((a) => a.account);
-	return accountsForKind;
 }
 
 export function serialiseAmount(quantity: number, commodity: string): string {

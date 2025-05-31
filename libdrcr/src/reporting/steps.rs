@@ -35,8 +35,7 @@ use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
 use super::dynamic_report::{
-	entries_for_kind, CalculatableDynamicReport, CalculatableDynamicReportEntry,
-	CalculatableSection, CalculatedRow, DynamicReport, DynamicReportEntry, LiteralRow,
+	entries_for_kind, DynamicReport, DynamicReportEntry, Row, Section,
 };
 use super::executor::ReportingExecutionError;
 use super::types::{
@@ -457,92 +456,79 @@ impl ReportingStep for BalanceSheet {
 			kinds_for_account(context.db_connection.get_account_configurations().await);
 
 		// Init report
-		let report = CalculatableDynamicReport::new(
+		let mut report = DynamicReport::new(
 			"Balance sheet".to_string(),
 			self.args.dates.iter().map(|d| d.date.to_string()).collect(),
-			vec![
-				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
-					"Assets".to_string(),
-					Some("assets".to_string()),
-					true,
-					false,
-					{
-						let mut entries =
-							entries_for_kind("drcr.asset", false, &balances, &kinds_for_account);
-						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
-							CalculatedRow {
-								calculate_fn: |report| LiteralRow {
-									text: "Total assets".to_string(),
-									quantity: report.subtotal_for_id("assets").unwrap(),
-									id: Some("total_assets".to_string()),
-									visible: true,
-									auto_hide: false,
-									link: None,
-									heading: true,
-									bordered: true,
-								},
-							},
-						));
-						entries
-					},
-				)),
-				CalculatableDynamicReportEntry::Spacer,
-				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
-					"Liabilities".to_string(),
-					Some("liabilities".to_string()),
-					true,
-					false,
-					{
-						let mut entries =
-							entries_for_kind("drcr.liability", true, &balances, &kinds_for_account);
-						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
-							CalculatedRow {
-								calculate_fn: |report| LiteralRow {
-									text: "Total liabilities".to_string(),
-									quantity: report.subtotal_for_id("liabilities").unwrap(),
-									id: Some("total_liabilities".to_string()),
-									visible: true,
-									auto_hide: false,
-									link: None,
-									heading: true,
-									bordered: true,
-								},
-							},
-						));
-						entries
-					},
-				)),
-				CalculatableDynamicReportEntry::Spacer,
-				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
-					"Equity".to_string(),
-					Some("equity".to_string()),
-					true,
-					false,
-					{
-						let mut entries =
-							entries_for_kind("drcr.equity", true, &balances, &kinds_for_account);
-						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
-							CalculatedRow {
-								calculate_fn: |report| LiteralRow {
-									text: "Total equity".to_string(),
-									quantity: report.subtotal_for_id("equity").unwrap(),
-									id: Some("total_equity".to_string()),
-									visible: true,
-									auto_hide: false,
-									link: None,
-									heading: true,
-									bordered: true,
-								},
-							},
-						));
-						entries
-					},
-				)),
-			],
+			Vec::new(),
 		);
 
-		let mut report = report.calculate();
-		report.auto_hide();
+		// Add assets section
+		let mut assets = Section {
+			text: Some("Assets".to_string()),
+			id: None,
+			visible: true,
+			entries: entries_for_kind("drcr.asset", false, &balances, &kinds_for_account),
+		};
+		let total_assets = assets.subtotal(&report);
+		assets.entries.push(
+			Row {
+				text: "Total assets".to_string(),
+				quantity: total_assets,
+				id: Some("total_assets".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
+		);
+		report.entries.push(assets.into());
+		report.entries.push(DynamicReportEntry::Spacer);
+
+		// Add liabilities section
+		let mut liabilities = Section {
+			text: Some("Liabilities".to_string()),
+			id: None,
+			visible: true,
+			entries: entries_for_kind("drcr.liability", true, &balances, &kinds_for_account),
+		};
+		let total_liabilities = liabilities.subtotal(&report);
+		liabilities.entries.push(
+			Row {
+				text: "Total liabilities".to_string(),
+				quantity: total_liabilities,
+				id: Some("total_liabilities".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
+		);
+		report.entries.push(liabilities.into());
+		report.entries.push(DynamicReportEntry::Spacer);
+
+		// Add equity section
+		let mut equity = Section {
+			text: Some("Equity".to_string()),
+			id: None,
+			visible: true,
+			entries: entries_for_kind("drcr.equity", true, &balances, &kinds_for_account),
+		};
+		let total_equity = equity.subtotal(&report);
+		equity.entries.push(
+			Row {
+				text: "Total equity".to_string(),
+				quantity: total_equity,
+				id: Some("total_equity".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
+		);
+		report.entries.push(equity.into());
 
 		// Store the result
 		let mut result = ReportingProducts::new();
@@ -1089,89 +1075,80 @@ impl ReportingStep for IncomeStatement {
 			kinds_for_account(context.db_connection.get_account_configurations().await);
 
 		// Init report
-		let report = CalculatableDynamicReport::new(
+		let mut report = DynamicReport::new(
 			"Income statement".to_string(),
 			self.args
 				.dates
 				.iter()
 				.map(|d| d.date_end.to_string())
 				.collect(),
-			vec![
-				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
-					"Income".to_string(),
-					Some("income".to_string()),
-					true,
-					false,
-					{
-						let mut entries =
-							entries_for_kind("drcr.income", true, &balances, &kinds_for_account);
-						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
-							CalculatedRow {
-								calculate_fn: |report| LiteralRow {
-									text: "Total income".to_string(),
-									quantity: report.subtotal_for_id("income").unwrap(),
-									id: Some("total_income".to_string()),
-									visible: true,
-									auto_hide: false,
-									link: None,
-									heading: true,
-									bordered: true,
-								},
-							},
-						));
-						entries
-					},
-				)),
-				CalculatableDynamicReportEntry::Spacer,
-				CalculatableDynamicReportEntry::CalculatableSection(CalculatableSection::new(
-					"Expenses".to_string(),
-					Some("expenses".to_string()),
-					true,
-					false,
-					{
-						let mut entries =
-							entries_for_kind("drcr.expense", false, &balances, &kinds_for_account);
-						entries.push(CalculatableDynamicReportEntry::CalculatedRow(
-							CalculatedRow {
-								calculate_fn: |report| LiteralRow {
-									text: "Total expenses".to_string(),
-									quantity: report.subtotal_for_id("expenses").unwrap(),
-									id: Some("total_expenses".to_string()),
-									visible: true,
-									auto_hide: false,
-									link: None,
-									heading: true,
-									bordered: true,
-								},
-							},
-						));
-						entries
-					},
-				)),
-				CalculatableDynamicReportEntry::Spacer,
-				CalculatableDynamicReportEntry::CalculatedRow(CalculatedRow {
-					calculate_fn: |report| LiteralRow {
-						text: "Net surplus (deficit)".to_string(),
-						quantity: report
-							.quantity_for_id("total_income")
-							.unwrap() // Get total income row
-							.iter()
-							.zip(report.quantity_for_id("total_expenses").unwrap().iter()) // Zip with total expenses row
-							.map(|(i, e)| i - e) // Compute net surplus
-							.collect(),
-						id: Some("net_surplus".to_string()),
-						visible: true,
-						auto_hide: false,
-						link: None,
-						heading: true,
-						bordered: true,
-					},
-				}),
-			],
+			Vec::new(),
 		);
 
-		let mut report = report.calculate();
-		report.auto_hide();
+		// Add income section
+		let mut income = Section {
+			text: Some("Income".to_string()),
+			id: None,
+			visible: true,
+			entries: entries_for_kind("drcr.income", true, &balances, &kinds_for_account),
+		};
+		let total_income = income.subtotal(&report);
+		income.entries.push(
+			Row {
+				text: "Total income".to_string(),
+				quantity: total_income.clone(),
+				id: Some("total_income".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
+		);
+		report.entries.push(income.into());
+		report.entries.push(DynamicReportEntry::Spacer);
+
+		// Add expenses section
+		let mut expenses = Section {
+			text: Some("Expenses".to_string()),
+			id: None,
+			visible: true,
+			entries: entries_for_kind("drcr.expense", false, &balances, &kinds_for_account),
+		};
+		let total_expenses = expenses.subtotal(&report);
+		expenses.entries.push(
+			Row {
+				text: "Total expenses".to_string(),
+				quantity: total_expenses.clone(),
+				id: Some("total_expenses".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
+		);
+		report.entries.push(expenses.into());
+		report.entries.push(DynamicReportEntry::Spacer);
+
+		// Add net surplus (deficit) row
+		let net_surplus = total_income
+			.into_iter()
+			.zip(total_expenses.into_iter())
+			.map(|(i, e)| i - e)
+			.collect();
+		report.entries.push(
+			Row {
+				text: "Net surplus (deficit)".to_string(),
+				quantity: net_surplus,
+				id: Some("net_surplus".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
+		);
 
 		// Store the result
 		let mut result = ReportingProducts::new();
@@ -1512,61 +1489,63 @@ impl ReportingStep for TrialBalance {
 		let mut accounts = balances.keys().collect::<Vec<_>>();
 		accounts.sort();
 
-		// Get total debits and credits
-		let total_dr = balances.values().filter(|b| **b >= 0).sum::<i64>();
-		let total_cr = -balances.values().filter(|b| **b < 0).sum::<i64>();
-
 		// Init report
-		let mut report = DynamicReport::new(
-			"Trial balance".to_string(),
-			vec!["Dr".to_string(), "Cr".to_string()],
-			{
-				let mut entries = Vec::new();
+		let mut report = DynamicReport {
+			title: "Trial balance".to_string(),
+			columns: vec!["Dr".to_string(), "Cr".to_string()],
+			entries: Vec::new(),
+		};
 
-				// Entry for each account
-				for account in accounts {
-					entries.push(DynamicReportEntry::LiteralRow(LiteralRow {
-						text: account.clone(),
-						quantity: vec![
-							// Dr cell
-							if balances[account] >= 0 {
-								balances[account]
-							} else {
-								0
-							},
-							// Cr cell
-							if balances[account] < 0 {
-								-balances[account]
-							} else {
-								0
-							},
-						],
-						id: None,
-						visible: true,
-						auto_hide: true,
-						link: Some(format!("/transactions/{}", account)),
-						heading: false,
-						bordered: false,
-					}));
-				}
-
-				// Total row
-				entries.push(DynamicReportEntry::LiteralRow(LiteralRow {
-					text: "Totals".to_string(),
-					quantity: vec![total_dr, total_cr],
-					id: Some("totals".to_string()),
+		// Add entry for each account
+		let mut section = Section {
+			text: None,
+			id: None,
+			visible: true,
+			entries: Vec::new(),
+		};
+		for account in accounts {
+			section.entries.push(
+				Row {
+					text: account.clone(),
+					quantity: vec![
+						// Dr cell
+						if balances[account] >= 0 {
+							balances[account]
+						} else {
+							0
+						},
+						// Cr cell
+						if balances[account] < 0 {
+							-balances[account]
+						} else {
+							0
+						},
+					],
+					id: None,
 					visible: true,
-					auto_hide: false,
-					link: None,
-					heading: true,
-					bordered: true,
-				}));
+					link: Some(format!("/transactions/{}", account)),
+					heading: false,
+					bordered: false,
+				}
+				.into(),
+			);
+		}
+		let totals_row = section.subtotal(&report);
+		report.entries.push(section.into());
 
-				entries
-			},
+		// Add total row
+		report.entries.push(
+			Row {
+				text: "Totals".to_string(),
+				quantity: totals_row,
+				id: Some("totals".to_string()),
+				visible: true,
+				link: None,
+				heading: true,
+				bordered: true,
+			}
+			.into(),
 		);
-
-		report.auto_hide();
 
 		// Store result
 		let mut result = ReportingProducts::new();

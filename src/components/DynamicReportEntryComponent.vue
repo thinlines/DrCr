@@ -18,14 +18,14 @@
 -->
 
 <template>
-	<template v-if="literalRow">
-		<template v-if="literalRow.visible">
-			<tr :class="literalRow.bordered ? 'border-y border-gray-300' : null">
-				<component :is="literalRow.heading ? 'th' : 'td'" class="py-0.5 pr-1 text-gray-900 text-start" :class="{ 'font-semibold': literalRow.heading }">
-					<a :href="literalRow.link as string" class="hover:text-blue-700 hover:underline" v-if="literalRow.link !== null">{{ literalRow.text }}</a>
-					<template v-if="literalRow.link === null">{{ literalRow.text }}</template>
+	<template v-if="row">
+		<template v-if="row.visible">
+			<tr :class="row.bordered ? 'border-y border-gray-300' : null">
+				<component :is="row.heading ? 'th' : 'td'" class="py-0.5 pr-1 text-gray-900 text-start" :class="{ 'font-semibold': row.heading }">
+					<a :href="row.link as string" class="hover:text-blue-700 hover:underline" v-if="row.link !== null">{{ row.text }}</a>
+					<template v-if="row.link === null">{{ row.text }}</template>
 				</component>
-				<component :is="literalRow.heading ? 'th' : 'td'" class="py-0.5 pl-1 text-gray-900 text-end" :class="{ 'font-semibold': literalRow.heading }" v-html="(cell !== 0 || literalRow.heading) ? ppBracketed(cell, literalRow.link ?? undefined) : ''" v-for="cell of literalRow.quantity">
+				<component :is="row.heading ? 'th' : 'td'" class="py-0.5 pl-1 text-gray-900 text-end" :class="{ 'font-semibold': row.heading }" v-html="(cell !== 0 || row.heading) ? ppBracketed(cell, row.link ?? undefined) : ''" v-for="cell of row.quantity">
 				</component>
 			</tr>
 		</template>
@@ -48,12 +48,12 @@
 	import { computed } from 'vue';
 
 	import { ppBracketed } from '../display.ts';
-	import { DynamicReportEntry, LiteralRow, Section } from '../reports/base.ts';
+	import { DynamicReportEntry, Row, Section } from '../reports/base.ts';
 	
 	const { entry } = defineProps<{ entry: DynamicReportEntry }>();
 	
-	const literalRow = computed(function() {
-		return (entry as { LiteralRow: LiteralRow }).LiteralRow;
+	const row = computed(function() {
+		return (entry as { Row: Row }).Row;
 	});
 	const section = computed(function() {
 		return (entry as { Section: Section }).Section;

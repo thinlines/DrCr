@@ -24,7 +24,7 @@ export interface DynamicReport {
 }
 
 // serde_json serialises an enum like this
-export type DynamicReportEntry = { Section: Section } | { LiteralRow: LiteralRow } | 'Spacer';
+export type DynamicReportEntry = { Section: Section } | { Row: Row } | 'Spacer';
 
 export interface Section {
 	text: string;
@@ -34,7 +34,7 @@ export interface Section {
 	entries: DynamicReportEntry[];
 }
 
-export interface LiteralRow {
+export interface Row {
 	text: string;
 	quantity: number[];
 	id: string;
@@ -55,8 +55,8 @@ export function reportEntryById(report: DynamicReport | Section, id: string): Dy
 			if (result !== null) {
 				return result;
 			}
-		} else if ((entry as { LiteralRow: LiteralRow }).LiteralRow) {
-			if ((entry as { LiteralRow: LiteralRow }).LiteralRow.id === id) {
+		} else if ((entry as { Row: Row }).Row) {
+			if ((entry as { Row: Row }).Row.id === id) {
 				return entry;
 			}
 		}

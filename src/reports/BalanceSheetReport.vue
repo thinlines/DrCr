@@ -54,7 +54,7 @@
 	
 	import { ExclamationCircleIcon } from '@heroicons/vue/20/solid';
 	
-	import { DynamicReport, LiteralRow, reportEntryById } from './base.ts';
+	import { DynamicReport, Row, reportEntryById } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	
@@ -118,9 +118,9 @@
 			return true;
 		}
 		
-		const totalAssets = (reportEntryById(report.value, 'total_assets') as { LiteralRow: LiteralRow }).LiteralRow.quantity;
-		const totalLiabilities = (reportEntryById(report.value, 'total_liabilities') as { LiteralRow: LiteralRow }).LiteralRow.quantity;
-		const totalEquity = (reportEntryById(report.value, 'total_equity') as { LiteralRow: LiteralRow }).LiteralRow.quantity;
+		const totalAssets = (reportEntryById(report.value, 'total_assets') as { Row: Row }).Row.quantity;
+		const totalLiabilities = (reportEntryById(report.value, 'total_liabilities') as { Row: Row }).Row.quantity;
+		const totalEquity = (reportEntryById(report.value, 'total_equity') as { Row: Row }).Row.quantity;
 		
 		let doesBalance = true;
 		for (let column = 0; column < report.value.columns.length; column++) {

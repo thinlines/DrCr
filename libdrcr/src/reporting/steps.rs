@@ -39,7 +39,6 @@ use super::executor::ReportingExecutionError;
 use super::types::{
 	BalancesBetween, DateArgs, MultipleDateArgs, MultipleDateStartDateEndArgs, ReportingContext,
 	ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs, ReportingStepId,
-	VoidArgs,
 };
 
 /// Call [ReportingContext::register_lookup_fn] for all steps provided by this module
@@ -79,22 +78,16 @@ impl AllTransactionsExceptEarningsToEquity {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(AllTransactionsExceptEarningsToEquity {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(AllTransactionsExceptEarningsToEquity { args: args.into() })
 	}
 }
 
@@ -110,7 +103,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 		ReportingStepId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			product_kinds: vec![ReportingProductKind::Transactions],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -119,7 +112,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 		vec![ReportingProductId {
 			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}]
 	}
 
@@ -142,7 +135,7 @@ impl ReportingStep for AllTransactionsExceptEarningsToEquity {
 #[derive(Debug)]
 pub struct AllTransactionsExceptEarningsToEquityBalances {
 	pub product_kind: ReportingProductKind,
-	pub args: Box<dyn ReportingStepArgs>,
+	pub args: ReportingStepArgs,
 }
 
 impl AllTransactionsExceptEarningsToEquityBalances {
@@ -162,17 +155,13 @@ impl AllTransactionsExceptEarningsToEquityBalances {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		_args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
+	fn takes_args(_name: &str, _args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
 		true
 	}
 
 	fn from_args(
 		product_kind: ReportingProductKind,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 	) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsExceptEarningsToEquityBalances { product_kind, args })
 	}
@@ -261,22 +250,16 @@ impl AllTransactionsIncludingEarningsToEquity {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(AllTransactionsIncludingEarningsToEquity {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(AllTransactionsIncludingEarningsToEquity { args: args.into() })
 	}
 }
 
@@ -292,7 +275,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 		ReportingStepId {
 			name: "AllTransactionsIncludingEarningsToEquity".to_string(),
 			product_kinds: vec![ReportingProductKind::BalancesAt],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -302,19 +285,19 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 			ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			// AllTransactionsIncludingEarningsToEquity requires CurrentYearEarningsToEquity
 			ReportingProductId {
 				name: "CurrentYearEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			// AllTransactionsIncludingEarningsToEquity requires RetainedEarningsToEquity
 			ReportingProductId {
 				name: "RetainedEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 		]
 	}
@@ -333,7 +316,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 			.get_or_err(&ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			})?
 			.downcast_ref::<BalancesAt>()
 			.unwrap();
@@ -343,7 +326,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 			.get_or_err(&ReportingProductId {
 				name: "CurrentYearEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			})?
 			.downcast_ref::<Transactions>()
 			.unwrap();
@@ -353,7 +336,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 			.get_or_err(&ReportingProductId {
 				name: "RetainedEarningsToEquity".to_string(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			})?
 			.downcast_ref::<Transactions>()
 			.unwrap();
@@ -377,7 +360,7 @@ impl ReportingStep for AllTransactionsIncludingEarningsToEquity {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);
@@ -401,22 +384,16 @@ impl BalanceSheet {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<MultipleDateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::MultipleDateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(BalanceSheet {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(BalanceSheet { args: args.into() })
 	}
 }
 
@@ -432,7 +409,7 @@ impl ReportingStep for BalanceSheet {
 		ReportingStepId {
 			name: "BalanceSheet".to_string(),
 			product_kinds: vec![ReportingProductKind::DynamicReport],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::MultipleDateArgs(self.args.clone()),
 		}
 	}
 
@@ -444,7 +421,7 @@ impl ReportingStep for BalanceSheet {
 			result.push(ReportingProductId {
 				name: "AllTransactionsIncludingEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(date_args.clone()),
+				args: ReportingStepArgs::DateArgs(date_args.clone()),
 			});
 		}
 
@@ -466,7 +443,7 @@ impl ReportingStep for BalanceSheet {
 			let product = products.get_or_err(&ReportingProductId {
 				name: "AllTransactionsIncludingEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(date_args.clone()),
+				args: ReportingStepArgs::DateArgs(date_args.clone()),
 			})?;
 
 			balances.push(&product.downcast_ref::<BalancesAt>().unwrap().balances);
@@ -557,7 +534,7 @@ impl ReportingStep for BalanceSheet {
 			ReportingProductId {
 				name: "BalanceSheet".to_string(),
 				kind: ReportingProductKind::DynamicReport,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::MultipleDateArgs(self.args.clone()),
 			},
 			Box::new(report),
 		);
@@ -583,22 +560,16 @@ impl CombineOrdinaryTransactions {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(CombineOrdinaryTransactions {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(CombineOrdinaryTransactions { args: args.into() })
 	}
 }
 
@@ -614,7 +585,7 @@ impl ReportingStep for CombineOrdinaryTransactions {
 		ReportingStepId {
 			name: "CombineOrdinaryTransactions".to_string(),
 			product_kinds: vec![ReportingProductKind::Transactions],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -624,13 +595,13 @@ impl ReportingStep for CombineOrdinaryTransactions {
 			ReportingProductId {
 				name: "DBTransactions".to_string(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
+				args: ReportingStepArgs::VoidArgs,
 			},
 			// CombineOrdinaryTransactions depends on PostUnreconciledStatementLines
 			ReportingProductId {
 				name: "PostUnreconciledStatementLines".to_string(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
+				args: ReportingStepArgs::VoidArgs,
 			},
 		]
 	}
@@ -664,22 +635,16 @@ impl CombineOrdinaryTransactionsBalances {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(CombineOrdinaryTransactionsBalances {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(CombineOrdinaryTransactionsBalances { args: args.into() })
 	}
 }
 
@@ -695,7 +660,7 @@ impl ReportingStep for CombineOrdinaryTransactionsBalances {
 		ReportingStepId {
 			name: "CombineOrdinaryTransactions".to_string(),
 			product_kinds: vec![ReportingProductKind::BalancesAt],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -705,13 +670,13 @@ impl ReportingStep for CombineOrdinaryTransactionsBalances {
 			ReportingProductId {
 				name: "DBBalances".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			// CombineOrdinaryTransactions depends on PostUnreconciledStatementLines
 			ReportingProductId {
 				name: "PostUnreconciledStatementLines".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 		]
 	}
@@ -749,7 +714,7 @@ impl ReportingStep for CombineOrdinaryTransactionsBalances {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);
@@ -773,22 +738,16 @@ impl CurrentYearEarningsToEquity {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(CurrentYearEarningsToEquity {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(CurrentYearEarningsToEquity { args: args.into() })
 	}
 }
 
@@ -804,7 +763,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		ReportingStepId {
 			name: "CurrentYearEarningsToEquity".to_string(),
 			product_kinds: vec![ReportingProductKind::Transactions],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -813,7 +772,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 		vec![ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
-			args: Box::new(DateStartDateEndArgs {
+			args: ReportingStepArgs::DateStartDateEndArgs(DateStartDateEndArgs {
 				date_start: sofy_from_eofy(get_eofy(&self.args.date, &context.eofy_date)),
 				date_end: self.args.date,
 			}),
@@ -834,7 +793,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 			.get_or_err(&ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
-				args: Box::new(DateStartDateEndArgs {
+				args: ReportingStepArgs::DateStartDateEndArgs(DateStartDateEndArgs {
 					date_start: sofy_from_eofy(get_eofy(&self.args.date, &context.eofy_date)),
 					date_end: self.args.date,
 				}),
@@ -894,7 +853,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(transactions),
 		);
@@ -918,22 +877,16 @@ impl DBBalances {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(DBBalances {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(DBBalances { args: args.into() })
 	}
 }
 
@@ -949,7 +902,7 @@ impl ReportingStep for DBBalances {
 		ReportingStepId {
 			name: "DBBalances".to_string(),
 			product_kinds: vec![ReportingProductKind::BalancesAt],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -971,7 +924,7 @@ impl ReportingStep for DBBalances {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);
@@ -993,17 +946,13 @@ impl DBTransactions {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<VoidArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		*args == ReportingStepArgs::VoidArgs
 	}
 
 	fn from_args(
 		_name: &str,
-		_args: Box<dyn ReportingStepArgs>,
+		_args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(DBTransactions {})
@@ -1022,7 +971,7 @@ impl ReportingStep for DBTransactions {
 		ReportingStepId {
 			name: "DBTransactions".to_string(),
 			product_kinds: vec![ReportingProductKind::Transactions],
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		}
 	}
 
@@ -1044,7 +993,7 @@ impl ReportingStep for DBTransactions {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
+				args: ReportingStepArgs::VoidArgs,
 			},
 			Box::new(transactions),
 		);
@@ -1068,22 +1017,16 @@ impl IncomeStatement {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<MultipleDateStartDateEndArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::MultipleDateStartDateEndArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(IncomeStatement {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(IncomeStatement { args: args.into() })
 	}
 }
 
@@ -1099,7 +1042,7 @@ impl ReportingStep for IncomeStatement {
 		ReportingStepId {
 			name: "IncomeStatement".to_string(),
 			product_kinds: vec![ReportingProductKind::DynamicReport],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::MultipleDateStartDateEndArgs(self.args.clone()),
 		}
 	}
 
@@ -1111,7 +1054,7 @@ impl ReportingStep for IncomeStatement {
 			result.push(ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
-				args: Box::new(date_args.clone()),
+				args: ReportingStepArgs::DateStartDateEndArgs(date_args.clone()),
 			});
 		}
 
@@ -1133,7 +1076,7 @@ impl ReportingStep for IncomeStatement {
 			let product = products.get_or_err(&ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesBetween,
-				args: Box::new(date_args.clone()),
+				args: ReportingStepArgs::DateStartDateEndArgs(date_args.clone()),
 			})?;
 
 			balances.push(&product.downcast_ref::<BalancesBetween>().unwrap().balances);
@@ -1225,7 +1168,7 @@ impl ReportingStep for IncomeStatement {
 			ReportingProductId {
 				name: "IncomeStatement".to_string(),
 				kind: ReportingProductKind::DynamicReport,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::MultipleDateStartDateEndArgs(self.args.clone()),
 			},
 			Box::new(report),
 		);
@@ -1247,17 +1190,13 @@ impl PostUnreconciledStatementLines {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<VoidArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		*args == ReportingStepArgs::VoidArgs
 	}
 
 	fn from_args(
 		_name: &str,
-		_args: Box<dyn ReportingStepArgs>,
+		_args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(PostUnreconciledStatementLines {})
@@ -1276,7 +1215,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 		ReportingStepId {
 			name: "PostUnreconciledStatementLines".to_string(),
 			product_kinds: vec![ReportingProductKind::Transactions],
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		}
 	}
 
@@ -1338,7 +1277,7 @@ impl ReportingStep for PostUnreconciledStatementLines {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
+				args: ReportingStepArgs::VoidArgs,
 			},
 			Box::new(transactions),
 		);
@@ -1362,22 +1301,16 @@ impl RetainedEarningsToEquity {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(RetainedEarningsToEquity {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(RetainedEarningsToEquity { args: args.into() })
 	}
 }
 
@@ -1393,7 +1326,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 		ReportingStepId {
 			name: "RetainedEarningsToEquity".to_string(),
 			product_kinds: vec![ReportingProductKind::Transactions],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -1405,7 +1338,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 		vec![ReportingProductId {
 			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::BalancesAt,
-			args: Box::new(DateArgs {
+			args: ReportingStepArgs::DateArgs(DateArgs {
 				date: last_eofy_date,
 			}),
 		}]
@@ -1427,7 +1360,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 			.get_or_err(&ReportingProductId {
 				name: "CombineOrdinaryTransactions".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(DateArgs {
+				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: last_eofy_date.clone(),
 				}),
 			})?
@@ -1486,7 +1419,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(transactions),
 		);
@@ -1510,22 +1443,16 @@ impl TrialBalance {
 		);
 	}
 
-	fn takes_args(
-		_name: &str,
-		args: &Box<dyn ReportingStepArgs>,
-		_context: &ReportingContext,
-	) -> bool {
-		args.is::<DateArgs>()
+	fn takes_args(_name: &str, args: &ReportingStepArgs, _context: &ReportingContext) -> bool {
+		matches!(args, ReportingStepArgs::DateArgs(_))
 	}
 
 	fn from_args(
 		_name: &str,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
-		Box::new(TrialBalance {
-			args: *args.downcast().unwrap(),
-		})
+		Box::new(TrialBalance { args: args.into() })
 	}
 }
 
@@ -1541,7 +1468,7 @@ impl ReportingStep for TrialBalance {
 		ReportingStepId {
 			name: "TrialBalance".to_string(),
 			product_kinds: vec![ReportingProductKind::DynamicReport],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -1552,7 +1479,7 @@ impl ReportingStep for TrialBalance {
 		result.push(ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesAt,
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		});
 
 		result
@@ -1572,7 +1499,7 @@ impl ReportingStep for TrialBalance {
 			.get_or_err(&ReportingProductId {
 				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			})?
 			.downcast_ref::<BalancesAt>()
 			.unwrap()
@@ -1646,7 +1573,7 @@ impl ReportingStep for TrialBalance {
 			ReportingProductId {
 				name: "TrialBalance".to_string(),
 				kind: ReportingProductKind::DynamicReport,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(report),
 		);

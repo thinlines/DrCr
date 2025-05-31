@@ -17,7 +17,7 @@
 */
 
 use libdrcr::reporting::dynamic_report::DynamicReport;
-use libdrcr::reporting::types::{ReportingProductId, ReportingProductKind, VoidArgs};
+use libdrcr::reporting::types::{ReportingProductId, ReportingProductKind, ReportingStepArgs};
 use tauri::State;
 use tokio::sync::Mutex;
 
@@ -31,7 +31,7 @@ pub(crate) async fn get_tax_summary(state: State<'_, Mutex<AppState>>) -> Result
 		&ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		},
 	)
 	.await

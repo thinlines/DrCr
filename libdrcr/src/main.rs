@@ -25,7 +25,7 @@ use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::types::{
 	DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
-	ReportingContext, ReportingProductId, ReportingProductKind, VoidArgs,
+	ReportingContext, ReportingProductId, ReportingProductKind, ReportingStepArgs,
 };
 
 #[tokio::main]
@@ -53,7 +53,7 @@ async fn main() {
 		ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		},
 		// ReportingProductId {
 		// 	name: "AllTransactionsExceptEarningsToEquity",
@@ -65,7 +65,7 @@ async fn main() {
 		ReportingProductId {
 			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(MultipleDateArgs {
+			args: ReportingStepArgs::MultipleDateArgs(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
@@ -74,7 +74,7 @@ async fn main() {
 		ReportingProductId {
 			name: "IncomeStatement".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(MultipleDateStartDateEndArgs {
+			args: ReportingStepArgs::MultipleDateStartDateEndArgs(MultipleDateStartDateEndArgs {
 				dates: vec![DateStartDateEndArgs {
 					date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
 					date_end: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
@@ -93,12 +93,12 @@ async fn main() {
 		ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		},
 		ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
-			args: Box::new(DateStartDateEndArgs {
+			args: ReportingStepArgs::DateStartDateEndArgs(DateStartDateEndArgs {
 				date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
 				date_end: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
@@ -113,7 +113,7 @@ async fn main() {
 		.get_or_err(&ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		})
 		.unwrap();
 
@@ -124,7 +124,7 @@ async fn main() {
 		.get_or_err(&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesBetween,
-			args: Box::new(DateStartDateEndArgs {
+			args: ReportingStepArgs::DateStartDateEndArgs(DateStartDateEndArgs {
 				date_start: NaiveDate::from_ymd_opt(YEAR - 1, 7, 1).unwrap(),
 				date_end: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
@@ -140,12 +140,12 @@ async fn main() {
 		ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		},
 		ReportingProductId {
 			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(MultipleDateArgs {
+			args: ReportingStepArgs::MultipleDateArgs(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
@@ -160,7 +160,7 @@ async fn main() {
 		.get_or_err(&ReportingProductId {
 			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(MultipleDateArgs {
+			args: ReportingStepArgs::MultipleDateArgs(MultipleDateArgs {
 				dates: vec![DateArgs {
 					date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 				}],
@@ -180,12 +180,12 @@ async fn main() {
 		ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		},
 		ReportingProductId {
 			name: "TrialBalance".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(DateArgs {
+			args: ReportingStepArgs::DateArgs(DateArgs {
 				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
 		},
@@ -198,7 +198,7 @@ async fn main() {
 		.get_or_err(&ReportingProductId {
 			name: "TrialBalance".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(DateArgs {
+			args: ReportingStepArgs::DateArgs(DateArgs {
 				date: NaiveDate::from_ymd_opt(YEAR, 6, 30).unwrap(),
 			}),
 		})

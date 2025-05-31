@@ -24,8 +24,6 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use downcast_rs::Downcast;
 use dyn_clone::DynClone;
-use dyn_eq::DynEq;
-use dyn_hash::DynHash;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -103,16 +101,13 @@ impl ReportingContext {
 ///
 /// See [ReportingContext::register_lookup_fn].
 pub type ReportingStepTakesArgsFn =
-	fn(name: &str, args: &Box<dyn ReportingStepArgs>, context: &ReportingContext) -> bool;
+	fn(name: &str, args: &ReportingStepArgs, context: &ReportingContext) -> bool;
 
 /// Function which builds a concrete [ReportingStep] from the given [ReportingStepArgs]
 ///
 /// See [ReportingContext::register_lookup_fn].
-pub type ReportingStepFromArgsFn = fn(
-	name: &str,
-	args: Box<dyn ReportingStepArgs>,
-	context: &ReportingContext,
-) -> Box<dyn ReportingStep>;
+pub type ReportingStepFromArgsFn =
+	fn(name: &str, args: ReportingStepArgs, context: &ReportingContext) -> Box<dyn ReportingStep>;
 
 // -------------------------------
 // REPORTING STEP DYNAMIC BUILDERS
@@ -125,7 +120,7 @@ pub struct ReportingStepDynamicBuilder {
 	pub can_build: fn(
 		name: &str,
 		kind: ReportingProductKind,
-		args: &Box<dyn ReportingStepArgs>,
+		args: &ReportingStepArgs,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
@@ -133,7 +128,7 @@ pub struct ReportingStepDynamicBuilder {
 	pub build: fn(
 		name: String,
 		kind: ReportingProductKind,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
@@ -148,7 +143,7 @@ pub struct ReportingStepDynamicBuilder {
 pub struct ReportingProductId {
 	pub name: String,
 	pub kind: ReportingProductKind,
-	pub args: Box<dyn ReportingStepArgs>,
+	pub args: ReportingStepArgs,
 }
 
 impl Display for ReportingProductId {
@@ -283,7 +278,7 @@ impl Display for ReportingProducts {
 pub struct ReportingStepId {
 	pub name: String,
 	pub product_kinds: Vec<ReportingProductKind>,
-	pub args: Box<dyn ReportingStepArgs>,
+	pub args: ReportingStepArgs,
 }
 
 impl Display for ReportingStepId {
@@ -350,35 +345,43 @@ downcast_rs::impl_downcast!(ReportingStep);
 // REPORTING STEP ARGUMENTS
 
 /// Represents arguments to a [ReportingStep]
-pub trait ReportingStepArgs:
-	Debug + Display + Downcast + DynClone + DynEq + DynHash + Send + Sync
-{
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum ReportingStepArgs {
+	// This is an enum not a trait, to simply conversion to and from Lua
+	/// [ReportingStepArgs] implementation which takes no arguments
+	VoidArgs,
+
+	/// [ReportingStepArgs] implementation which takes a single date
+	DateArgs(DateArgs),
+
+	/// [ReportingStepArgs] implementation which takes a date range
+	DateStartDateEndArgs(DateStartDateEndArgs),
+
+	/// [ReportingStepArgs] implementation which takes multiple [DateArgs]
+	MultipleDateArgs(MultipleDateArgs),
+
+	/// [ReportingStepArgs] implementation which takes multiple [DateStartDateEndArgs]
+	MultipleDateStartDateEndArgs(MultipleDateStartDateEndArgs),
 }
 
-downcast_rs::impl_downcast!(ReportingStepArgs);
-dyn_clone::clone_trait_object!(ReportingStepArgs);
-dyn_eq::eq_trait_object!(ReportingStepArgs);
-dyn_hash::hash_trait_object!(ReportingStepArgs);
-
-/// [ReportingStepArgs] implementation which takes no arguments
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct VoidArgs {}
-
-impl ReportingStepArgs for VoidArgs {}
-
-impl Display for VoidArgs {
+impl Display for ReportingStepArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!(""))
+		match self {
+			ReportingStepArgs::VoidArgs => f.write_str("void"),
+			ReportingStepArgs::DateArgs(args) => f.write_fmt(format_args!("{}", args)),
+			ReportingStepArgs::DateStartDateEndArgs(args) => f.write_fmt(format_args!("{}", args)),
+			ReportingStepArgs::MultipleDateArgs(args) => f.write_fmt(format_args!("{}", args)),
+			ReportingStepArgs::MultipleDateStartDateEndArgs(args) => {
+				f.write_fmt(format_args!("{}", args))
+			}
+		}
 	}
 }
 
-/// [ReportingStepArgs] implementation which takes a single date
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DateArgs {
 	pub date: NaiveDate,
 }
-
-impl ReportingStepArgs for DateArgs {}
 
 impl Display for DateArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -386,14 +389,21 @@ impl Display for DateArgs {
 	}
 }
 
-/// [ReportingStepArgs] implementation which takes a date range
+impl Into<DateArgs> for ReportingStepArgs {
+	fn into(self) -> DateArgs {
+		if let ReportingStepArgs::DateArgs(args) = self {
+			args
+		} else {
+			panic!("Expected DateArgs")
+		}
+	}
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DateStartDateEndArgs {
 	pub date_start: NaiveDate,
 	pub date_end: NaiveDate,
 }
-
-impl ReportingStepArgs for DateStartDateEndArgs {}
 
 impl Display for DateStartDateEndArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -401,13 +411,20 @@ impl Display for DateStartDateEndArgs {
 	}
 }
 
-/// [ReportingStepArgs] implementation which takes multiple [DateArgs]
+impl Into<DateStartDateEndArgs> for ReportingStepArgs {
+	fn into(self) -> DateStartDateEndArgs {
+		if let ReportingStepArgs::DateStartDateEndArgs(args) = self {
+			args
+		} else {
+			panic!("Expected DateStartDateEndArgs")
+		}
+	}
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct MultipleDateArgs {
 	pub dates: Vec<DateArgs>,
 }
-
-impl ReportingStepArgs for MultipleDateArgs {}
 
 impl Display for MultipleDateArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -422,13 +439,20 @@ impl Display for MultipleDateArgs {
 	}
 }
 
-/// [ReportingStepArgs] implementation which takes multiple [DateStartDateEndArgs]
+impl Into<MultipleDateArgs> for ReportingStepArgs {
+	fn into(self) -> MultipleDateArgs {
+		if let ReportingStepArgs::MultipleDateArgs(args) = self {
+			args
+		} else {
+			panic!("Expected MultipleDateArgs")
+		}
+	}
+}
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct MultipleDateStartDateEndArgs {
 	pub dates: Vec<DateStartDateEndArgs>,
 }
-
-impl ReportingStepArgs for MultipleDateStartDateEndArgs {}
 
 impl Display for MultipleDateStartDateEndArgs {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -440,5 +464,15 @@ impl Display for MultipleDateStartDateEndArgs {
 				.collect::<Vec<_>>()
 				.join(", ")
 		))
+	}
+}
+
+impl Into<MultipleDateStartDateEndArgs> for ReportingStepArgs {
+	fn into(self) -> MultipleDateStartDateEndArgs {
+		if let ReportingStepArgs::MultipleDateStartDateEndArgs(args) = self {
+			args
+		} else {
+			panic!("Expected MultipleDateStartDateEndArgs")
+		}
 	}
 }

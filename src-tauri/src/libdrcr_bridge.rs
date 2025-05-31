@@ -26,8 +26,8 @@ use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::generate_report;
 use libdrcr::reporting::types::{
 	BalancesAt, DateArgs, DateStartDateEndArgs, MultipleDateArgs, MultipleDateStartDateEndArgs,
-	ReportingContext, ReportingProduct, ReportingProductId, ReportingProductKind, Transactions,
-	VoidArgs,
+	ReportingContext, ReportingProduct, ReportingProductId, ReportingProductKind,
+	ReportingStepArgs, Transactions,
 };
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -63,7 +63,7 @@ pub(crate) async fn get_report(
 		ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(VoidArgs {}),
+			args: ReportingStepArgs::VoidArgs,
 		},
 		target.clone(),
 	];
@@ -82,7 +82,7 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity(
 		&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(DateArgs {
+			args: ReportingStepArgs::DateArgs(DateArgs {
 				date: NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
 			}),
 		},
@@ -105,7 +105,7 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity_for_account(
 		&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::Transactions,
-			args: Box::new(DateArgs {
+			args: ReportingStepArgs::DateArgs(DateArgs {
 				date: NaiveDate::from_ymd_opt(9999, 12, 31).unwrap(),
 			}),
 		},
@@ -141,7 +141,7 @@ pub(crate) async fn get_balance_sheet(
 		&ReportingProductId {
 			name: "BalanceSheet".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(MultipleDateArgs {
+			args: ReportingStepArgs::MultipleDateArgs(MultipleDateArgs {
 				dates: date_args.clone(),
 			}),
 		},
@@ -170,7 +170,7 @@ pub(crate) async fn get_income_statement(
 		&ReportingProductId {
 			name: "IncomeStatement".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(MultipleDateStartDateEndArgs {
+			args: ReportingStepArgs::MultipleDateStartDateEndArgs(MultipleDateStartDateEndArgs {
 				dates: date_args.clone(),
 			}),
 		},
@@ -193,7 +193,7 @@ pub(crate) async fn get_trial_balance(
 		&ReportingProductId {
 			name: "TrialBalance".to_string(),
 			kind: ReportingProductKind::DynamicReport,
-			args: Box::new(DateArgs { date }),
+			args: ReportingStepArgs::DateArgs(DateArgs { date }),
 		},
 	)
 	.await
@@ -233,21 +233,22 @@ pub(crate) async fn get_validated_balance_assertions(
 
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
-	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
+	let mut context =
+		ReportingContext::new(db_connection, get_plugins(), eofy_date, "$".to_string());
 	prepare_reporting_context(&mut context);
 
 	// Get report targets
 	let mut targets = vec![ReportingProductId {
 		name: "CalculateIncomeTax".to_string(),
 		kind: ReportingProductKind::Transactions,
-		args: Box::new(VoidArgs {}),
+		args: ReportingStepArgs::VoidArgs,
 	}];
 	for dt in dates {
 		// Request ordinary transaction balances at each balance assertion date
 		targets.push(ReportingProductId {
 			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::BalancesAt,
-			args: Box::new(DateArgs { date: dt.date() }),
+			args: ReportingStepArgs::DateArgs(DateArgs { date: dt.date() }),
 		});
 	}
 
@@ -261,7 +262,7 @@ pub(crate) async fn get_validated_balance_assertions(
 			.get_or_err(&ReportingProductId {
 				name: "CombineOrdinaryTransactions".to_string(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(DateArgs {
+				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: balance_assertion.dt.date(),
 				}),
 			})

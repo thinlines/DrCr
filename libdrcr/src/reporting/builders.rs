@@ -33,7 +33,7 @@ use super::executor::ReportingExecutionError;
 use super::types::{
 	BalancesAt, BalancesBetween, DateArgs, DateStartDateEndArgs, ReportingContext,
 	ReportingProductId, ReportingProductKind, ReportingProducts, ReportingStep, ReportingStepArgs,
-	ReportingStepDynamicBuilder, ReportingStepId, Transactions, VoidArgs,
+	ReportingStepDynamicBuilder, ReportingStepId, Transactions,
 };
 
 /// Call [ReportingContext::register_dynamic_builder] for all dynamic builders provided by this module
@@ -67,37 +67,35 @@ impl BalancesAtToBalancesBetween {
 	fn can_build(
 		name: &str,
 		kind: ReportingProductKind,
-		args: &Box<dyn ReportingStepArgs>,
+		args: &ReportingStepArgs,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
 	) -> bool {
 		// Check for BalancesAt, BalancesAt -> BalancesBetween
 		if kind == ReportingProductKind::BalancesBetween {
-			if !args.is::<DateStartDateEndArgs>() {
-				return false;
-			}
-
-			let args = args.downcast_ref::<DateStartDateEndArgs>().unwrap();
-
-			match has_step_or_can_build(
-				&ReportingProductId {
-					name: name.to_string(),
-					kind: ReportingProductKind::BalancesAt,
-					args: Box::new(DateArgs {
-						date: args.date_start.clone(),
-					}),
-				},
-				steps,
-				dependencies,
-				context,
-			) {
-				HasStepOrCanBuild::HasStep(_)
-				| HasStepOrCanBuild::CanLookup(_)
-				| HasStepOrCanBuild::CanBuild(_) => {
-					return true;
+			if let ReportingStepArgs::DateStartDateEndArgs(args) = args {
+				match has_step_or_can_build(
+					&ReportingProductId {
+						name: name.to_string(),
+						kind: ReportingProductKind::BalancesAt,
+						args: ReportingStepArgs::DateArgs(DateArgs {
+							date: args.date_start.clone(),
+						}),
+					},
+					steps,
+					dependencies,
+					context,
+				) {
+					HasStepOrCanBuild::HasStep(_)
+					| HasStepOrCanBuild::CanLookup(_)
+					| HasStepOrCanBuild::CanBuild(_) => {
+						return true;
+					}
+					HasStepOrCanBuild::None => {}
 				}
-				HasStepOrCanBuild::None => {}
+			} else {
+				return false;
 			}
 		}
 		return false;
@@ -106,14 +104,14 @@ impl BalancesAtToBalancesBetween {
 	fn build(
 		name: String,
 		_kind: ReportingProductKind,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(BalancesAtToBalancesBetween {
 			step_name: name,
-			args: *args.downcast().unwrap(),
+			args: args.into(),
 		})
 	}
 }
@@ -133,7 +131,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 		ReportingStepId {
 			name: self.step_name.clone(),
 			product_kinds: vec![ReportingProductKind::BalancesBetween],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateStartDateEndArgs(self.args.clone()),
 		}
 	}
 
@@ -143,14 +141,14 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 			ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(DateArgs {
+				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: self.args.date_start.pred_opt().unwrap(), // Opening balance is the closing balance of the preceding day
 				}),
 			},
 			ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(DateArgs {
+				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: self.args.date_end,
 				}),
 			},
@@ -171,7 +169,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 			.get_or_err(&ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(DateArgs {
+				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: self.args.date_start.pred_opt().unwrap(), // Opening balance is the closing balance of the preceding day
 				}),
 			})?
@@ -183,7 +181,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 			.get_or_err(&ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(DateArgs {
+				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: self.args.date_end,
 				}),
 			})?
@@ -207,7 +205,7 @@ impl ReportingStep for BalancesAtToBalancesBetween {
 			ReportingProductId {
 				name: self.id().name,
 				kind: ReportingProductKind::BalancesBetween,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateStartDateEndArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);
@@ -234,7 +232,7 @@ impl GenerateBalances {
 	fn can_build(
 		name: &str,
 		kind: ReportingProductKind,
-		args: &Box<dyn ReportingStepArgs>,
+		args: &ReportingStepArgs,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
@@ -273,7 +271,7 @@ impl GenerateBalances {
 				&ReportingProductId {
 					name: name.to_string(),
 					kind: ReportingProductKind::Transactions,
-					args: Box::new(VoidArgs {}),
+					args: ReportingStepArgs::VoidArgs,
 				},
 				steps,
 				dependencies,
@@ -301,14 +299,14 @@ impl GenerateBalances {
 	fn build(
 		name: String,
 		_kind: ReportingProductKind,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(GenerateBalances {
 			step_name: name,
-			args: *args.downcast().unwrap(),
+			args: args.into(),
 		})
 	}
 }
@@ -325,7 +323,7 @@ impl ReportingStep for GenerateBalances {
 		ReportingStepId {
 			name: self.step_name.clone(),
 			product_kinds: vec![ReportingProductKind::BalancesAt],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -343,7 +341,7 @@ impl ReportingStep for GenerateBalances {
 			&ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			steps,
 			dependencies,
@@ -357,7 +355,7 @@ impl ReportingStep for GenerateBalances {
 					ReportingProductId {
 						name: self.step_name.clone(),
 						kind: ReportingProductKind::Transactions,
-						args: Box::new(self.args.clone()),
+						args: ReportingStepArgs::DateArgs(self.args.clone()),
 					},
 				);
 				return;
@@ -371,7 +369,7 @@ impl ReportingStep for GenerateBalances {
 			ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::Transactions,
-				args: Box::new(VoidArgs {}),
+				args: ReportingStepArgs::VoidArgs,
 			},
 		);
 	}
@@ -410,7 +408,7 @@ impl ReportingStep for GenerateBalances {
 			ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);
@@ -441,73 +439,72 @@ impl UpdateBalancesAt {
 	fn can_build(
 		name: &str,
 		kind: ReportingProductKind,
-		args: &Box<dyn ReportingStepArgs>,
+		args: &ReportingStepArgs,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		context: &ReportingContext,
 	) -> bool {
-		if !args.is::<DateArgs>() {
-			return false;
-		}
+		if let ReportingStepArgs::DateArgs(args) = args {
+			// Check for Transactions -> BalancesAt
+			if kind == ReportingProductKind::BalancesAt {
+				// Initially no need to check args
+				if let Some(step) = steps.iter().find(|s| {
+					s.id().name == name
+						&& s.id()
+							.product_kinds
+							.contains(&ReportingProductKind::Transactions)
+				}) {
+					// Check for BalancesAt -> Transactions
+					let dependencies_for_step = dependencies.dependencies_for_step(&step.id());
+					if dependencies_for_step.len() == 1
+						&& dependencies_for_step[0].product.kind == ReportingProductKind::BalancesAt
+					{
+						return true;
+					}
 
-		// Check for Transactions -> BalancesAt
-		if kind == ReportingProductKind::BalancesAt {
-			// Initially no need to check args
-			if let Some(step) = steps.iter().find(|s| {
-				s.id().name == name
-					&& s.id()
-						.product_kinds
-						.contains(&ReportingProductKind::Transactions)
-			}) {
-				// Check for BalancesAt -> Transactions
-				let dependencies_for_step = dependencies.dependencies_for_step(&step.id());
-				if dependencies_for_step.len() == 1
-					&& dependencies_for_step[0].product.kind == ReportingProductKind::BalancesAt
-				{
-					return true;
-				}
-
-				// Check if BalancesBetween -> Transactions and BalancesAt is available
-				if dependencies_for_step.len() == 1
-					&& dependencies_for_step[0].product.kind
-						== ReportingProductKind::BalancesBetween
-				{
-					match has_step_or_can_build(
-						&ReportingProductId {
-							name: dependencies_for_step[0].product.name.clone(),
-							kind: ReportingProductKind::BalancesAt,
-							args: Box::new(DateArgs {
-								date: args.downcast_ref::<DateArgs>().unwrap().date,
-							}),
-						},
-						steps,
-						dependencies,
-						context,
-					) {
-						HasStepOrCanBuild::HasStep(_)
-						| HasStepOrCanBuild::CanLookup(_)
-						| HasStepOrCanBuild::CanBuild(_) => {
-							return true;
+					// Check if BalancesBetween -> Transactions and BalancesAt is available
+					if dependencies_for_step.len() == 1
+						&& dependencies_for_step[0].product.kind
+							== ReportingProductKind::BalancesBetween
+					{
+						match has_step_or_can_build(
+							&ReportingProductId {
+								name: dependencies_for_step[0].product.name.clone(),
+								kind: ReportingProductKind::BalancesAt,
+								args: ReportingStepArgs::DateArgs(DateArgs { date: args.date }),
+							},
+							steps,
+							dependencies,
+							context,
+						) {
+							HasStepOrCanBuild::HasStep(_)
+							| HasStepOrCanBuild::CanLookup(_)
+							| HasStepOrCanBuild::CanBuild(_) => {
+								return true;
+							}
+							HasStepOrCanBuild::None => {}
 						}
-						HasStepOrCanBuild::None => {}
 					}
 				}
 			}
+
+			return false;
+		} else {
+			return false;
 		}
-		return false;
 	}
 
 	fn build(
 		name: String,
 		_kind: ReportingProductKind,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(UpdateBalancesAt {
 			step_name: name,
-			args: *args.downcast().unwrap(),
+			args: args.into(),
 		})
 	}
 }
@@ -524,7 +521,7 @@ impl ReportingStep for UpdateBalancesAt {
 		ReportingStepId {
 			name: self.step_name.clone(),
 			product_kinds: vec![ReportingProductKind::BalancesAt],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateArgs(self.args.clone()),
 		}
 	}
 
@@ -569,7 +566,7 @@ impl ReportingStep for UpdateBalancesAt {
 				ReportingProductId {
 					name: dependency.name.clone(),
 					kind: ReportingProductKind::BalancesAt,
-					args: Box::new(DateArgs {
+					args: ReportingStepArgs::DateArgs(DateArgs {
 						date: self.args.date,
 					}),
 				},
@@ -626,7 +623,7 @@ impl ReportingStep for UpdateBalancesAt {
 				.get_or_err(&ReportingProductId {
 					name: dependency.name.clone(),
 					kind: ReportingProductKind::BalancesAt,
-					args: Box::new(DateArgs {
+					args: ReportingStepArgs::DateArgs(DateArgs {
 						date: self.args.date,
 					}),
 				})?
@@ -651,7 +648,7 @@ impl ReportingStep for UpdateBalancesAt {
 			ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesAt,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);
@@ -678,7 +675,7 @@ impl UpdateBalancesBetween {
 	fn can_build(
 		name: &str,
 		kind: ReportingProductKind,
-		_args: &Box<dyn ReportingStepArgs>,
+		_args: &ReportingStepArgs,
 		steps: &Vec<Box<dyn ReportingStep>>,
 		dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
@@ -708,14 +705,14 @@ impl UpdateBalancesBetween {
 	fn build(
 		name: String,
 		_kind: ReportingProductKind,
-		args: Box<dyn ReportingStepArgs>,
+		args: ReportingStepArgs,
 		_steps: &Vec<Box<dyn ReportingStep>>,
 		_dependencies: &ReportingGraphDependencies,
 		_context: &ReportingContext,
 	) -> Box<dyn ReportingStep> {
 		Box::new(UpdateBalancesBetween {
 			step_name: name,
-			args: *args.downcast().unwrap(),
+			args: args.into(),
 		})
 	}
 }
@@ -732,7 +729,7 @@ impl ReportingStep for UpdateBalancesBetween {
 		ReportingStepId {
 			name: self.step_name.clone(),
 			product_kinds: vec![ReportingProductKind::BalancesBetween],
-			args: Box::new(self.args.clone()),
+			args: ReportingStepArgs::DateStartDateEndArgs(self.args.clone()),
 		}
 	}
 
@@ -767,11 +764,10 @@ impl ReportingStep for UpdateBalancesBetween {
 		let dependencies_for_step = dependencies.dependencies_for_step(&parent_step.id());
 		let balances_between_product = &dependencies_for_step[0].product; // Existence and uniqueness checked in can_build
 
-		if *balances_between_product
-			.args
-			.downcast_ref::<DateStartDateEndArgs>()
-			.unwrap() == self.args
-		{
+		if matches!(
+			balances_between_product.args,
+			ReportingStepArgs::DateStartDateEndArgs(_)
+		) {
 			// Directly depends on BalanceBetween -> Transaction with appropriate date
 			// Do not need to add extra dependencies
 		} else {
@@ -781,7 +777,7 @@ impl ReportingStep for UpdateBalancesBetween {
 				ReportingProductId {
 					name: balances_between_product.name.clone(),
 					kind: ReportingProductKind::BalancesBetween,
-					args: Box::new(self.args.clone()),
+					args: ReportingStepArgs::DateStartDateEndArgs(self.args.clone()),
 				},
 			);
 		}
@@ -827,7 +823,7 @@ impl ReportingStep for UpdateBalancesBetween {
 			.get_or_err(&ReportingProductId {
 				name: balances_between_product.name.clone(),
 				kind: ReportingProductKind::BalancesBetween,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateStartDateEndArgs(self.args.clone()),
 			})?
 			.downcast_ref::<BalancesBetween>()
 			.unwrap()
@@ -851,7 +847,7 @@ impl ReportingStep for UpdateBalancesBetween {
 			ReportingProductId {
 				name: self.step_name.clone(),
 				kind: ReportingProductKind::BalancesBetween,
-				args: Box::new(self.args.clone()),
+				args: ReportingStepArgs::DateStartDateEndArgs(self.args.clone()),
 			},
 			Box::new(balances),
 		);

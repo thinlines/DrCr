@@ -30,6 +30,7 @@ use tokio::sync::RwLock;
 
 use crate::db::DbConnection;
 use crate::model::transaction::TransactionWithPostings;
+use crate::plugin::PluginSpec;
 use crate::QuantityInt;
 
 use super::calculator::ReportingGraphDependencies;
@@ -42,6 +43,8 @@ use super::executor::ReportingExecutionError;
 pub struct ReportingContext {
 	// Configuration
 	pub db_connection: DbConnection,
+	pub plugin_dir: String,
+	pub plugin_names: Vec<String>,
 	pub eofy_date: NaiveDate,
 	pub reporting_commodity: String,
 
@@ -51,21 +54,27 @@ pub struct ReportingContext {
 		(ReportingStepTakesArgsFn, ReportingStepFromArgsFn),
 	>,
 	pub(crate) step_dynamic_builders: Vec<ReportingStepDynamicBuilder>,
+	pub(crate) plugin_specs: HashMap<String, PluginSpec>,
 }
 
 impl ReportingContext {
 	/// Initialise a new [ReportingContext]
 	pub fn new(
 		db_connection: DbConnection,
+		plugin_dir: String,
+		plugin_names: Vec<String>,
 		eofy_date: NaiveDate,
 		reporting_commodity: String,
 	) -> Self {
 		Self {
 			db_connection,
+			plugin_dir,
+			plugin_names,
 			eofy_date,
 			reporting_commodity,
 			step_lookup_fn: HashMap::new(),
 			step_dynamic_builders: Vec::new(),
+			plugin_specs: HashMap::new(),
 		}
 	}
 
@@ -139,7 +148,7 @@ pub struct ReportingStepDynamicBuilder {
 // REPORTING PRODUCTS
 
 /// Identifies a [ReportingProduct]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ReportingProductId {
 	pub name: String,
 	pub kind: ReportingProductKind,
@@ -155,7 +164,7 @@ impl Display for ReportingProductId {
 /// Identifies a type of [Box]ed [ReportingProduct]
 ///
 /// See [Box::downcast].
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum ReportingProductKind {
 	/// The [Box]ed [ReportingProduct] is a [Transactions]
 	Transactions,
@@ -184,7 +193,7 @@ pub struct Transactions {
 impl ReportingProduct for Transactions {}
 
 /// Records cumulative account balances at a particular point in time
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BalancesAt {
 	pub balances: HashMap<String, QuantityInt>,
 }
@@ -192,7 +201,7 @@ pub struct BalancesAt {
 impl ReportingProduct for BalancesAt {}
 
 /// Records the total value of transactions in each account between two points in time
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BalancesBetween {
 	pub balances: HashMap<String, QuantityInt>,
 }
@@ -274,7 +283,7 @@ impl Display for ReportingProducts {
 // REPORTING STEPS
 
 /// Identifies a [ReportingStep]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ReportingStepId {
 	pub name: String,
 	pub product_kinds: Vec<ReportingProductKind>,
@@ -345,7 +354,7 @@ downcast_rs::impl_downcast!(ReportingStep);
 // REPORTING STEP ARGUMENTS
 
 /// Represents arguments to a [ReportingStep]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum ReportingStepArgs {
 	// This is an enum not a trait, to simply conversion to and from Lua
 	/// [ReportingStepArgs] implementation which takes no arguments
@@ -378,8 +387,9 @@ impl Display for ReportingStepArgs {
 	}
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct DateArgs {
+	#[serde(with = "crate::serde::naivedate_to_js")]
 	pub date: NaiveDate,
 }
 
@@ -399,9 +409,11 @@ impl Into<DateArgs> for ReportingStepArgs {
 	}
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct DateStartDateEndArgs {
+	#[serde(with = "crate::serde::naivedate_to_js")]
 	pub date_start: NaiveDate,
+	#[serde(with = "crate::serde::naivedate_to_js")]
 	pub date_end: NaiveDate,
 }
 
@@ -421,7 +433,7 @@ impl Into<DateStartDateEndArgs> for ReportingStepArgs {
 	}
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct MultipleDateArgs {
 	pub dates: Vec<DateArgs>,
 }
@@ -449,7 +461,7 @@ impl Into<MultipleDateArgs> for ReportingStepArgs {
 	}
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct MultipleDateStartDateEndArgs {
 	pub dates: Vec<DateStartDateEndArgs>,
 }

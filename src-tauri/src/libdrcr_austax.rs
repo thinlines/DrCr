@@ -18,15 +18,19 @@
 
 use libdrcr::reporting::dynamic_report::DynamicReport;
 use libdrcr::reporting::types::{ReportingProductId, ReportingProductKind, ReportingStepArgs};
-use tauri::State;
+use tauri::{AppHandle, State};
 use tokio::sync::Mutex;
 
 use crate::libdrcr_bridge::get_report;
 use crate::AppState;
 
 #[tauri::command]
-pub(crate) async fn get_tax_summary(state: State<'_, Mutex<AppState>>) -> Result<String, ()> {
+pub(crate) async fn get_tax_summary(
+	app: AppHandle,
+	state: State<'_, Mutex<AppState>>,
+) -> Result<String, ()> {
 	Ok(get_report(
+		app,
 		state,
 		&ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),

@@ -30,18 +30,25 @@ use libdrcr::reporting::types::{
 	ReportingStepArgs, Transactions,
 };
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::path::BaseDirectory;
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::Mutex;
 
 use crate::AppState;
 
 fn prepare_reporting_context(context: &mut ReportingContext) {
-	libdrcr::austax::register_lookup_fns(context);
 	libdrcr::reporting::steps::register_lookup_fns(context);
 	libdrcr::reporting::builders::register_dynamic_builders(context);
+	libdrcr::plugin::register_lookup_fns(context);
+}
+
+fn get_plugins() -> Vec<String> {
+	// FIXME: Dynamically get this
+	vec!["austax.austax".to_string()]
 }
 
 pub(crate) async fn get_report(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 	target: &ReportingProductId,
 ) -> Box<dyn ReportingProduct> {
@@ -54,7 +61,18 @@ pub(crate) async fn get_report(
 
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
-	let mut context = ReportingContext::new(db_connection, eofy_date, "$".to_string());
+	let mut context = ReportingContext::new(
+		db_connection,
+		app.path()
+			.resolve("plugins", BaseDirectory::Resource)
+			.unwrap()
+			.to_str()
+			.unwrap()
+			.to_string(),
+		get_plugins(),
+		eofy_date,
+		"$".to_string(),
+	);
 	prepare_reporting_context(&mut context);
 
 	// Get dynamic report
@@ -75,9 +93,11 @@ pub(crate) async fn get_report(
 
 #[tauri::command]
 pub(crate) async fn get_all_transactions_except_earnings_to_equity(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 ) -> Result<String, ()> {
 	let transactions = get_report(
+		app,
 		state,
 		&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
@@ -97,10 +117,12 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity(
 
 #[tauri::command]
 pub(crate) async fn get_all_transactions_except_earnings_to_equity_for_account(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 	account: String,
 ) -> Result<String, ()> {
 	let transactions = get_report(
+		app,
 		state,
 		&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),
@@ -126,6 +148,7 @@ pub(crate) async fn get_all_transactions_except_earnings_to_equity_for_account(
 
 #[tauri::command]
 pub(crate) async fn get_balance_sheet(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 	dates: Vec<String>,
 ) -> Result<String, ()> {
@@ -137,6 +160,7 @@ pub(crate) async fn get_balance_sheet(
 	}
 
 	Ok(get_report(
+		app,
 		state,
 		&ReportingProductId {
 			name: "BalanceSheet".to_string(),
@@ -154,6 +178,7 @@ pub(crate) async fn get_balance_sheet(
 
 #[tauri::command]
 pub(crate) async fn get_income_statement(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 	dates: Vec<(String, String)>,
 ) -> Result<String, ()> {
@@ -166,6 +191,7 @@ pub(crate) async fn get_income_statement(
 	}
 
 	Ok(get_report(
+		app,
 		state,
 		&ReportingProductId {
 			name: "IncomeStatement".to_string(),
@@ -183,12 +209,14 @@ pub(crate) async fn get_income_statement(
 
 #[tauri::command]
 pub(crate) async fn get_trial_balance(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 	date: String,
 ) -> Result<String, ()> {
 	let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").expect("Invalid date");
 
 	Ok(get_report(
+		app,
 		state,
 		&ReportingProductId {
 			name: "TrialBalance".to_string(),
@@ -211,6 +239,7 @@ struct ValidatedBalanceAssertion {
 
 #[tauri::command]
 pub(crate) async fn get_validated_balance_assertions(
+	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
 ) -> Result<String, ()> {
 	let state = state.lock().await;
@@ -233,8 +262,18 @@ pub(crate) async fn get_validated_balance_assertions(
 
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
-	let mut context =
-		ReportingContext::new(db_connection, get_plugins(), eofy_date, "$".to_string());
+	let mut context = ReportingContext::new(
+		db_connection,
+		app.path()
+			.resolve("plugins", BaseDirectory::Resource)
+			.unwrap()
+			.to_str()
+			.unwrap()
+			.to_string(),
+		get_plugins(),
+		eofy_date,
+		"$".to_string(),
+	);
 	prepare_reporting_context(&mut context);
 
 	// Get report targets

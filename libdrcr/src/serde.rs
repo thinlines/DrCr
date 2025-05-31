@@ -16,6 +16,51 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/// Serialises [chrono::NaiveDate] in database format
+///
+/// Use as `#[serde(with = "crate::serde::naivedate_to_js")]`, etc.
+pub mod naivedate_to_js {
+	use std::fmt;
+
+	use chrono::NaiveDate;
+	use serde::{
+		de::{self, Unexpected, Visitor},
+		Deserializer, Serializer,
+	};
+
+	pub(crate) fn serialize<S: Serializer>(
+		dt: &NaiveDate,
+		serializer: S,
+	) -> Result<S::Ok, S::Error> {
+		serializer.serialize_str(&dt.format("%Y-%m-%d").to_string())
+	}
+
+	struct DateVisitor;
+	impl<'de> Visitor<'de> for DateVisitor {
+		type Value = NaiveDate;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+			write!(formatter, "a date string")
+		}
+
+		fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+		where
+			E: de::Error,
+		{
+			match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+				Ok(dt) => Ok(dt),
+				Err(_) => Err(de::Error::invalid_value(Unexpected::Str(s), &self)),
+			}
+		}
+	}
+
+	pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+		deserializer: D,
+	) -> Result<NaiveDate, D::Error> {
+		deserializer.deserialize_str(DateVisitor)
+	}
+}
+
 /// Serialises [chrono::NaiveDateTime] in database format
 ///
 /// Use as `#[serde(with = "crate::serde::naivedatetime_to_js")]`, etc.
@@ -40,7 +85,7 @@ pub mod naivedatetime_to_js {
 		type Value = NaiveDateTime;
 
 		fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-			write!(formatter, "a date string")
+			write!(formatter, "a datetime string")
 		}
 
 		fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>

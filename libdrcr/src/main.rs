@@ -38,12 +38,14 @@ async fn main() {
 	// Initialise ReportingContext
 	let mut context = ReportingContext::new(
 		db_connection,
+		"plugins".to_string(),
+		vec!["austax.austax".to_string()],
 		NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
 		"$".to_string(),
 	);
+	libdrcr::plugin::register_lookup_fns(&mut context);
 	libdrcr::reporting::steps::register_lookup_fns(&mut context);
 	libdrcr::reporting::builders::register_dynamic_builders(&mut context);
-	libdrcr::austax::register_lookup_fns(&mut context);
 
 	let context = Arc::new(context);
 
@@ -109,16 +111,16 @@ async fn main() {
 		.await
 		.unwrap();
 
-	let result = products
-		.get_or_err(&ReportingProductId {
-			name: "CalculateIncomeTax".to_string(),
-			kind: ReportingProductKind::DynamicReport,
-			args: ReportingStepArgs::VoidArgs,
-		})
-		.unwrap();
+	// let result = products
+	// 	.get_or_err(&ReportingProductId {
+	// 		name: "CalculateIncomeTax".to_string(),
+	// 		kind: ReportingProductKind::DynamicReport,
+	// 		args: ReportingStepArgs::VoidArgs,
+	// 	})
+	// 	.unwrap();
 
-	println!("Tax summary:");
-	println!("{:?}", result);
+	// println!("Tax summary:");
+	// println!("{:?}", result);
 
 	let result = products
 		.get_or_err(&ReportingProductId {

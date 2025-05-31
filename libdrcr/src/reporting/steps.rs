@@ -79,11 +79,19 @@ impl AllTransactionsExceptEarningsToEquity {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsExceptEarningsToEquity {
 			args: *args.downcast().unwrap(),
 		})
@@ -143,18 +151,22 @@ impl AllTransactionsExceptEarningsToEquityBalances {
 			"AllTransactionsExceptEarningsToEquity".to_string(),
 			vec![ReportingProductKind::BalancesAt],
 			Self::takes_args,
-			|a| Self::from_args(ReportingProductKind::BalancesAt, a),
+			|_name, args, _ctx| Self::from_args(ReportingProductKind::BalancesAt, args),
 		);
 
 		context.register_lookup_fn(
 			"AllTransactionsExceptEarningsToEquity".to_string(),
 			vec![ReportingProductKind::BalancesBetween],
 			Self::takes_args,
-			|a| Self::from_args(ReportingProductKind::BalancesBetween, a),
+			|_name, args, _ctx| Self::from_args(ReportingProductKind::BalancesBetween, args),
 		);
 	}
 
-	fn takes_args(_args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		_args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		true
 	}
 
@@ -249,11 +261,19 @@ impl AllTransactionsIncludingEarningsToEquity {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(AllTransactionsIncludingEarningsToEquity {
 			args: *args.downcast().unwrap(),
 		})
@@ -381,11 +401,19 @@ impl BalanceSheet {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<MultipleDateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(BalanceSheet {
 			args: *args.downcast().unwrap(),
 		})
@@ -555,11 +583,19 @@ impl CombineOrdinaryTransactions {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(CombineOrdinaryTransactions {
 			args: *args.downcast().unwrap(),
 		})
@@ -628,11 +664,19 @@ impl CombineOrdinaryTransactionsBalances {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(CombineOrdinaryTransactionsBalances {
 			args: *args.downcast().unwrap(),
 		})
@@ -729,11 +773,19 @@ impl CurrentYearEarningsToEquity {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(CurrentYearEarningsToEquity {
 			args: *args.downcast().unwrap(),
 		})
@@ -866,11 +918,19 @@ impl DBBalances {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(DBBalances {
 			args: *args.downcast().unwrap(),
 		})
@@ -933,11 +993,19 @@ impl DBTransactions {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<VoidArgs>()
 	}
 
-	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		_args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(DBTransactions {})
 	}
 }
@@ -1000,11 +1068,19 @@ impl IncomeStatement {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<MultipleDateStartDateEndArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(IncomeStatement {
 			args: *args.downcast().unwrap(),
 		})
@@ -1171,11 +1247,19 @@ impl PostUnreconciledStatementLines {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<VoidArgs>()
 	}
 
-	fn from_args(_args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		_args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(PostUnreconciledStatementLines {})
 	}
 }
@@ -1278,11 +1362,19 @@ impl RetainedEarningsToEquity {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(RetainedEarningsToEquity {
 			args: *args.downcast().unwrap(),
 		})
@@ -1418,11 +1510,19 @@ impl TrialBalance {
 		);
 	}
 
-	fn takes_args(args: &Box<dyn ReportingStepArgs>) -> bool {
+	fn takes_args(
+		_name: &str,
+		args: &Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> bool {
 		args.is::<DateArgs>()
 	}
 
-	fn from_args(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep> {
+	fn from_args(
+		_name: &str,
+		args: Box<dyn ReportingStepArgs>,
+		_context: &ReportingContext,
+	) -> Box<dyn ReportingStep> {
 		Box::new(TrialBalance {
 			args: *args.downcast().unwrap(),
 		})

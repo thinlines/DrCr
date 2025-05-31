@@ -102,12 +102,17 @@ impl ReportingContext {
 /// Function which determines whether the [ReportingStepArgs] are valid arguments for a given [ReportingStep]
 ///
 /// See [ReportingContext::register_lookup_fn].
-pub type ReportingStepTakesArgsFn = fn(args: &Box<dyn ReportingStepArgs>) -> bool;
+pub type ReportingStepTakesArgsFn =
+	fn(name: &str, args: &Box<dyn ReportingStepArgs>, context: &ReportingContext) -> bool;
 
 /// Function which builds a concrete [ReportingStep] from the given [ReportingStepArgs]
 ///
 /// See [ReportingContext::register_lookup_fn].
-pub type ReportingStepFromArgsFn = fn(args: Box<dyn ReportingStepArgs>) -> Box<dyn ReportingStep>;
+pub type ReportingStepFromArgsFn = fn(
+	name: &str,
+	args: Box<dyn ReportingStepArgs>,
+	context: &ReportingContext,
+) -> Box<dyn ReportingStep>;
 
 // -------------------------------
 // REPORTING STEP DYNAMIC BUILDERS

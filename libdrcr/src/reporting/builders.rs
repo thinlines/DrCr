@@ -260,7 +260,7 @@ impl GenerateBalances {
 				}
 				HasStepOrCanBuild::CanLookup(lookup_fn) => {
 					// Check for () -> Transactions
-					let step = lookup_fn(args.clone());
+					let step = lookup_fn(name, args.clone(), context);
 					if step.requires(context).len() == 0 {
 						return true;
 					}
@@ -287,7 +287,7 @@ impl GenerateBalances {
 				}
 				HasStepOrCanBuild::CanLookup(lookup_fn) => {
 					// Check for () -> Transactions
-					let step = lookup_fn(args.clone());
+					let step = lookup_fn(name, args.clone(), context);
 					if step.requires(context).len() == 0 {
 						return true;
 					}

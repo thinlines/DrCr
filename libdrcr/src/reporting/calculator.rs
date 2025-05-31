@@ -96,7 +96,7 @@ pub fn has_step_or_can_build<'a, 'b>(
 		.find(|(name, kinds)| *name == product.name && kinds.contains(&product.kind))
 	{
 		let (takes_args_fn, from_args_fn) = context.step_lookup_fn.get(lookup_key).unwrap();
-		if takes_args_fn(&product.args) {
+		if takes_args_fn(&product.name, &product.args, context) {
 			return HasStepOrCanBuild::CanLookup(*from_args_fn);
 		}
 	}
@@ -133,7 +133,7 @@ fn build_step_for_product(
 			panic!("Attempted to call build_step_for_product for already existing step")
 		}
 		HasStepOrCanBuild::CanLookup(from_args_fn) => {
-			new_step = from_args_fn(product.args.clone());
+			new_step = from_args_fn(&product.name, product.args.clone(), context);
 
 			// Check new step meets the dependency
 			if new_step.id().name != product.name {

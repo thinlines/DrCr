@@ -764,14 +764,17 @@ impl ReportingStep for UpdateBalancesBetween {
 		let dependencies_for_step = dependencies.dependencies_for_step(&parent_step.id());
 		let balances_between_product = &dependencies_for_step[0].product; // Existence and uniqueness checked in can_build
 
-		if matches!(
-			balances_between_product.args,
-			ReportingStepArgs::DateStartDateEndArgs(_)
-		) {
-			// Directly depends on BalanceBetween -> Transaction with appropriate date
-			// Do not need to add extra dependencies
-		} else {
-			// Depends on BalanceBetween with appropriate date
+		let mut is_already_transitive_dependency = false;
+		if let ReportingStepArgs::DateStartDateEndArgs(args) = &balances_between_product.args {
+			if *args == self.args {
+				// Directly depends on BalanceBetween -> Transaction with appropriate date
+				// Do not need to add extra dependencies
+				is_already_transitive_dependency = true;
+			}
+		}
+
+		if !is_already_transitive_dependency {
+			// Add dependency on BalanceBetween with appropriate date
 			dependencies.add_dependency(
 				self.id(),
 				ReportingProductId {

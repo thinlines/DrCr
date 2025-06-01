@@ -44,8 +44,37 @@ export type ReportingStep = {
 	execute: (
 		ReportingStepArgs,
 		ReportingContext,
+		{[string]: {string}},  -- kinds_for_account
 		(ReportingProductId) -> ReportingProduct  -- get_product
 	) -> {[ReportingProductId]: ReportingProduct},
+}
+
+------------------
+-- Dynamic reports
+
+export type DynamicReport = {
+	title: string,
+	columns: {string},
+	entries: {DynamicReportEntry},
+}
+
+export type DynamicReportEntry = 'Spacer' | { Section: Section } | { Row: Row }
+
+export type Section = {
+	text: string | nil,
+	id: string | nil,
+	visible: boolean,
+	entries: {DynamicReportEntry},
+}
+
+export type Row = {
+	text: string,
+	quantity: {number},
+	id: string | nil,
+	visible: boolean,
+	link: string | nil,
+	heading: boolean,
+	bordered: boolean,
 }
 
 -------------------------
@@ -55,6 +84,7 @@ export type ReportingContext = {
 	sofy_date: string,
 	eofy_date: string,
 	reporting_commodity: string,
+	dps: number,
 }
 
 -- Accounting types
@@ -87,7 +117,6 @@ export type ReportingProduct = {
 
 export type BalancesAt = any
 export type BalancesBetween = any
-export type DynamicReport = any
 export type Transactions = { transactions: {Transaction} }
 
 export type ReportingProductId = {
@@ -119,6 +148,33 @@ export type MultipleDateStartDateEndArgs = { dates: {DateStartDateEndArgs} }
 -- Module exports
 
 local libdrcr = {}
+
+function libdrcr.arr_contains(haystack: {any}, needle: any): boolean
+	for _, element in ipairs(haystack) do
+		if element == needle then
+			return true
+		end
+	end
+	return false
+end
+
+function libdrcr.date_to_dt(date: string): string
+	return date .. ' 00:00:00.000000'
+end
+
+function libdrcr.parse_date(date: string): (number, number, number)
+	local year_str, month_str, day_str = string.match(date, '(%d%d%d%d)-(%d%d)-(%d%d)')
+	
+	local year = tonumber(year_str)
+	local month = tonumber(month_str)
+	local day = tonumber(day_str)
+	
+	assert(year ~= nil)
+	assert(month ~= nil)
+	assert(day ~= nil)
+	
+	return year, month, day
+end
 
 function libdrcr.repr(value: any): string
 	local result = ''

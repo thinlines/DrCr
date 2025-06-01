@@ -111,17 +111,17 @@ async fn main() {
 		.await
 		.unwrap();
 
-	// let result = products
-	// 	.get_or_err(&ReportingProductId {
-	// 		name: "CalculateIncomeTax".to_string(),
-	// 		kind: ReportingProductKind::DynamicReport,
-	// 		args: ReportingStepArgs::VoidArgs,
-	// 	})
-	// 	.unwrap();
+	let result = products
+		.get_or_err(&ReportingProductId {
+			name: "CalculateIncomeTax".to_string(),
+			kind: ReportingProductKind::DynamicReport,
+			args: ReportingStepArgs::VoidArgs,
+		})
+		.unwrap();
 
-	// println!("Tax summary:");
-	// println!("{:?}", result);
-
+	println!("Tax summary:");
+	println!("{:?}", result);
+	
 	let result = products
 		.get_or_err(&ReportingProductId {
 			name: "AllTransactionsExceptEarningsToEquity".to_string(),

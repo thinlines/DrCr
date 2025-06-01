@@ -17,6 +17,32 @@
 
 local libdrcr = require('../libdrcr')
 
+local account_kinds = require('../austax/account_kinds')
+local tax_tables = require('../austax/tax_tables')
+
+function get_base_income_tax(net_taxable: number, context: libdrcr.ReportingContext): number
+	local year, _, _ = libdrcr.parse_date(context.eofy_date)
+	local base_tax_table = tax_tables.base_tax[year]
+	
+	for i, row in ipairs(base_tax_table) do
+		local upper_limit = row[1] * (10 ^ context.dps)
+		local flat_amount = row[2] * (10 ^ context.dps)
+		local marginal_rate = row[3]
+		
+		-- Lower limit is the upper limit of the preceding bracket
+		local lower_limit = 0
+		if i > 1 then
+			lower_limit = base_tax_table[i - 1][1] * (10 ^ context.dps)
+		end
+		
+		if net_taxable <= upper_limit then
+			return flat_amount + marginal_rate * (net_taxable - lower_limit)
+		end
+	end
+	
+	error('Taxable income not within any tax bracket')
+end
+
 function requires(args, context)
 	return {
 		{
@@ -28,8 +54,7 @@ function requires(args, context)
 end
 
 function after_init_graph(args, steps, add_dependency, context)
-	for i = 1, #steps do
-		local other = steps[i]
+	for _, other in ipairs(steps) do
 		if other.name == 'AllTransactionsExceptEarningsToEquity' then
 			-- AllTransactionsExceptEarningsToEquity depends on CalculateIncomeTax
 			-- TODO: Only in applicable years
@@ -50,24 +75,267 @@ function after_init_graph(args, steps, add_dependency, context)
 	end
 end
 
-function execute(args, context, get_product)
-	print('Stub: CombineOrdinaryTransactions.execute')
-	
+function execute(args, context, kinds_for_account, get_product)
+	-- Get balances for current year
 	local product = get_product({
 		name = 'CombineOrdinaryTransactions',
 		kind = 'BalancesBetween',
 		args = { DateStartDateEndArgs = { date_start = context.sofy_date, date_end = context.eofy_date } }
 	})
+	assert(product.BalancesBetween ~= nil)
+	local balances = product.BalancesBetween.balances
 	
-	print(libdrcr.repr(product))
+	-- Generate tax summary report
+	local report: libdrcr.DynamicReport = {
+		title = 'Tax summary',
+		columns = {'$'},
+		entries = {},
+	}
+	
+	-- Add income entries
+	local total_income = 0
+	
+	for _, income_type in ipairs(account_kinds.income_types) do
+		local code, label, number = unpack(income_type)
+		
+		local entries
+		if code == 'income1' then
+			-- Special case for salary or wages - round each separately
+			entries = entries_for_kind_floor('austax.' .. code, true, balances, kinds_for_account, 100)
+		else
+			entries = entries_for_kind('austax.' .. code, true, balances, kinds_for_account)
+		end
+		
+		if #entries == 0 then
+			continue
+		end
+		
+		local section: libdrcr.Section = {
+			text = label .. ' (' .. number .. ')',
+			id = nil,
+			visible = true,
+			entries = entries,
+		}
+		
+		-- Add subtotal row
+		local subtotal = math.floor(entries_subtotal(entries) / 100) * 100
+		total_income += subtotal
+		
+		table.insert(section.entries, { Row = {
+			text = 'Total item ' .. number,
+			quantity = {subtotal},
+			id = 'total_' .. code,
+			visible = true,
+			link = nil,
+			heading = true,
+			bordered = true,
+		}})
+		table.insert(report.entries, { Section = section })
+		table.insert(report.entries, 'Spacer')
+	end
+	
+	-- Total assessable income
+	table.insert(report.entries, { Row = {
+		text = 'Total assessable income',
+		quantity = {total_income},
+		id = 'total_income',
+		visible = true,
+		link = nil,
+		heading = true,
+		bordered = true,
+	}})
+	table.insert(report.entries, 'Spacer')
+	
+	-- Add deduction entries
+	local total_deductions = 0
+	
+	for _, deduction_type in ipairs(account_kinds.deduction_types) do
+		local code, label, number = unpack(deduction_type)
+		
+		local entries = entries_for_kind('austax.' .. code, false, balances, kinds_for_account)
+		
+		if #entries == 0 then
+			continue
+		end
+		
+		local section: libdrcr.Section = {
+			text = label .. ' (' .. number .. ')',
+			id = nil,
+			visible = true,
+			entries = entries,
+		}
+		
+		-- Add subtotal row
+		local subtotal = math.floor(entries_subtotal(entries) / 100) * 100
+		total_deductions += subtotal
+		
+		table.insert(section.entries, { Row = {
+			text = 'Total item ' .. number,
+			quantity = {subtotal},
+			id = 'total_' .. code,
+			visible = true,
+			link = nil,
+			heading = true,
+			bordered = true,
+		}})
+		table.insert(report.entries, { Section = section })
+		table.insert(report.entries, 'Spacer')
+	end
+	
+	-- Total deductions
+	table.insert(report.entries, { Row = {
+		text = 'Total deductions',
+		quantity = {total_deductions},
+		id = 'total_deductions',
+		visible = true,
+		link = nil,
+		heading = true,
+		bordered = true,
+	}})
+	table.insert(report.entries, 'Spacer')
+	
+	-- Net taxable income
+	local net_taxable = total_income - total_deductions
+	table.insert(report.entries, { Row = {
+		text = 'Net taxable income',
+		quantity = {net_taxable},
+		id = 'net_taxable',
+		visible = true,
+		link = nil,
+		heading = true,
+		bordered = true,
+	}})
+	table.insert(report.entries, 'Spacer')
+	
+	-- Base income tax row
+	local tax_base = get_base_income_tax(net_taxable, context)
+	table.insert(report.entries, { Row = {
+		text = 'Base income tax',
+		quantity = {tax_base},
+		id = 'tax_base',
+		visible = true,
+		link = nil,
+		heading = false,
+		bordered = false,
+	}})
+	
+	-- Total income tax row
+	local tax_total = tax_base
+	table.insert(report.entries, { Row = {
+		text = 'Total income tax',
+		quantity = {tax_total},
+		id = 'tax_total',
+		visible = true,
+		link = nil,
+		heading = true,
+		bordered = true,
+	}})
+	
+	-- Generate income tax transaction
+	local transactions: {libdrcr.Transaction} = {
+		{
+			id = nil,
+			dt = libdrcr.date_to_dt(context.eofy_date),
+			description = 'Estimated income tax',
+			postings = {
+				{
+					id = nil,
+					transaction_id = nil,
+					description = nil,
+					account = 'Income Tax',
+					quantity = tax_total,
+					commodity = context.reporting_commodity,
+					quantity_ascost = tax_total,
+				},
+				{
+					id = nil,
+					transaction_id = nil,
+					description = nil,
+					account = 'Income Tax Control',
+					quantity = -tax_total,
+					commodity = context.reporting_commodity,
+					quantity_ascost = -tax_total,
+				}
+			},
+		}
+	}
 	
 	return {
 		[{ name = 'CalculateIncomeTax', kind = 'Transactions', args = 'VoidArgs' }] = {
 			Transactions = {
-				transactions = {}
+				transactions = transactions
 			}
-		}
+		},
+		[{ name = 'CalculateIncomeTax', kind = 'DynamicReport', args = 'VoidArgs' }] = {
+			DynamicReport = report
+		},
 	}
+end
+
+function entries_for_kind(kind: string, invert: boolean, balances:{ [string]: number }, kinds_for_account:{ [string]: {string} }): {libdrcr.DynamicReportEntry}
+	-- Get accounts of specified kind
+	local accounts = {}
+	for account, kinds in pairs(kinds_for_account) do
+		if libdrcr.arr_contains(kinds, kind) then
+			table.insert(accounts, account)
+		end
+	end
+	table.sort(accounts)
+	
+	local entries = {}
+	for _, account in ipairs(accounts) do
+		local quantity = balances[account] or 0
+		if invert then
+			quantity = -quantity
+		end
+		
+		-- Do not show if all quantities are zero
+		if quantity == 0 then
+			continue
+		end
+		
+		-- Some exceptions for the link
+		local link: string | nil
+		if account == 'Current Year Earnings' then
+			link = '/income-statement'
+		elseif account == 'Retained Earnings' then
+			link = nil
+		else
+			link = '/transactions/' .. account
+		end
+		
+		local row: libdrcr.Row = {
+			text = account,
+			quantity = {quantity},
+			id = nil,
+			visible = true,
+			link = link,
+			heading = false,
+			bordered = false,
+		}
+		table.insert(entries, { Row = row })
+	end
+	
+	return entries
+end
+
+-- Call `entries_for_kind` then round results down to next multiple of `floor`
+function entries_for_kind_floor(kind: string, invert: boolean, balances:{ [string]: number }, kinds_for_account:{ [string]: {string} }, floor: number): {libdrcr.DynamicReportEntry}
+	local entries = entries_for_kind(kind, invert, balances, kinds_for_account)
+	for _, entry in ipairs(entries) do
+		local row = (entry :: { Row: libdrcr.Row }).Row
+		row.quantity[1] = math.floor(row.quantity[1] / floor) * floor
+	end
+	return entries
+end
+
+function entries_subtotal(entries: {libdrcr.DynamicReportEntry}): number
+	local subtotal = 0
+	for _, entry in ipairs(entries) do
+		local row = (entry :: { Row: libdrcr.Row }).Row
+		subtotal += row.quantity[1]
+	end
+	return subtotal
 end
 
 local plugin: libdrcr.Plugin = {

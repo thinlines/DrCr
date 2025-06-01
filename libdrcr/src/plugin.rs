@@ -24,6 +24,7 @@ use mlua::{FromLua, Function, Lua, LuaSerdeExt, Table, Value};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
+use crate::account_config::kinds_for_account;
 use crate::reporting::calculator::ReportingGraphDependencies;
 use crate::reporting::dynamic_report::DynamicReport;
 use crate::reporting::executor::ReportingExecutionError;
@@ -178,6 +179,7 @@ struct LuaReportingContext {
 	#[serde(with = "crate::serde::naivedate_to_js")]
 	pub eofy_date: NaiveDate,
 	pub reporting_commodity: String,
+	pub dps: u32,
 }
 
 impl LuaReportingContext {
@@ -186,6 +188,7 @@ impl LuaReportingContext {
 			sofy_date: sofy_from_eofy(context.eofy_date),
 			eofy_date: context.eofy_date,
 			reporting_commodity: context.reporting_commodity.clone(),
+			dps: context.db_connection.metadata().dps,
 		}
 	}
 }
@@ -313,6 +316,10 @@ impl ReportingStep for PluginReportingStep {
 		_dependencies: &ReportingGraphDependencies,
 		products: &RwLock<ReportingProducts>,
 	) -> Result<ReportingProducts, ReportingExecutionError> {
+		// Pre-compute some context for Lua
+		let kinds_for_account =
+			kinds_for_account(context.db_connection.get_account_configurations().await);
+
 		let products = products.read().await;
 
 		// Load plugin
@@ -338,6 +345,7 @@ impl ReportingStep for PluginReportingStep {
 				let result_table = plugin_step.execute.call::<Table>((
 					lua.to_value(&self.args).unwrap(),
 					lua.to_value(&LuaReportingContext::from(context)).unwrap(),
+					lua.to_value(&kinds_for_account).unwrap(),
 					get_product,
 				))?;
 

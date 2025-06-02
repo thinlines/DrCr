@@ -272,6 +272,23 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	}})
 	table.insert(report.entries, 'Spacer')
 	
+	-- Add tax offset entries
+	local total_offset = 0
+	
+	do
+		local entries = entries_for_kind('austax.offset', true, balances, kinds_for_account)
+		if #entries ~= 0 then
+			local section: libdrcr.Section = {
+				text = 'Tax offsets',
+				id = nil,
+				visible = true,
+				entries = entries,
+			}
+			table.insert(report.entries, { Section = section })
+			total_offset += entries_subtotal(entries)
+		end
+	end
+	
 	-- Low income tax offset row
 	local offset_lito = calc.lito(net_taxable, tax_total, context)
 	if offset_lito ~= 0 then
@@ -284,14 +301,14 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 			heading = false,
 			bordered = false,
 		}})
+		total_offset += offset_lito
 	end
 	
 	-- Total tax offsets row
-	local offset_total = offset_lito
-	if offset_total ~= 0 then
+	if total_offset ~= 0 then
 		table.insert(report.entries, { Row = {
 			text = 'Total tax offsets',
-			quantity = {offset_total},
+			quantity = {total_offset},
 			id = nil,
 			visible = true,
 			link = nil,
@@ -347,17 +364,19 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	
 	-- Add PAYGW entries
 	local total_paygw = 0
-	local entries = entries_for_kind('austax.paygw', false, balances, kinds_for_account)
 	
-	if #entries ~= 0 then
-		local section: libdrcr.Section = {
-			text = 'PAYG withheld amounts',
-			id = nil,
-			visible = true,
-			entries = entries,
-		}
-		table.insert(report.entries, { Section = section })
-		total_paygw = math.floor(entries_subtotal(entries) / 100) * 100
+	do
+		local entries = entries_for_kind('austax.paygw', false, balances, kinds_for_account)
+		if #entries ~= 0 then
+			local section: libdrcr.Section = {
+				text = 'PAYG withheld amounts',
+				id = nil,
+				visible = true,
+				entries = entries,
+			}
+			table.insert(report.entries, { Section = section })
+			total_paygw = math.floor(entries_subtotal(entries) / 100) * 100
+		end
 	end
 	
 	-- Total PAYGW row
@@ -375,7 +394,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	end
 	
 	-- ATO liability row
-	local ato_payable = tax_total - offset_total - total_paygw + study_loan_repayment
+	local ato_payable = tax_total - total_offset - total_paygw + study_loan_repayment
 	table.insert(report.entries, { Row = {
 		text = 'ATO liability payable (refundable)',
 		quantity = {ato_payable},
@@ -392,8 +411,8 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	-- Estimated tax payable
 	if charge_tax_monthly then
 		-- Charge income tax expense in parts, one per month
-		local monthly_tax = math.floor((tax_total - offset_total) / 12)
-		local last_month_tax = (tax_total - offset_total) - 11 * monthly_tax  -- To account for rounding errors
+		local monthly_tax = math.floor((tax_total - total_offset) / 12)
+		local last_month_tax = (tax_total - total_offset) - 11 * monthly_tax  -- To account for rounding errors
 		
 		-- Some ad hoc calendar code
 		local eofy_year, eofy_month, _ = libdrcr.parse_date(context.eofy_date)
@@ -458,18 +477,18 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					transaction_id = nil,
 					description = nil,
 					account = INCOME_TAX,
-					quantity = (tax_total - offset_total),
+					quantity = (tax_total - total_offset),
 					commodity = context.reporting_commodity,
-					quantity_ascost = (tax_total - offset_total),
+					quantity_ascost = (tax_total - total_offset),
 				},
 				{
 					id = nil,
 					transaction_id = nil,
 					description = nil,
 					account = INCOME_TAX_CONTROL,
-					quantity = -(tax_total - offset_total),
+					quantity = -(tax_total - total_offset),
 					commodity = context.reporting_commodity,
-					quantity_ascost = -(tax_total - offset_total),
+					quantity_ascost = -(tax_total - total_offset),
 				},
 			},
 		})

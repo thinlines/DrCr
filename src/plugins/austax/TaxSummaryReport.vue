@@ -24,8 +24,8 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { ref } from 'vue';
 	
-	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
-	import { DynamicReport } from '../reports/base.ts';
+	import DynamicReportComponent from '../../components/DynamicReportComponent.vue';
+	import { DynamicReport } from '../../reports/base.ts';
 	
 	const report = ref(null as DynamicReport | null);
 	

@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -57,20 +57,21 @@
 </template>
 
 <script setup lang="ts">
-	import { ref } from 'vue';
+	import { computed, ref } from 'vue';
 	
-	import { accountKinds } from '../registry.ts';
+	import { drcrAccountKinds, getAccountKinds } from '../registry.ts';
 	import { db } from '../db.ts';
 	import DropdownBox from '../components/DropdownBox.vue';
 	
-	const accountKindsMap = new Map(accountKinds);
-	const accountKindsByModule = [...Map.groupBy(accountKinds, (k) => k[0].split('.')[0]).entries()];
+	const accountKinds = ref([...drcrAccountKinds]);
+	const accountKindsMap = computed(() => new Map(accountKinds.value));
+	const accountKindsByModule = computed(() => [...Map.groupBy(accountKinds.value, (k) => k[0].split('.')[0]).entries()]);
 	
 	const accounts = ref(new Map<string, string[]>());
 	const selectedAccounts = ref([]);
-	const selectedAccountKind = ref(accountKinds[0]);
+	const selectedAccountKind = ref(drcrAccountKinds[0]);
 	
-	async function load() {
+	async function loadAccountConfigurations() {
 		const session = await db.load();
 		
 		const accountKindsRaw: {account: string, kind: string | null}[] = await session.select(
@@ -88,7 +89,12 @@
 		}
 	}
 	
-	load();
+	async function loadAccountKinds() {
+		accountKinds.value = await getAccountKinds();
+	}
+	
+	loadAccountConfigurations();
+	loadAccountKinds();
 	
 	async function addAccountType() {
 		// Associate selected accounts with the selected account kind
@@ -109,7 +115,7 @@
 		
 		// Reload data
 		accounts.value.clear();
-		await load();
+		await loadAccountConfigurations();
 	}
 	
 	async function removeAccountType() {
@@ -131,6 +137,6 @@
 		
 		// Reload data
 		accounts.value.clear();
-		await load();
+		await loadAccountConfigurations();
 	}
 </script>

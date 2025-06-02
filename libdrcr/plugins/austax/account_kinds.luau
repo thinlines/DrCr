@@ -15,6 +15,8 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+-- NB: Content of this file is also parsed by frontend src/plugins/austax/account_kinds.ts
+-- Check the syntax is compatible with that parser!
 local income_types = {
 	{'income1', 'Salary or wages', '1'},
 	{'income2', 'Allowances, earnings, tips, director\'s fees etc.', '2'},
@@ -42,6 +44,8 @@ local income_types = {
 	{'income24', 'Other income', '24'},
 }
 
+-- NB: Content of this file is also parsed by frontend src/plugins/austax/account_kinds.ts
+-- Check the syntax is compatible with that parser!
 local deduction_types = {
 	{'d1', 'Work-related car expenses', 'D1'},
 	{'d2', 'Work-related travel expenses', 'D2'},

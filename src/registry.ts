@@ -16,10 +16,21 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-export const accountKinds: [string, string][] = [
+import * as austax from './plugins/austax/account_kinds.ts';
+
+export const drcrAccountKinds: [string, string][] = [
 	['drcr.asset', 'Asset'],
 	['drcr.liability', 'Liability'],
 	['drcr.income', 'Income'],
 	['drcr.expense', 'Expense'],
 	['drcr.equity', 'Equity']
 ];
+
+export async function getAccountKinds() {
+	const accountKinds = [...drcrAccountKinds];
+	
+	// FIXME: Make this customisable
+	accountKinds.push(...await austax.getAccountKinds());
+	
+	return accountKinds;
+}

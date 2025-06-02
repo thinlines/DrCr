@@ -44,7 +44,7 @@ fn prepare_reporting_context(context: &mut ReportingContext) {
 
 fn get_plugins() -> Vec<String> {
 	// FIXME: Dynamically get this
-	vec!["austax.austax".to_string()]
+	vec!["austax.plugin".to_string()]
 }
 
 pub(crate) async fn get_report(

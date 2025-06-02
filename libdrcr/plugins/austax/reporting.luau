@@ -16,34 +16,17 @@
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 local libdrcr = require('../libdrcr')
-
 local account_kinds = require('../austax/account_kinds')
-local tax_tables = require('../austax/tax_tables')
+local calc = require('../austax/calc')
 
-function get_base_income_tax(net_taxable: number, context: libdrcr.ReportingContext): number
-	local year, _, _ = libdrcr.parse_date(context.eofy_date)
-	local base_tax_table = tax_tables.base_tax[year]
-	
-	for i, row in ipairs(base_tax_table) do
-		local upper_limit = row[1] * (10 ^ context.dps)
-		local flat_amount = row[2] * (10 ^ context.dps)
-		local marginal_rate = row[3]
-		
-		-- Lower limit is the upper limit of the preceding bracket
-		local lower_limit = 0
-		if i > 1 then
-			lower_limit = base_tax_table[i - 1][1] * (10 ^ context.dps)
-		end
-		
-		if net_taxable <= upper_limit then
-			return flat_amount + marginal_rate * (net_taxable - lower_limit)
-		end
-	end
-	
-	error('Taxable income not within any tax bracket')
-end
+local reporting = {}
 
-function requires(args, context)
+reporting.CalculateIncomeTax = {
+	name = 'CalculateIncomeTax',
+	product_kinds = {'DynamicReport', 'Transactions'},
+} :: libdrcr.ReportingStep
+
+function reporting.CalculateIncomeTax.requires(args, context)
 	return {
 		{
 			name = 'CombineOrdinaryTransactions',
@@ -53,7 +36,7 @@ function requires(args, context)
 	}
 end
 
-function after_init_graph(args, steps, add_dependency, context)
+function reporting.CalculateIncomeTax.after_init_graph(args, steps, add_dependency, context)
 	for _, other in ipairs(steps) do
 		if other.name == 'AllTransactionsExceptEarningsToEquity' then
 			-- AllTransactionsExceptEarningsToEquity depends on CalculateIncomeTax
@@ -75,7 +58,7 @@ function after_init_graph(args, steps, add_dependency, context)
 	end
 end
 
-function execute(args, context, kinds_for_account, get_product)
+function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, get_product)
 	-- Get balances for current year
 	local product = get_product({
 		name = 'CombineOrdinaryTransactions',
@@ -208,7 +191,7 @@ function execute(args, context, kinds_for_account, get_product)
 	table.insert(report.entries, 'Spacer')
 	
 	-- Base income tax row
-	local tax_base = get_base_income_tax(net_taxable, context)
+	local tax_base = calc.base_income_tax(net_taxable, context)
 	table.insert(report.entries, { Row = {
 		text = 'Base income tax',
 		quantity = {tax_base},
@@ -338,17 +321,4 @@ function entries_subtotal(entries: {libdrcr.DynamicReportEntry}): number
 	return subtotal
 end
 
-local plugin: libdrcr.Plugin = {
-	name = 'austax',
-	reporting_steps = {
-		{
-			name = 'CalculateIncomeTax',
-			product_kinds = {'DynamicReport', 'Transactions'},
-			requires = requires,
-			after_init_graph = after_init_graph,
-			execute = execute,
-		}
-	},
-}
-
-return plugin
+return reporting

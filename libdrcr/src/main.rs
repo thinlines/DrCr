@@ -39,7 +39,7 @@ async fn main() {
 	let mut context = ReportingContext::new(
 		db_connection,
 		"plugins".to_string(),
-		vec!["austax.austax".to_string()],
+		vec!["austax.plugin".to_string()],
 		NaiveDate::from_ymd_opt(2025, 6, 30).unwrap(),
 		"$".to_string(),
 	);

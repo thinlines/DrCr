@@ -213,7 +213,7 @@
 				VALUES ($1, $2)`,
 				[newTransaction.dt, newTransaction.description]
 			);
-			newTransaction.id = result.lastInsertId;
+			newTransaction.id = result.lastInsertId!;
 		} else {
 			// Update existing transaction
 			await dbTransaction.execute(

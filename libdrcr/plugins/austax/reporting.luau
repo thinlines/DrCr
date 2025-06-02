@@ -15,6 +15,16 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+-----------------
+-- Flags
+
+-- true = Spread income tax expense over monthly transactions
+-- false = Charge income tax expense in one transaction at end of financial year
+local charge_tax_monthly = true
+
+-----------------
+-- Reporting code
+
 local libdrcr = require('../libdrcr')
 local account_kinds = require('../austax/account_kinds')
 local calc = require('../austax/calc')
@@ -377,9 +387,68 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	}})
 	
 	-- Generate income tax transactions
-	local transactions: {libdrcr.Transaction} = {
-		{
-			-- # Estimated tax payable
+	local transactions: {libdrcr.Transaction} = {}
+	
+	-- Estimated tax payable
+	if charge_tax_monthly then
+		-- Charge income tax expense in parts, one per month
+		local monthly_tax = math.floor((tax_total - offset_total) / 12)
+		local last_month_tax = (tax_total - offset_total) - 11 * monthly_tax  -- To account for rounding errors
+		
+		-- Some ad hoc calendar code
+		local eofy_year, eofy_month, _ = libdrcr.parse_date(context.eofy_date)
+		local last_day_of_month = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }  -- Leap years handled below
+		
+		for month = 1, 12 do
+			local this_year, this_month_tax
+			if month == eofy_month then
+				this_year = eofy_year
+				this_month_tax = last_month_tax
+			elseif month < eofy_month then
+				this_year = eofy_year
+				this_month_tax = monthly_tax
+			else
+				this_year = eofy_year - 1
+				this_month_tax = monthly_tax
+			end
+			
+			local this_day = last_day_of_month[month]
+			
+			-- Check for leap year
+			if month == 2 and (this_year % 4 == 0) and (this_year % 100 ~= 0 or this_year % 400 == 0) then
+				this_day = 29
+			end
+			
+			-- Charge monthly tax
+			table.insert(transactions, {
+				id = nil,
+				dt = libdrcr.date_to_dt(libdrcr.format_date(this_year, month, this_day)),
+				description = 'Estimated income tax',
+				postings = {
+					{
+						id = nil,
+						transaction_id = nil,
+						description = nil,
+						account = INCOME_TAX,
+						quantity = this_month_tax,
+						commodity = context.reporting_commodity,
+						quantity_ascost = this_month_tax,
+					},
+					{
+						id = nil,
+						transaction_id = nil,
+						description = nil,
+						account = INCOME_TAX_CONTROL,
+						quantity = -this_month_tax,
+						commodity = context.reporting_commodity,
+						quantity_ascost = -this_month_tax,
+					},
+				},
+			})
+		end
+	else
+		-- Charge income tax expense in one transaction at EOFY
+		table.insert(transactions, {
 			id = nil,
 			dt = libdrcr.date_to_dt(context.eofy_date),
 			description = 'Estimated income tax',
@@ -403,34 +472,35 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					quantity_ascost = -(tax_total - offset_total),
 				},
 			},
-		},
-		{
-			-- Mandatory study loan repayment
-			id = nil,
-			dt = libdrcr.date_to_dt(context.eofy_date),
-			description = 'Mandatory study loan repayment payable',
-			postings = {
-				{
-					id = nil,
-					transaction_id = nil,
-					description = nil,
-					account = HELP,
-					quantity = study_loan_repayment,
-					commodity = context.reporting_commodity,
-					quantity_ascost = study_loan_repayment,
-				},
-				{
-					id = nil,
-					transaction_id = nil,
-					description = nil,
-					account = INCOME_TAX_CONTROL,
-					quantity = -study_loan_repayment,
-					commodity = context.reporting_commodity,
-					quantity_ascost = -study_loan_repayment,
-				},
+		})
+	end
+	
+	-- Mandatory study loan repayment
+	table.insert(transactions, {
+		id = nil,
+		dt = libdrcr.date_to_dt(context.eofy_date),
+		description = 'Mandatory study loan repayment payable',
+		postings = {
+			{
+				id = nil,
+				transaction_id = nil,
+				description = nil,
+				account = HELP,
+				quantity = study_loan_repayment,
+				commodity = context.reporting_commodity,
+				quantity_ascost = study_loan_repayment,
 			},
-		}
-	}
+			{
+				id = nil,
+				transaction_id = nil,
+				description = nil,
+				account = INCOME_TAX_CONTROL,
+				quantity = -study_loan_repayment,
+				commodity = context.reporting_commodity,
+				quantity_ascost = -study_loan_repayment,
+			},
+		},
+	})
 	
 	-- Transfer PAYGW balances to Income Tax Control
 	for account, kinds in pairs(kinds_for_account) do

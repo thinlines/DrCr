@@ -149,6 +149,7 @@ export type MultipleDateStartDateEndArgs = { dates: {DateStartDateEndArgs} }
 
 local libdrcr = {}
 
+-- Returns true if array haystack contains needle
 function libdrcr.arr_contains(haystack: {any}, needle: any): boolean
 	for _, element in ipairs(haystack) do
 		if element == needle then
@@ -158,10 +159,17 @@ function libdrcr.arr_contains(haystack: {any}, needle: any): boolean
 	return false
 end
 
+-- Converts a date string (YYYY-MM-DD) into datetime string (YYYY-MM-DD HH:MM:SS.xxxxxx) for database
 function libdrcr.date_to_dt(date: string): string
 	return date .. ' 00:00:00.000000'
 end
 
+-- Formats the date as date string (YYYY-MM-DD)
+function libdrcr.format_date(year: number, month: number, day: number): string
+	return string.format('%04d-%02d-%02d', year, month, day)
+end
+
+-- Parses the date string (YYYY-MM-DD) into components
 function libdrcr.parse_date(date: string): (number, number, number)
 	local year_str, month_str, day_str = string.match(date, '(%d%d%d%d)-(%d%d)-(%d%d)')
 	
@@ -176,6 +184,7 @@ function libdrcr.parse_date(date: string): (number, number, number)
 	return year, month, day
 end
 
+-- Convert the Lua value to string recursively
 function libdrcr.repr(value: any): string
 	local result = ''
 	if type(value) == 'table' then

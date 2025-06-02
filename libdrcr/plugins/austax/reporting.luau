@@ -111,7 +111,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 			visible = true,
 			link = nil,
 			heading = true,
-			bordered = true,
+			bordered = false,
 		}})
 		table.insert(report.entries, { Section = section })
 		table.insert(report.entries, 'Spacer')
@@ -159,7 +159,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 			visible = true,
 			link = nil,
 			heading = true,
-			bordered = true,
+			bordered = false,
 		}})
 		table.insert(report.entries, { Section = section })
 		table.insert(report.entries, 'Spacer')
@@ -202,8 +202,45 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 		bordered = false,
 	}})
 	
+	-- Medicare levy row
+	local tax_ml = calc.medicare_levy(net_taxable, context)
+	if tax_ml ~= 0 then
+		table.insert(report.entries, { Row = {
+			text = 'Medicare levy',
+			quantity = {tax_ml},
+			id = 'tax_ml',
+			visible = true,
+			link = nil,
+			heading = false,
+			bordered = false,
+		}})
+	end
+	
+	-- Precompute RFB amount as this is required for MLS
+	local rfb_taxable = 0
+	for account, kinds in pairs(kinds_for_account) do
+		if libdrcr.arr_contains(kinds, 'austax.rfb') then
+			rfb_taxable -= balances[account] or 0  -- Invert as income = credit balances
+		end
+	end
+	local rfb_grossedup = calc.rfb_grossup(rfb_taxable, context)
+	
+	-- Medicare levy surcharge row
+	local tax_mls = calc.medicare_levy_surcharge(net_taxable, rfb_grossedup, context)
+	if tax_mls ~= 0 then
+		table.insert(report.entries, { Row = {
+			text = 'Medicare levy surcharge',
+			quantity = {tax_mls},
+			id = 'tax_mls',
+			visible = true,
+			link = nil,
+			heading = false,
+			bordered = false,
+		}})
+	end
+	
 	-- Total income tax row
-	local tax_total = tax_base
+	local tax_total = tax_base + tax_ml + tax_mls
 	table.insert(report.entries, { Row = {
 		text = 'Total income tax',
 		quantity = {tax_total},
@@ -213,10 +250,126 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 		heading = true,
 		bordered = true,
 	}})
+	table.insert(report.entries, 'Spacer')
 	
-	-- Generate income tax transaction
+	-- Low income tax offset row
+	local offset_lito = calc.lito(net_taxable, tax_total, context)
+	if offset_lito ~= 0 then
+		table.insert(report.entries, { Row = {
+			text = 'Low income tax offset',
+			quantity = {offset_lito},
+			id = nil,
+			visible = true,
+			link = nil,
+			heading = false,
+			bordered = false,
+		}})
+	end
+	
+	-- Total tax offsets row
+	local offset_total = offset_lito
+	if offset_total ~= 0 then
+		table.insert(report.entries, { Row = {
+			text = 'Total tax offsets',
+			quantity = {offset_total},
+			id = nil,
+			visible = true,
+			link = nil,
+			heading = true,
+			bordered = false,
+		}})
+		table.insert(report.entries, 'Spacer')
+	end
+	
+	-- Calculate mandatory study loan repayment
+	local study_loan_repayment = calc.study_loan_repayment(net_taxable, rfb_grossedup, context)
+	
+	-- Mandatory study loan repayment section
+	if study_loan_repayment ~= 0 then
+		-- Taxable value of reportable fringe benefits row
+		if rfb_taxable ~= 0 then
+			table.insert(report.entries, { Row = {
+				text = 'Taxable value of reportable fringe benefits',
+				quantity = {rfb_taxable},
+				id = 'rfb_taxable',
+				visible = true,
+				link = nil,
+				heading = false,
+				bordered = false,
+			}})
+		end
+		
+		-- Grossed-up value row
+		if rfb_grossedup ~= 0 then
+			table.insert(report.entries, { Row = {
+				text = 'Grossed-up value',
+				quantity = {rfb_grossedup},
+				id = 'rfb_grossedup',
+				visible = true,
+				link = nil,
+				heading = false,
+				bordered = false,
+			}})
+		end
+		
+		-- Mandatory study loan repayment row
+		table.insert(report.entries, { Row = {
+			text = 'Mandatory study loan repayment',
+			quantity = {study_loan_repayment},
+			id = 'study_loan_repayment',
+			visible = true,
+			link = nil,
+			heading = true,
+			bordered = false,
+		}})
+		table.insert(report.entries, 'Spacer')
+	end
+	
+	-- Add PAYGW entries
+	local total_paygw = 0
+	local entries = entries_for_kind('austax.paygw', false, balances, kinds_for_account)
+	
+	if #entries ~= 0 then
+		local section: libdrcr.Section = {
+			text = 'PAYG withheld amounts',
+			id = nil,
+			visible = true,
+			entries = entries,
+		}
+		table.insert(report.entries, { Section = section })
+		total_paygw = math.floor(entries_subtotal(entries) / 100) * 100
+	end
+	
+	-- Total PAYGW row
+	if total_paygw ~= 0 then
+		table.insert(report.entries, { Row = {
+			text = 'Total withheld amounts',
+			quantity = {total_paygw},
+			id = 'total_paygw',
+			visible = true,
+			link = nil,
+			heading = true,
+			bordered = false,
+		}})
+		table.insert(report.entries, 'Spacer')
+	end
+	
+	-- ATO liability row
+	local ato_payable = tax_total - offset_total - total_paygw + study_loan_repayment
+	table.insert(report.entries, { Row = {
+		text = 'ATO liability payable (refundable)',
+		quantity = {ato_payable},
+		id = 'ato_payable',
+		visible = true,
+		link = nil,
+		heading = true,
+		bordered = true,
+	}})
+	
+	-- Generate income tax transactions
 	local transactions: {libdrcr.Transaction} = {
 		{
+			-- # Estimated tax payable
 			id = nil,
 			dt = libdrcr.date_to_dt(context.eofy_date),
 			description = 'Estimated income tax',
@@ -226,22 +379,82 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					transaction_id = nil,
 					description = nil,
 					account = 'Income Tax',
-					quantity = tax_total,
+					quantity = (tax_total - offset_total),
 					commodity = context.reporting_commodity,
-					quantity_ascost = tax_total,
+					quantity_ascost = (tax_total - offset_total),
 				},
 				{
 					id = nil,
 					transaction_id = nil,
 					description = nil,
 					account = 'Income Tax Control',
-					quantity = -tax_total,
+					quantity = -(tax_total - offset_total),
 					commodity = context.reporting_commodity,
-					quantity_ascost = -tax_total,
-				}
+					quantity_ascost = -(tax_total - offset_total),
+				},
+			},
+		},
+		{
+			-- Mandatory study loan repayment
+			id = nil,
+			dt = libdrcr.date_to_dt(context.eofy_date),
+			description = 'Mandatory study loan repayment payable',
+			postings = {
+				{
+					id = nil,
+					transaction_id = nil,
+					description = nil,
+					account = 'HELP',
+					quantity = study_loan_repayment,
+					commodity = context.reporting_commodity,
+					quantity_ascost = study_loan_repayment,
+				},
+				{
+					id = nil,
+					transaction_id = nil,
+					description = nil,
+					account = 'Income Tax Control',
+					quantity = -study_loan_repayment,
+					commodity = context.reporting_commodity,
+					quantity_ascost = -study_loan_repayment,
+				},
 			},
 		}
 	}
+	
+	-- Transfer PAYGW balances to Income Tax Control
+	for account, kinds in pairs(kinds_for_account) do
+		if libdrcr.arr_contains(kinds, 'austax.paygw') then
+			local balance = balances[account] or 0
+			if balance ~= 0 then
+				table.insert(transactions, {
+					id = nil,
+					dt = libdrcr.date_to_dt(context.eofy_date),
+					description = 'PAYG withheld amounts',
+					postings = {
+						{
+							id = nil,
+							transaction_id = nil,
+							description = nil,
+							account = 'Income Tax Control',
+							quantity = balance,
+							commodity = context.reporting_commodity,
+							quantity_ascost = balance,
+						},
+						{
+							id = nil,
+							transaction_id = nil,
+							description = nil,
+							account = account,
+							quantity = -balance,
+							commodity = context.reporting_commodity,
+							quantity_ascost = -balance,
+						},
+					},
+				})
+			end
+		end
+	end
 	
 	return {
 		[{ name = 'CalculateIncomeTax', kind = 'Transactions', args = 'VoidArgs' }] = {

@@ -19,8 +19,18 @@ local libdrcr = require('../libdrcr')
 local account_kinds = require('../austax/account_kinds')
 local calc = require('../austax/calc')
 
+-- Account constants
+local CURRENT_YEAR_EARNINGS = 'Current Year Earnings'
+local HELP = 'HELP'
+local INCOME_TAX = 'Income Tax'
+local INCOME_TAX_CONTROL = 'Income Tax Control'
+local RETAINED_EARNINGS = 'Retained Earnings'
+
 local reporting = {}
 
+-- This ReportingStep calculates income tax
+--
+-- Generates the tax summary DynamicReport, and adds Transactions reconciling income tax expense, PAYG withholding and study loan repayments.
 reporting.CalculateIncomeTax = {
 	name = 'CalculateIncomeTax',
 	product_kinds = {'DynamicReport', 'Transactions'},
@@ -378,7 +388,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					id = nil,
 					transaction_id = nil,
 					description = nil,
-					account = 'Income Tax',
+					account = INCOME_TAX,
 					quantity = (tax_total - offset_total),
 					commodity = context.reporting_commodity,
 					quantity_ascost = (tax_total - offset_total),
@@ -387,7 +397,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					id = nil,
 					transaction_id = nil,
 					description = nil,
-					account = 'Income Tax Control',
+					account = INCOME_TAX_CONTROL,
 					quantity = -(tax_total - offset_total),
 					commodity = context.reporting_commodity,
 					quantity_ascost = -(tax_total - offset_total),
@@ -404,7 +414,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					id = nil,
 					transaction_id = nil,
 					description = nil,
-					account = 'HELP',
+					account = HELP,
 					quantity = study_loan_repayment,
 					commodity = context.reporting_commodity,
 					quantity_ascost = study_loan_repayment,
@@ -413,7 +423,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 					id = nil,
 					transaction_id = nil,
 					description = nil,
-					account = 'Income Tax Control',
+					account = INCOME_TAX_CONTROL,
 					quantity = -study_loan_repayment,
 					commodity = context.reporting_commodity,
 					quantity_ascost = -study_loan_repayment,
@@ -436,7 +446,7 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 							id = nil,
 							transaction_id = nil,
 							description = nil,
-							account = 'Income Tax Control',
+							account = INCOME_TAX_CONTROL,
 							quantity = balance,
 							commodity = context.reporting_commodity,
 							quantity_ascost = balance,
@@ -492,9 +502,9 @@ function entries_for_kind(kind: string, invert: boolean, balances:{ [string]: nu
 		
 		-- Some exceptions for the link
 		local link: string | nil
-		if account == 'Current Year Earnings' then
+		if account == CURRENT_YEAR_EARNINGS then
 			link = '/income-statement'
-		elseif account == 'Retained Earnings' then
+		elseif account == RETAINED_EARNINGS then
 			link = nil
 		else
 			link = '/transactions/' .. account

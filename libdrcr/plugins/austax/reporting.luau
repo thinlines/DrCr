@@ -22,6 +22,10 @@
 -- false = Charge income tax expense in one transaction at end of financial year
 local charge_tax_monthly = true
 
+-- true = Include the Medicare levy surcharge
+-- false = Do not include the Medicare levy surcharge
+local include_mls = false
+
 -----------------
 -- Reporting code
 
@@ -246,7 +250,10 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	local rfb_grossedup = calc.rfb_grossup(rfb_taxable, context)
 	
 	-- Medicare levy surcharge row
-	local tax_mls = calc.medicare_levy_surcharge(net_taxable, rfb_grossedup, context)
+	local tax_mls = 0
+	if include_mls then
+		tax_mls = calc.medicare_levy_surcharge(net_taxable, rfb_grossedup, context)
+	end
 	if tax_mls ~= 0 then
 		table.insert(report.entries, { Row = {
 			text = 'Medicare levy surcharge',

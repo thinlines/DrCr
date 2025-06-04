@@ -68,7 +68,7 @@
 	import dayjs from 'dayjs';
 	import { ref } from 'vue';
 	
-	import { CGTAdjustment } from './model.ts';
+	import { CGTAdjustment, cgtAssetCommodityName } from './cgt.ts';
 	import { asCost } from '../../amounts.ts';
 	import { db } from '../../db.ts';
 	import { pp, ppBracketed } from '../../display.ts';
@@ -81,13 +81,9 @@
 		cgtAdjustments.value = await session.select(
 			`SELECT id, quantity, commodity, account, acquisition_dt, dt, description, cost_adjustment
 			FROM austax_cgt_cost_adjustments
-			ORDER BY dt DESC, account, substr(commodity, 1, instr(commodity, ' {')), acquisition_dt, id DESC`
+			ORDER BY dt DESC, account, substr(commodity, 1, instr(commodity, ' {')), acquisition_dt DESC, id DESC`
 		);
 	}
 	
 	load();
-	
-	function cgtAssetCommodityName(commodity: string): string {
-		return commodity.substring(0, commodity.indexOf(' {'));
-	}
 </script>

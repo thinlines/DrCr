@@ -46,6 +46,7 @@ async function initApp() {
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./reports/TrialBalanceReport.vue') },
 		// TODO: Generate this list dynamically
 		{ path: '/austax/cgt-adjustments', name: 'cgt-adjustments', component: () => import('./plugins/austax/CGTAdjustmentsView.vue') },
+		{ path: '/austax/cgt-assets', name: 'cgt-assets', component: () => import('./plugins/austax/CGTAssetsView.vue') },
 		{ path: '/austax/tax-summary', name: 'tax-summary', component: () => import('./plugins/austax/TaxSummaryReport.vue') },
 	];
 	const router = createRouter({

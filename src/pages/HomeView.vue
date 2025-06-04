@@ -43,6 +43,7 @@
 			<h2 class="font-medium text-gray-700 mb-2">Advanced reports</h2>
 			<ul class="list-disc ml-6">
 				<!-- TODO: Generate this list dynamically -->
+				<li><RouterLink :to="{ name: 'cgt-assets' }" class="text-gray-900 hover:text-blue-700 hover:underline">CGT assets</RouterLink></li>
 				<li><RouterLink :to="{ name: 'tax-summary' }" class="text-gray-900 hover:text-blue-700 hover:underline">Tax summary</RouterLink></li>
 			</ul>
 		</div>

@@ -25,7 +25,9 @@
 				<li><RouterLink :to="{ name: 'statement-lines' }" class="text-gray-900 hover:text-blue-700 hover:underline">Statement lines</RouterLink></li>
 				<li><RouterLink :to="{ name: 'balance-assertions' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</RouterLink></li>
 				<li><RouterLink :to="{ name: 'chart-of-accounts' }" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</RouterLink></li>
-				<!-- TODO: Plugin reports -->
+				<!-- Plugin reports -->
+				<!-- TODO: Generate this list dynamically -->
+				<li><RouterLink :to="{ name: 'cgt-adjustments' }" class="text-gray-900 hover:text-blue-700 hover:underline">CGT adjustments</RouterLink></li>
 			</ul>
 		</div>
 		<div class="px-4">

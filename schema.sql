@@ -1,5 +1,5 @@
 --  DrCr: Web-based double-entry bookkeeping framework
---  Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+--  Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 --
 --  This program is free software: you can redistribute it and/or modify
 --  it under the terms of the GNU Affero General Public License as published by
@@ -79,6 +79,21 @@ CREATE TABLE transactions (
 	description VARCHAR,
 	PRIMARY KEY(id)
 );
+
+---------
+-- austax
+
+CREATE TABLE austax_cgt_cost_adjustments (
+	id INTEGER NOT NULL,
+	quantity INTEGER,
+	commodity VARCHAR,
+	account VARCHAR,
+	acquisition_dt DATETIME,
+	dt DATETIME,
+	description VARCHAR,
+	cost_adjustment INTEGER,
+	PRIMARY KEY (id)
+)
 
 --------
 -- Views

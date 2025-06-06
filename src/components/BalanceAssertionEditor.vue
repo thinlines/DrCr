@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -33,7 +33,6 @@
 			<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 				<span class="text-gray-500">{{ db.metadata.reporting_commodity }}</span>
 			</div>
-			<!-- TODO: Display existing credit assertion as credit, not as negative debit -->
 			<input type="number" class="bordered-field pl-7 pr-16" step="0.01" v-model="assertion.amount_abs" placeholder="0.00">
 			<div class="absolute inset-y-0 right-0 flex items-center">
 				<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-indigo-600" v-model="assertion.sign">

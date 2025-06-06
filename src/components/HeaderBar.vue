@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -19,8 +19,16 @@
 <template>
 	<nav class="border-b border-gray-200 bg-white print:hidden" v-if="isMainWindow">
 		<div class="mx-auto max-w-7xl px-6 lg:px-8">
-			<div class="flex h-12 justify-between ml-[-0.25rem] w-full"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
-				<div class="flex w-full">
+			<div class="flex h-12 justify-between mx-[-0.25rem] w-full"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
+				<div class="flex w-full relative">
+					<!-- Back button-->
+					<div class="hidden self-center absolute left-[-3.25rem] min-[1408px]:block" v-if="route.name !== 'index'">
+						<a href="#" @click="router.back">
+							<ArrowLeftCircleIcon class="w-6 h-6 text-gray-400 hover:text-gray-500" />
+						</a>
+					</div>
+					
+					<!-- App title -->
 					<div class="flex flex-shrink-0">
 						<RouterLink to="/" class="border-transparent text-gray-900 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
 							DrCr
@@ -56,15 +64,16 @@
 </template>
 
 <script setup lang="ts">
+	import { ArrowLeftCircleIcon } from '@heroicons/vue/24/outline';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
-	
-	import { useRouter } from 'vue-router';
+	import { useRoute, useRouter } from 'vue-router';
 	
 	import { db } from '../db.js';
 	
 	// Only display header bar in main window
 	const isMainWindow = getCurrentWindow().label === 'main';
 	
+	const route = useRoute();
 	const router = useRouter();
 	
 	async function closeFile() {

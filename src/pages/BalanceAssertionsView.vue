@@ -52,7 +52,7 @@
 					<XMarkIcon class="w-4 h-4 text-red-500" v-if="assertion.is_valid === false" />
 				</td>
 				<td class="py-0.5 pl-1 text-gray-900 text-end">
-					<a :href="'/balance-assertions/edit/' + assertion.id" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">
+					<a :href="$router.resolve({name: 'balance-assertions-edit', params: {id: assertion.id}}).fullPath" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">
 						<PencilIcon class="w-4 h-4" />
 					</a>
 				</td>

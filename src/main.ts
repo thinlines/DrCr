@@ -46,8 +46,9 @@ async function initApp() {
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./reports/TrialBalanceReport.vue') },
 		// TODO: Generate this list dynamically
 		{ path: '/austax/cgt-adjustments', name: 'cgt-adjustments', component: () => import('./plugins/austax/CGTAdjustmentsView.vue') },
-		{ path: '/austax/cgt-adjustments/new', name: 'cgt-adjustments-new', component: () => import('./plugins/austax/NewCGTAdjustmentView.vue') },
 		{ path: '/austax/cgt-adjustments/edit/:id', name: 'cgt-adjustments-edit', component: () => import('./plugins/austax/EditCGTAdjustmentView.vue') },
+		{ path: '/austax/cgt-adjustments/new', name: 'cgt-adjustments-new', component: () => import('./plugins/austax/NewCGTAdjustmentView.vue') },
+		{ path: '/austax/cgt-adjustments/multinew', name: 'cgt-adjustments-multinew', component: () => import('./plugins/austax/MultiNewCGTAdjustmentView.vue') },
 		{ path: '/austax/cgt-assets', name: 'cgt-assets', component: () => import('./plugins/austax/CGTAssetsView.vue') },
 		{ path: '/austax/tax-summary', name: 'tax-summary', component: () => import('./plugins/austax/TaxSummaryReport.vue') },
 	];

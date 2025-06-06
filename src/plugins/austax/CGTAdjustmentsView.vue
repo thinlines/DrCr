@@ -26,6 +26,10 @@
 			<PlusIcon class="w-4 h-4" />
 			New CGT adjustment
 		</a>
+		<a :href="$router.resolve({name: 'cgt-adjustments-multinew'}).fullPath" class="btn-secondary pl-2 text-emerald-700 ring-emerald-600" onclick="return openLinkInNewWindow(this);">
+			<PlusIcon class="w-4 h-4" />
+			Multiple CGT adjustments
+		</a>
 	</div>
 	
 	<table class="min-w-full">

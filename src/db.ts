@@ -25,6 +25,7 @@ import { reactive } from 'vue';
 
 import { Balance } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
+import { CriticalError } from './error.ts';
 
 export const DB_VERSION = 3;  // Should match schema.sql
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
@@ -53,8 +54,23 @@ export const db = reactive({
 		}
 		
 		if (filename !== null) {
-			// Initialise cached data
 			const session = await this.load();
+			
+			// Validate database version
+			let dbVersion: {value: string}[];
+			try {
+				dbVersion = await session.select("SELECT value FROM metadata WHERE key = 'version'");
+			} catch (err) {
+				throw new CriticalError('Unable to parse database (SQL error getting metadata.version)', err);
+			}
+			if (dbVersion.length === 0) {
+				throw new CriticalError('Unable to parse database (no metadata.version)');
+			}
+			if (dbVersion[0].value !== DB_VERSION.toString()) {
+				throw new CriticalError('Unsupported database version ' + dbVersion[0].value + ' (expected ' + DB_VERSION + ')');
+			}
+			
+			// Initialise cached data
 			const metadataRaw: {key: string, value: string}[] = await session.select("SELECT * FROM metadata");
 			const metadataObject = Object.fromEntries(metadataRaw.map((x) => [x.key, x.value]));
 			this.metadata.version = parseInt(metadataObject.version);
@@ -62,8 +78,6 @@ export const db = reactive({
 			this.metadata.reporting_commodity = metadataObject.reporting_commodity;
 			this.metadata.dps = parseInt(metadataObject.amount_dps);
 		}
-		
-		// TODO: Validate database version
 	},
 	
 	load: async function(): Promise<ExtendedDatabase> {

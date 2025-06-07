@@ -25,6 +25,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import App from './App.vue';
 
 import { db } from './db.ts';
+import { handleCriticalError } from './error.ts';
 
 async function initApp() {
 	// Init router
@@ -61,7 +62,11 @@ async function initApp() {
 	// Init state
 	const dbFilename: string = await invoke('get_open_filename');
 	if (dbFilename !== null) {
-		await db.init(dbFilename);  // Ensure all metadata cached before loading Vue
+		try {
+			await db.init(dbFilename);  // Ensure all metadata cached before loading Vue
+		} catch (err) {
+			handleCriticalError(err);
+		}
 	}
 	
 	// Create Vue app

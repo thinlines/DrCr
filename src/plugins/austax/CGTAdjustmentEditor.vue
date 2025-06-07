@@ -103,7 +103,7 @@
 		
 		let asset;
 		try {
-			asset = deserialiseAmount(adjustment.asset);
+			asset = deserialiseAmount('' + adjustment.asset);
 		} catch (err) {
 			if (err instanceof DeserialiseAmountError) {
 				error.value = err.message;
@@ -115,7 +115,7 @@
 		
 		let cost_adjustment_abs;
 		try {
-			cost_adjustment_abs = deserialiseAmount(adjustment.cost_adjustment_abs);
+			cost_adjustment_abs = deserialiseAmount('' + adjustment.cost_adjustment_abs);
 		} catch (err) {
 			if (err instanceof DeserialiseAmountError) {
 				error.value = err.message;

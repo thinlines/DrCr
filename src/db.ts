@@ -176,7 +176,8 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 		// Default commodity
 		const quantity = Math.round(parseFloat(amount) * factor)
 		
-		if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
+		if (Number.isNaN(quantity)) { throw new DeserialiseAmountError('Invalid quantity: ' + amount); }
+		if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
 		
 		return {
 			'quantity': quantity,
@@ -189,7 +190,8 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 	const quantityStr = amount.substring(0, amount.indexOf(' '));
 	const quantity = Math.round(parseFloat(quantityStr) * factor)
 	
-	if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
+	if (Number.isNaN(quantity)) { throw new DeserialiseAmountError('Invalid quantity: ' + amount); }
+	if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
 	
 	const commodity = amount.substring(amount.indexOf(' ') + 1);
 	
@@ -198,6 +200,8 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 		'commodity': commodity
 	};
 }
+
+export class DeserialiseAmountError extends Error {}
 
 // Type definitions
 

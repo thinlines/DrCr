@@ -109,7 +109,7 @@
 	
 	import { ref } from 'vue';
 	
-	import { DT_FORMAT, Posting, Transaction, db, deserialiseAmount } from '../db.ts';
+	import { DT_FORMAT, DeserialiseAmountError, Posting, Transaction, db, deserialiseAmount } from '../db.ts';
 	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	
 	interface EditingPosting {
@@ -155,7 +155,17 @@
 		);
 		
 		for (const posting of transaction.postings) {
-			const amount_abs = deserialiseAmount(posting.amount_abs);
+			let amount_abs;
+			try {
+				amount_abs = deserialiseAmount(posting.amount_abs);
+			} catch (err) {
+				if (err instanceof DeserialiseAmountError) {
+					error.value = err.message;
+					return;
+				} else {
+					throw err;
+				}
+			}
 			
 			newTransaction.postings.push({
 				id: posting.id,

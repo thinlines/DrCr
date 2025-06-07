@@ -70,18 +70,31 @@
 	<div class="flex justify-end mt-4 space-x-2">
 		<button class="btn-primary" @click="saveAdjustment">Save</button>
 	</div>
+	
+	<div class="rounded-md bg-red-50 mt-4 p-4 col-span-2" v-if="error !== null">
+		<div class="flex">
+			<div class="flex-shrink-0">
+				<XCircleIcon class="h-5 w-5 text-red-400" />
+			</div>
+			<div class="ml-3 flex-1">
+				<p class="text-sm text-red-700">{{ error }}</p>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script setup lang="ts">
 	import dayjs from 'dayjs';
+	import { XCircleIcon } from '@heroicons/vue/24/solid';
 	import { InformationCircleIcon } from '@heroicons/vue/20/solid';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { ref } from 'vue';
 	
 	import { CGTAsset } from './cgt.ts';
 	import ComboBoxAccounts from '../../components/ComboBoxAccounts.vue';
-	import { DT_FORMAT, JoinedTransactionPosting, db, deserialiseAmount } from '../../db.ts';
+	import { DT_FORMAT, DeserialiseAmountError, JoinedTransactionPosting, db, deserialiseAmount } from '../../db.ts';
 	import { ppWithCommodity } from '../../display.ts';
+	import { CriticalError } from '../../error.ts';
 	
 	const account = ref('');
 	const commodity = ref('');
@@ -90,10 +103,25 @@
 	const cost_adjustment_abs = ref(null! as number);
 	const sign = ref('dr');
 	
+	const error = ref(null as string | null);
+	
 	async function saveAdjustment() {
 		// TODO: Preview mode?
 		
-		const totalAdjustmentAbs = deserialiseAmount('' + cost_adjustment_abs.value);
+		error.value = null;
+		
+		let totalAdjustmentAbs;
+		try {
+			totalAdjustmentAbs = deserialiseAmount('' + cost_adjustment_abs.value);
+		} catch (err) {
+			if (err instanceof DeserialiseAmountError) {
+				error.value = err.message;
+				return;
+			} else {
+				throw err;
+			}
+		}
+		
 		const totalAdjustment = sign.value === 'dr' ? totalAdjustmentAbs.quantity : -totalAdjustmentAbs.quantity;
 		
 		// Get all postings to the CGT asset account
@@ -149,7 +177,8 @@
 		}
 		
 		if (assets.length === 0) {
-			throw new Error('No matching CGT assets');
+			error.value = 'No matching CGT assets';
+			return;
 		}
 		
 		// Distribute total adjustment across matching assets
@@ -192,7 +221,7 @@
 		// Sanity check
 		const totalRoundedAdjustment = cgtAdjustments.reduce((acc, adj) => acc + adj, 0);
 		if (totalRoundedAdjustment !== totalAdjustment) {
-			throw new Error('Rounding unexpectedly changed total CGT adjustment amount');
+			throw new CriticalError('Rounding unexpectedly changed total CGT adjustment amount');
 		}
 		
 		// Add adjustments to database atomically

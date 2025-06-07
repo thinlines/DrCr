@@ -47,14 +47,26 @@
 		<button class="btn-secondary text-red-600 ring-red-500" @click="deleteAssertion" v-if="assertion.id !== null">Delete</button>
 		<button class="btn-primary" @click="saveAssertion">Save</button>
 	</div>
+	
+	<div class="rounded-md bg-red-50 mt-4 p-4 col-span-2" v-if="error !== null">
+		<div class="flex">
+			<div class="flex-shrink-0">
+				<XCircleIcon class="h-5 w-5 text-red-400" />
+			</div>
+			<div class="ml-3 flex-1">
+				<p class="text-sm text-red-700">{{ error }}</p>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script setup lang="ts">
 	import dayjs from 'dayjs';
-	
+	import { XCircleIcon } from '@heroicons/vue/24/solid';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
+	import { ref } from 'vue';
 	
-	import { DT_FORMAT, db, deserialiseAmount } from '../db.ts';
+	import { DeserialiseAmountError, DT_FORMAT, db, deserialiseAmount } from '../db.ts';
 	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	
 	export interface EditingAssertion {
@@ -68,9 +80,23 @@
 	
 	const { assertion } = defineProps<{ assertion: EditingAssertion }>();
 	
+	const error = ref(null as string | null);
+	
 	async function saveAssertion() {
 		// Save changes to the assertion
-		const amount_abs = deserialiseAmount('' + assertion.amount_abs);
+		error.value = null;
+		
+		let amount_abs;
+		try {
+			amount_abs = deserialiseAmount('' + assertion.amount_abs);
+		} catch (err) {
+			if (err instanceof DeserialiseAmountError) {
+				error.value = err.message;
+				return;
+			} else {
+				throw err;
+			}
+		}
 		const quantity = assertion.sign === 'dr' ? amount_abs.quantity : -amount_abs.quantity;
 		
 		const session = await db.load();
@@ -90,6 +116,8 @@
 			);
 		}
 		
+		// TODO: Send event
+		
 		await getCurrentWindow().close();
 	}
 	
@@ -106,6 +134,8 @@
 			WHERE id = $1`,
 			[assertion.id]
 		);
+		
+		// TODO: Send event
 		
 		await getCurrentWindow().close();
 	}

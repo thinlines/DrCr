@@ -109,6 +109,7 @@
 	
 	import { ref } from 'vue';
 	
+	import { asCost, NoCostBaseError } from '../amounts.ts';
 	import { DT_FORMAT, DeserialiseAmountError, Posting, Transaction, db, deserialiseAmount } from '../db.ts';
 	import ComboBoxAccounts from './ComboBoxAccounts.vue';
 	
@@ -160,6 +161,18 @@
 				amount_abs = deserialiseAmount(posting.amount_abs);
 			} catch (err) {
 				if (err instanceof DeserialiseAmountError) {
+					error.value = err.message;
+					return;
+				} else {
+					throw err;
+				}
+			}
+			
+			// If not in reporting commodity, check the amount specifies a cost base
+			try {
+				asCost(amount_abs.quantity, amount_abs.commodity);
+			} catch (err) {
+				if (err instanceof NoCostBaseError) {
 					error.value = err.message;
 					return;
 				} else {

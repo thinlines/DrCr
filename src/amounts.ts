@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -17,6 +17,7 @@
 */
 
 import { db } from './db.ts';
+import { ppWithCommodity } from './display.ts';
 
 export interface Amount {
 	quantity: number;
@@ -56,18 +57,20 @@ export function asCost(quantity: number, commodity: string): number {
 	if (commodity === db.metadata.reporting_commodity) {
 		return quantity;
 	}
-	if (commodity.indexOf('{{') >= 0) {
+	if (commodity.indexOf(' {{') >= 0) {
 		// Total price
-		const price = parseFloat(commodity.substring(commodity.indexOf('{{') + 2, commodity.indexOf('}}', commodity.indexOf('{{'))));
+		const price = parseFloat(commodity.substring(commodity.indexOf(' {{') + 3, commodity.indexOf('}}', commodity.indexOf(' {{'))));
 		
 		// Multiply by Math.sign(quantity) in case the quantity is negative
 		// FIXME: This yields unexpected results when trying to deduct a partial amount from a commodity specified in total price terms
 		return Math.round(Math.sign(quantity) * price * Math.pow(10, db.metadata.dps));
 	}
-	if (commodity.indexOf('{') >= 0) {
+	if (commodity.indexOf(' {') >= 0) {
 		// Unit price
-		const price = parseFloat(commodity.substring(commodity.indexOf('{') + 1, commodity.indexOf('}', commodity.indexOf('{'))));
+		const price = parseFloat(commodity.substring(commodity.indexOf(' {') + 2, commodity.indexOf('}', commodity.indexOf(' {'))));
 		return Math.round(quantity * price);
 	}
-	throw new Error('No cost base specified: ' + quantity + ' ' + commodity);
+	throw new NoCostBaseError('No cost base specified: ' + ppWithCommodity(quantity, commodity));
 }
+
+export class NoCostBaseError extends Error {}

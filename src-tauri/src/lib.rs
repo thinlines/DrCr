@@ -67,6 +67,7 @@ pub fn run() {
 			let store = app.store("store.json")?;
 			let db_filename = match store.get("db_filename") {
 				None => None,
+				Some(serde_json::Value::Null) => None,
 				Some(serde_json::Value::String(s)) => {
 					if fs::exists(&s)? {
 						Some(s)
@@ -74,7 +75,7 @@ pub fn run() {
 						None
 					}
 				}
-				_ => panic!("Unexpected db_filename in store"),
+				_ => panic!("Unexpected db_filename in store: {:?}", store.get("db_filename")),
 			};
 
 			app.manage(Mutex::new(AppState {

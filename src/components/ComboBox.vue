@@ -18,8 +18,8 @@
 
 <template>
 	<div class="relative">
-		<!-- WebKit bug: Does not align baseline correctly unless some text or placeholder is present -->
-		<input type="text" class="bordered-field peer" :class="inputClass" id="account" v-model="selectedValue" placeholder=" " autocomplete="off" ref="inputField">
+		<!-- WebKit bug https://bugs.webkit.org/show_bug.cgi?id=142968: Does not align baseline correctly unless some text or placeholder is present -->
+		<input type="text" class="bordered-field peer pr-7" :class="inputClass" id="account" v-model="selectedValue" placeholder=" " autocomplete="off" ref="inputField">
 		<button type="button" class="absolute inset-y-0 right-0 flex items-center px-2 focus:outline-none" @click="inputField!.focus()">
 			<ChevronUpDownIcon class="h-5 w-5 text-gray-400" />
 		</button>
@@ -33,9 +33,7 @@
 			>
 				<span class="block truncate group-data-[selected=selected]:font-semibold">{{ value }}</span>
 				<span class="hidden group-data-[selected=selected]:flex absolute inset-y-0 right-0 items-center pr-4 text-emerald-600 group-hover:text-white">
-					<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-						<path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-					</svg>
+					<CheckIcon class="w-5 h-5" />
 				</span>
 			</li>
 		</ul>
@@ -43,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+	import { CheckIcon } from '@heroicons/vue/20/solid';
 	import { ChevronUpDownIcon } from '@heroicons/vue/24/outline';
 	import { useTemplateRef } from 'vue';
 	

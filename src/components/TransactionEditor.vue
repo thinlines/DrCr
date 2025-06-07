@@ -49,7 +49,7 @@
 									<option value="cr">Cr</option>
 								</select>
 							</div>
-							<ComboBoxAccounts v-model="posting.account" class="w-full" inputClass="pl-16" />
+							<ComboBoxAccounts v-model="posting.account" class="w-full" inputClass="pl-14" />
 						</div>
 						<button class="relative -ml-px px-2 py-2 text-gray-500 hover:text-gray-700" @click="addPosting(posting)">
 							<PlusIcon class="w-4 h-4" />
@@ -57,7 +57,7 @@
 					</div>
 				</td>
 				<template v-if="posting.sign == 'dr'">
-					<td class="amount-dr has-amount py-1 px-1">
+					<td class="amount-dr has-amount py-1 px-1 w-[8rem]">
 						<div class="relative shadow-sm">
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500">{{ db.metadata.reporting_commodity }}</span>
@@ -69,7 +69,7 @@
 				</template>
 				<template v-if="posting.sign == 'cr'">
 					<td class="amount-dr py-1 px-1"></td>
-					<td class="amount-cr has-amount py-1 pl-1">
+					<td class="amount-cr has-amount py-1 pl-1 w-[8rem]">
 						<div class="relative shadow-sm">
 							<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 								<span class="text-gray-500">{{ db.metadata.reporting_commodity }}</span>

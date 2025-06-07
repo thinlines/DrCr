@@ -28,7 +28,8 @@
       "icons/icon.png"
     ],
     "resources": {
-      "../libdrcr/plugins/": "plugins/"
+      "../libdrcr/plugins/": "plugins/",
+      "../schema.sql": "schema.sql"
     }
   }
 }

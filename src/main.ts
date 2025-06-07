@@ -40,6 +40,7 @@ async function initApp() {
 		{ path: '/journal', name: 'journal', component: () => import('./pages/JournalView.vue') },
 		{ path: '/journal/edit/:id', name: 'journal-edit-transaction', component: () => import('./pages/EditTransactionView.vue') },
 		{ path: '/journal/new', name: 'journal-new-transaction', component: () => import('./pages/NewTransactionView.vue') },
+		{ path: '/new-file', name: 'new-file', component: () => import('./pages/NewFileView.vue') },
 		{ path: '/statement-lines', name: 'statement-lines', component: () => import('./pages/StatementLinesView.vue') },
 		{ path: '/statement-lines/import', name: 'import-statement', component: () => import('./pages/ImportStatementView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },

@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -19,7 +19,7 @@
 <template>
 	<p class="text-gray-900 mb-4">Welcome to DrCr. No file is currently open.</p>
 	<ul class="list-disc ml-6">
-		<!--<li><a href="#" class="text-gray-900 hover:text-blue-700 hover:underline">New file</a></li>-->
+		<li><RouterLink :to="{name: 'new-file'}" class="text-gray-900 hover:text-blue-700 hover:underline">New file</RouterLink></li>
 		<li><a href="#" @click="openFile" class="text-gray-900 hover:text-blue-700 hover:underline">Open file</a></li>
 	</ul>
 </template>
@@ -33,6 +33,9 @@
 		const file = await open({
 			multiple: false,
 			directory: false,
+			filters: [
+				{ name: 'DrCr database (SQLite)', extensions: ['db'] }
+			],
 		});
 		
 		if (file !== null) {

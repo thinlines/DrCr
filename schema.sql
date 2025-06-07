@@ -14,6 +14,8 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+-- Current version: 3 (see db.ts)
+
 ---------
 -- Tables
 
@@ -93,7 +95,7 @@ CREATE TABLE austax_cgt_cost_adjustments (
 	description VARCHAR,
 	cost_adjustment INTEGER,
 	PRIMARY KEY (id)
-)
+);
 
 --------
 -- Views

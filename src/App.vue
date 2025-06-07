@@ -1,6 +1,6 @@
 <!--
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2024  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -22,8 +22,8 @@
 		<div class="py-8">
 			<main>
 				<div class="mx-auto max-w-7xl px-6 lg:px-8">
-					<NoFileView v-if="db.filename === null" />
-					<RouterView v-if="db.filename !== null" />
+					<NoFileView v-if="!(db.filename !== null || route.name === 'new-file')" />
+					<RouterView v-if="db.filename !== null || route.name === 'new-file'" />
 				</div>
 			</main>
 		</div>
@@ -31,8 +31,11 @@
 </template>
 
 <script setup lang="ts">
+	import { useRoute } from 'vue-router';
+	
 	import HeaderBar from './components/HeaderBar.vue';
+	import { db } from './db.js';
 	import NoFileView from './pages/NoFileView.vue';
 	
-	import { db } from './db.js';
+	const route = useRoute();
 </script>

@@ -17,14 +17,16 @@
 */
 
 import { invoke } from '@tauri-apps/api/core';
+import { resolveResource } from '@tauri-apps/api/path';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { readTextFile } from '@tauri-apps/plugin-fs';
 import Database from '@tauri-apps/plugin-sql';
-
 import { reactive } from 'vue';
 
 import { Balance } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 
+export const DB_VERSION = 3;  // Should match schema.sql
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
 
 export const db = reactive({
@@ -60,12 +62,47 @@ export const db = reactive({
 			this.metadata.reporting_commodity = metadataObject.reporting_commodity;
 			this.metadata.dps = parseInt(metadataObject.amount_dps);
 		}
+		
+		// TODO: Validate database version
 	},
 	
 	load: async function(): Promise<ExtendedDatabase> {
 		return new ExtendedDatabase(await Database.load('sqlite:' + this.filename));
 	},
 });
+
+export async function createNewDatabase(filename: string, eofy_date: string, reporting_commodity: string, dps: number) {
+	// Open new SQLite database
+	const session = new ExtendedDatabase(await Database.load('sqlite:' + filename));
+	
+	// Read SQL schema
+	const schemaPath = await resolveResource('schema.sql');
+	const schemaSql = await readTextFile(schemaPath);
+	
+	// Execute SQL
+	const transaction = await session.begin();
+	await transaction.execute(schemaSql);
+	
+	// Init metadata
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['version', DB_VERSION.toString()]  // Manually call .toString() to format as int, otherwise sqlx formats as float
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['eofy_date', eofy_date]
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['reporting_commodity', reporting_commodity]
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['amount_dps', dps.toString()]  // Manually call .toString() to format as int, otherwise sqlx formats as float
+	);
+	
+	await transaction.commit();
+}
 
 export function joinedToTransactions(joinedTransactionPostings: JoinedTransactionPosting[]): Transaction[] {
 	// Group postings into transactions

@@ -446,33 +446,35 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 			end
 			
 			-- Charge monthly tax
-			table.insert(transactions, {
-				id = nil,
-				dt = libdrcr.date_to_dt(libdrcr.format_date(this_year, month, this_day)),
-				description = 'Estimated income tax',
-				postings = {
-					{
-						id = nil,
-						transaction_id = nil,
-						description = nil,
-						account = INCOME_TAX,
-						quantity = this_month_tax,
-						commodity = context.reporting_commodity,
-						quantity_ascost = this_month_tax,
+			if this_month_tax ~= 0 then
+				table.insert(transactions, {
+					id = nil,
+					dt = libdrcr.date_to_dt(libdrcr.format_date(this_year, month, this_day)),
+					description = 'Estimated income tax',
+					postings = {
+						{
+							id = nil,
+							transaction_id = nil,
+							description = nil,
+							account = INCOME_TAX,
+							quantity = this_month_tax,
+							commodity = context.reporting_commodity,
+							quantity_ascost = this_month_tax,
+						},
+						{
+							id = nil,
+							transaction_id = nil,
+							description = nil,
+							account = INCOME_TAX_CONTROL,
+							quantity = -this_month_tax,
+							commodity = context.reporting_commodity,
+							quantity_ascost = -this_month_tax,
+						},
 					},
-					{
-						id = nil,
-						transaction_id = nil,
-						description = nil,
-						account = INCOME_TAX_CONTROL,
-						quantity = -this_month_tax,
-						commodity = context.reporting_commodity,
-						quantity_ascost = -this_month_tax,
-					},
-				},
-			})
+				})
+			end
 		end
-	else
+	elseif (tax_total - total_offset) ~= 0 then
 		-- Charge income tax expense in one transaction at EOFY
 		table.insert(transactions, {
 			id = nil,
@@ -502,31 +504,33 @@ function reporting.CalculateIncomeTax.execute(args, context, kinds_for_account, 
 	end
 	
 	-- Mandatory study loan repayment
-	table.insert(transactions, {
-		id = nil,
-		dt = libdrcr.date_to_dt(context.eofy_date),
-		description = 'Mandatory study loan repayment payable',
-		postings = {
-			{
-				id = nil,
-				transaction_id = nil,
-				description = nil,
-				account = HELP,
-				quantity = study_loan_repayment,
-				commodity = context.reporting_commodity,
-				quantity_ascost = study_loan_repayment,
+	if study_loan_repayment ~= 0 then
+		table.insert(transactions, {
+			id = nil,
+			dt = libdrcr.date_to_dt(context.eofy_date),
+			description = 'Mandatory study loan repayment payable',
+			postings = {
+				{
+					id = nil,
+					transaction_id = nil,
+					description = nil,
+					account = HELP,
+					quantity = study_loan_repayment,
+					commodity = context.reporting_commodity,
+					quantity_ascost = study_loan_repayment,
+				},
+				{
+					id = nil,
+					transaction_id = nil,
+					description = nil,
+					account = INCOME_TAX_CONTROL,
+					quantity = -study_loan_repayment,
+					commodity = context.reporting_commodity,
+					quantity_ascost = -study_loan_repayment,
+				},
 			},
-			{
-				id = nil,
-				transaction_id = nil,
-				description = nil,
-				account = INCOME_TAX_CONTROL,
-				quantity = -study_loan_repayment,
-				commodity = context.reporting_commodity,
-				quantity_ascost = -study_loan_repayment,
-			},
-		},
-	})
+		})
+	end
 	
 	-- Transfer PAYGW balances to Income Tax Control
 	for account, kinds in pairs(kinds_for_account) do

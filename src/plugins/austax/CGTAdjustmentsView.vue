@@ -70,7 +70,8 @@
 	import dayjs from 'dayjs';
 	import { PencilIcon } from '@heroicons/vue/24/outline';
 	import { PlusIcon } from '@heroicons/vue/16/solid';
-	import { ref } from 'vue';
+	import { UnlistenFn, listen } from '@tauri-apps/api/event';
+	import { onUnmounted, ref } from 'vue';
 	
 	import { CGTAdjustment, cgtAssetCommodityName } from './cgt.ts';
 	import { asCost } from '../../amounts.ts';
@@ -90,4 +91,17 @@
 	}
 	
 	load();
+	
+	// Refresh CGT adjustments list when CGT adjustment updated
+	let unlistenAdjustmentUpdated: UnlistenFn | null = null;
+	(async () => {
+		// Cannot await at top level without <Suspense> therefore do this in an async function
+		unlistenAdjustmentUpdated = await listen('cgt-adjustment-updated', async (_event) => { await load(); });
+	})();
+	
+	onUnmounted(() => {
+		if (unlistenAdjustmentUpdated !== null) {
+			unlistenAdjustmentUpdated();
+		}
+	});
 </script>

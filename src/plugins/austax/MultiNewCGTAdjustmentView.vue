@@ -87,6 +87,7 @@
 	import dayjs from 'dayjs';
 	import { XCircleIcon } from '@heroicons/vue/24/solid';
 	import { InformationCircleIcon } from '@heroicons/vue/20/solid';
+	import { emit } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { ref } from 'vue';
 	
@@ -238,6 +239,7 @@
 		}
 		await dbTransaction.commit();
 		
+		await emit('cgt-adjustment-updated');
 		await getCurrentWindow().close();
 	}
 </script>

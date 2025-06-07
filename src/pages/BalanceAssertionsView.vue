@@ -66,7 +66,8 @@
 	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 	import { PlusIcon } from '@heroicons/vue/16/solid';
 	import { invoke } from '@tauri-apps/api/core';
-	import { ref } from 'vue';
+	import { UnlistenFn, listen } from '@tauri-apps/api/event';
+	import { onUnmounted, ref } from 'vue';
 	
 	import { db } from '../db.ts';
 	import { pp } from '../display.ts';
@@ -97,4 +98,17 @@
 	}
 	
 	load();
+	
+	// Refresh balance assertions list when assertion updated
+	let unlistenAssertionUpdated: UnlistenFn | null = null;
+	(async () => {
+		// Cannot await at top level without <Suspense> therefore do this in an async function
+		unlistenAssertionUpdated = await listen('balance-assertion-updated', async (_event) => { await load(); });
+	})();
+	
+	onUnmounted(() => {
+		if (unlistenAssertionUpdated !== null) {
+			unlistenAssertionUpdated();
+		}
+	});
 </script>

@@ -63,6 +63,7 @@
 <script setup lang="ts">
 	import dayjs from 'dayjs';
 	import { XCircleIcon } from '@heroicons/vue/24/solid';
+	import { emit } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { ref } from 'vue';
 	
@@ -102,11 +103,12 @@
 		const session = await db.load();
 		
 		if (assertion.id === null) {
-			await session.execute(
+			const result = await session.execute(
 				`INSERT INTO balance_assertions (dt, description, account, quantity, commodity)
 				VALUES ($1, $2, $3, $4, $5)`,
 				[dayjs(assertion.dt).format(DT_FORMAT), assertion.description, assertion.account, quantity, amount_abs.commodity]
 			);
+			assertion.id = result.lastInsertId!;
 		} else {
 			await session.execute(
 				`UPDATE balance_assertions
@@ -116,8 +118,7 @@
 			);
 		}
 		
-		// TODO: Send event
-		
+		await emit('balance-assertion-updated', {id: assertion.id});
 		await getCurrentWindow().close();
 	}
 	
@@ -135,8 +136,7 @@
 			[assertion.id]
 		);
 		
-		// TODO: Send event
-		
+		await emit('balance-assertion-updated', {id: assertion.id});
 		await getCurrentWindow().close();
 	}
 </script>

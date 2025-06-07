@@ -320,6 +320,7 @@
 		
 		await dbTransaction.commit();
 		
+		await emit('transaction-updated', {id: transaction.id});
 		await getCurrentWindow().close();
 	}
 	

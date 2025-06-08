@@ -169,14 +169,54 @@ export function serialiseAmount(quantity: number, commodity: string): string {
 	return quantityString + ' ' + commodity;
 }
 
+function parseFloatStrict(quantity: string): number {
+	// Parses quantity as a float, throwing error on invalid input
+	if (!/^[0-9]+(\.[0-9]+)?$/.test(quantity)) {
+		throw new DeserialiseAmountError('Invalid quantity: ' + quantity);
+	}
+	return parseFloat(quantity);
+}
+
 export function deserialiseAmount(amount: string): { quantity: number, commodity: string } {
 	const factor = Math.pow(10, db.metadata.dps);
 	
+	if (amount.length === 0) {
+		throw new DeserialiseAmountError('Amount cannot be blank');
+	}
+	
+	if (amount.charAt(0) < '0' || amount.charAt(0) > '9') {
+		// Check for single letter commodity
+		if (amount.length === 1) {
+			throw new DeserialiseAmountError('Quantity cannot be blank (expected quantity after commodity symbol ' + amount + ')');
+		}
+		if (amount.charAt(1) < '0' || amount.charAt(1) > '9') {
+			throw new DeserialiseAmountError('Invalid quantity: ' + amount + ' (expected quantity after single-letter commodity symbol ' + amount.charAt(0) + ')');
+		}
+		
+		let quantity, commodity;
+		
+		if (amount.indexOf(' ') < 0) {
+			// No cost base
+			quantity = Math.round(parseFloatStrict(amount.substring(1)) * factor);
+			commodity = amount.charAt(0);
+		} else {
+			// Cost base specified
+			quantity = Math.round(parseFloatStrict(amount.substring(1, amount.indexOf(' '))) * factor);
+			commodity = amount.charAt(0) + amount.substring(amount.indexOf(' '));
+		}
+		
+		if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
+		
+		return {
+			'quantity': quantity,
+			'commodity': commodity
+		};
+	}
+	
 	if (amount.indexOf(' ') < 0) {
 		// Default commodity
-		const quantity = Math.round(parseFloat(amount) * factor)
+		const quantity = Math.round(parseFloatStrict(amount) * factor);
 		
-		if (Number.isNaN(quantity)) { throw new DeserialiseAmountError('Invalid quantity: ' + amount); }
 		if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
 		
 		return {
@@ -185,12 +225,10 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 		};
 	}
 	
-	// FIXME: Parse single letter commodities
-	
+	// Must be multi-letter commodity
 	const quantityStr = amount.substring(0, amount.indexOf(' '));
-	const quantity = Math.round(parseFloat(quantityStr) * factor)
+	const quantity = Math.round(parseFloatStrict(quantityStr) * factor)
 	
-	if (Number.isNaN(quantity)) { throw new DeserialiseAmountError('Invalid quantity: ' + amount); }
 	if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
 	
 	const commodity = amount.substring(amount.indexOf(' ') + 1);

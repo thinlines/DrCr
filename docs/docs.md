@@ -2,6 +2,10 @@
 
 * [1. Introduction](#1-introduction)
 * [2. Quick start](#2-quick-start)
+* [3. Introduction to double-entry bookkeeping](#3-introduction-to-double-entry-bookkeeping)
+* [4. Conceptual overview of DrCr](#4-conceptual-overview-of-drcr)
+	* [Key concepts](#key-concepts)
+	* [Workflow overview](#workflow-overview)
 
 # 1. Introduction
 
@@ -113,3 +117,58 @@ Opening Balances|100.00
 **Total equity**|**110.00**
 
 We can add additional transactions and configure additional accounts in like manner. Note that, whenever possible, it is preferred to generate transactions via the statements feature, rather than create manual journal entries.
+
+# 3. Introduction to double-entry bookkeeping
+
+In this section, we briefly introduce the principles of double-entry bookkeeping, which underlies the conventional modern approach to accounting.
+
+We first consider the balance sheet accounts – assets, liabilities and equity. Equity is defined as net assets, i.e. *Assets − Liabilities = Equity* at all times. For reasons which will become apparent, we will rearrange this so each side of the equation is expressed only in terms of addition, hence *Assets = Liabilities + Equity*. This is the *accounting equation*. From the equation, we can note that no account can change balance independently of the others. An increase in assets must be associated with either an increase in equity, or if equity remains constant, an increase in liabilities.
+
+Equity can be further decomposed into total accumulated surpluses, being income minus expenses, plus all other equity accounts. Separating out the income and expense components in the equation, we can write *Assets = Liabilities + Equity + Income − Expenses*. Rearranging, we obtain *Assets + Expenses = Liabilities + Equity + Income*. This is the *expanded* accounting equation.
+
+An increase to an account on the *left*-hand side of the equation (asset or expense) is a *debit*. An increase to an account on the *right*-hand side of the equation (liability, equity or income) is a *credit*. Similarly, a decrease to an asset or expense is a credit, and a decrease to a liability, equity or income is a debit.
+
+The key principle behind double-entry bookkeeping is that any debit must be matched by a corresponding credit, and vice versa, in order to keep the accounting equation true. For example a debit to assets (increase in assets) must be associated with a credit to expenses, liabilities, equity or income (decrease in expenses, or increase in liabilities, equity or income).
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>
+		<p><b>Comparison with signed-number bookkeeping</b></p>
+		<p style="margin:0">Users of ledger-like plaintext accounting software may be familiar with ‘signed-number’ bookkeeping. Signed-number bookkeeping is exactly equivalent to conventional double-entry bookkeeping – a debit is equivalent to a positive-valued posting, and a credit is equivalent to a negative-valued posting.</p>
+	</td>
+</tr></table>
+
+# 4. Conceptual overview of DrCr
+
+## Key concepts
+
+The core data structure in DrCr is the *ledger*, which is a collection of transactions. A *transaction* is a collection of postings, with an associated date and description. A *posting* represents a debit or credit to a single account.
+
+An *account* is simply a name, associated with zero or more chart of account types. The basic account types are asset, liability, income, expense and equity. An account name is represented by a string of one or more Unicode characters. In some accounting software, the `:` character is used as a delimiter in account names (e.g. `Asset:Current:Cash:Cash at Bank`). This is permitted in DrCr, but the `:` character has no special meaning (i.e. DrCr has no concept of a tree of accounts and ‘sub-accounts’).
+
+An *amount* represents a particular quantity of a commodity. Quantities are represented internally using fixed-point arithmetic – the number of decimal places precision can be configured at the time of database creation. The number of decimal places is the same for all commodities.
+
+A *commodity* represents an amount of currency or other fungible asset. A commodity name is represented by a string of one or more Unicode characters except space. If the commodity name is a single character, it may precede the quantity in an amount (e.g. `$100`). Otherwise, it must follow the quantity separated by a space (e.g. `100 AUD`).
+
+The *reporting commodity* is the default commodity, in terms of which all other commodities will be valued. Every commodity which is not the reporting commodity must be associated with a *cost base*, which values the commodity in terms of the reporting commodity. A cost base may be either specified as a unit price (specifying the cost of one unit of the commodity, in terms of the reporting commodity), or a total price (specifying the total cost of the entire quantity of the commodity, in terms of the reporting commodity). The cost base follows the quantity and commodity name separated by a space. A unit price is specified using single curly braces (e.g. `100 USD {1.50}`, each USD costs $1.50 in the reporting commodity). A total price is specified using double curly braces (e.g. `100 USD {{150}}`, 100 USD costs $150 in the reporting commodity).
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>All commodities, other than the reporting commodity, must specify a cost base.</td>
+</tr></table>
+
+## Workflow overview
+
+The process of using DrCr can be conceptualised in 4 stages:
+
+* **Source data** – The user inputs source data into DrCr
+* **Transactions** – DrCr generates ledger transactions from the source data
+* **Balances** – DrCr computes account balances from the ledger transactions
+* **Reports** – DrCr produces balance sheet, income statement and other reports from account balances
+
+Note that, conceptually, reports are generated based on account balances. In other words, it is conceived that reports will not be more granular than the account level. Therefore, there is limited functionality for filtering transactions at a level more granular than accounts.
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>The account is the most granular unit of reporting in DrCr.</td>
+</tr></table>

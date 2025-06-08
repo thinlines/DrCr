@@ -177,7 +177,7 @@ function parseFloatStrict(quantity: string): number {
 	return parseFloat(quantity);
 }
 
-function validateCommodity(commodity: string) {
+export function validateCommodity(commodity: string) {
 	// Validate that the commodity is correctly formed
 	const commodityParts = commodity.split(' ');
 	if (commodityParts.length > 2) {

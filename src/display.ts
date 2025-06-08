@@ -1,6 +1,6 @@
 /*
 	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -16,7 +16,7 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { db } from './db.ts';
+import { db, validateCommodity } from './db.ts';
 
 export function pp(quantity: number): string {
 	// Pretty print the quantity
@@ -33,8 +33,16 @@ export function pp(quantity: number): string {
 
 export function ppWithCommodity(quantity: number, commodity: string): string {
 	// Pretty print the amount including commodity
-	if (commodity.length === 1) {
-		return commodity + pp(quantity);
+	validateCommodity(commodity);
+	
+	const commodityParts = commodity.split(' ');
+	
+	if (commodityParts[0].length === 1) {
+		if (commodityParts.length === 1) {
+			return commodityParts[0] + pp(quantity);
+		} else {
+			return commodityParts[0] + pp(quantity) + ' ' + commodityParts[1];
+		}
 	} else {
 		return pp(quantity) + ' ' + commodity;
 	}

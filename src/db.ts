@@ -177,6 +177,26 @@ function parseFloatStrict(quantity: string): number {
 	return parseFloat(quantity);
 }
 
+function validateCommodity(commodity: string) {
+	// Validate that the commodity is correctly formed
+	const commodityParts = commodity.split(' ');
+	if (commodityParts.length > 2) {
+		throw new DeserialiseAmountError('Invalid commodity (more spaces than expected): ' + commodity);
+	}
+	if (commodityParts.length === 2) {
+		// Validate that the second part is a cost basis
+		if (commodityParts[1].startsWith('{{') && commodityParts[1].endsWith('}}')) {
+			const costBase = commodityParts[1].substring(2, commodityParts[1].length - 2);
+			parseFloatStrict(costBase);
+		} else if (commodityParts[1].startsWith('{') && commodityParts[1].endsWith('}')) {
+			const costBase = commodityParts[1].substring(1, commodityParts[1].length - 1);
+			parseFloatStrict(costBase);
+		} else {
+			throw new DeserialiseAmountError('Invalid cost base: ' + commodityParts[1]);
+		}
+	}
+}
+
 export function deserialiseAmount(amount: string): { quantity: number, commodity: string } {
 	const factor = Math.pow(10, db.metadata.dps);
 	
@@ -206,6 +226,7 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 		}
 		
 		if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
+		validateCommodity(commodity);
 		
 		return {
 			'quantity': quantity,
@@ -232,6 +253,7 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 	if (!Number.isSafeInteger(quantity)) { throw new DeserialiseAmountError('Quantity not representable by safe integer: ' + amount); }
 	
 	const commodity = amount.substring(amount.indexOf(' ') + 1);
+	validateCommodity(commodity);
 	
 	return {
 		'quantity': quantity,

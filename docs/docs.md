@@ -6,6 +6,16 @@
 * [4. Conceptual overview of DrCr](#4-conceptual-overview-of-drcr)
 	* [Key concepts](#key-concepts)
 	* [Workflow overview](#workflow-overview)
+* [5. Entering source data](#5-entering-source-data)
+	* [Journal](#journal)
+	* [Statement lines](#statement-lines)
+	* [Balance assertions](#balance-assertions)
+	* [Chart of accounts](#chart-of-accounts)
+* [6. General reports](#6-general-reports)
+	* [General ledger](#general-ledger)
+	* [Trial balance](#trial-balance)
+	* [Balance sheet](#balance-sheet)
+	* [Income statement](#income-statement)
 
 # 1. Introduction
 
@@ -116,7 +126,7 @@ Current Year Earnings|10.00
 Opening Balances|100.00
 **Total equity**|**110.00**
 
-We can add additional transactions and configure additional accounts in like manner. Note that, whenever possible, it is preferred to generate transactions via the statements feature, rather than create manual journal entries.
+We can add additional transactions and configure additional accounts in like manner. Note that, whenever possible, it is preferred to generate transactions via the statements feature, rather than directly create manual journal entries (see [Statement lines](#statement-lines)).
 
 # 3. Introduction to double-entry bookkeeping
 
@@ -172,3 +182,83 @@ Note that, conceptually, reports are generated based on account balances. In oth
 	<td>ⓘ</td>
 	<td>The account is the most granular unit of reporting in DrCr.</td>
 </tr></table>
+
+The following sections explain in detail how source data can be entered, and how reports can be generated.
+
+# 5. Entering source data
+
+Functionality for entering source data is grouped within the ‘Data sources’ panel of the main menu.
+
+## Journal
+
+The journal feature allows for arbitrary transactions to be created (manual journals) and posted to the ledger.
+
+The journal page displays all transactions created in the journal module. By default, all posting amounts are displayed in terms of the reporting commodity. To display posting amounts in terms of the original commodities, click *Show commodity detail*. To edit an existing journal transaction, click the pencil icon next to the transaction description.
+
+To create a new journal transaction, click *New transaction* on the journal page. This opens the transaction editor. To add additional postings, click the plus icon next to the account name on any posting.
+
+Note that, whenever possible, it is preferred to generate transactions via the statements feature, rather than directly create manual journal entries (see [Statement lines](#statement-lines)).
+
+## Statement lines
+
+The statements feature allows for account statements to be imported (e.g. bank statements), from which transactions can be created.
+
+The statement lines page displays all previously imported statement lines.
+
+To import a new statement, click *Import statement* on the statement lines page. This opens the statement importer. Supported formats are OFX (1.x/2.x) and CSV. A CSV file must contain the headers *Date* (YYYY-MM-DD), *Description*, *Amount*. When the statement lines are imported and eventually reconciled, they will be posted as transactions to the *Source account* specified on the statement importer. Increases to account balances will be converted to debits, and decreases will be converted to credits (note that this terminology is consistent with the accounting convention, but opposite to that conventionally shown on bank statements).
+
+When a statement line is initially imported, it will be shown on the statement lines page as *Unclassified*. Click *Unclassified* to open the statement line reconciliation dropdown box, to select the corresponding account to charge the transaction to (e.g. an income or expense account). Reconciling a statement line will create a transaction in the journal (see [Journal](#journal)), and link the journal transaction with the statement line.
+
+If a statement line has already been reconciled, the statement lines page will display the name of the corresponding account. Clicking the pencil icon next to the name of the corresponding account will open the transaction editor for the corresponding journal transaction.
+
+It is not currently possible to reconcile a single statement line to more than one corresponding account using multiple postings. It is suggested to first reconcile the statement line to one account, then open the transaction editor and edit the postings as required.
+
+If there is a transfer between two accounts and both statements have been imported, there will be one imported statement line per account. To reconcile both statement lines as a single transfer between the two accounts, select the checkboxes to the left of the statement lines, and click *Reconcile selected as transfer*.
+
+## Balance assertions
+
+The balance assertions allows the expected balance of an account at a particular time to be specified, and DrCr will confirm whether (or not) the account has the expected balance at that time.
+
+The balance assertions page displays all existing balance assertions. The status of the balance assertion is displayed with a tick if the account has the expected balance, or a cross if it does not. To edit an existing balance assertion, click the pencil icon at the right-hand side of the table. To add a new balance assertion, click *New assertion*.
+
+## Chart of accounts
+
+The chart of accounts page allows for accounts to be configured as particular types of accounts (asset, liability, equity, income, expense). To add a type to an account, select the checkbox to the left of the account name, choose the account type from the dropdown box, and click *Add type*. To remove a type from an account, select the checkbox to the left of the account name, choose the account type from the dropdown box, and click *Remove type*.
+
+# 6. General reports
+
+Functionality for generating common accounting reports is grouped within the ‘General reports’ panel of the main menu.
+
+## General ledger
+
+The general ledger report displays all transactions posted to the journal. Unlike the journal page (see [Journal](#journal)) which shows only journals created through the journal feature or statement lines feature, the general ledger report also displays transactions generated programmatically via API. Navigating the general ledger report is otherwise similar to the journal page (see [Journal](#journal)).
+
+## Trial balance
+
+The trial balance report displays the net balances of all accounts at the requested date. The date defaults to the end of financial year date specified at database creation.
+
+Unlike the balance sheet and income statement reports, all accounts are displayed in the trial balance report, including accounts for which no account type has been configured in the chart of accounts (see [Chart of accounts](#chart-of-accounts)).
+
+## Balance sheet
+
+The balance sheet report displays the balances of the asset, liability and equity accounts (see [Chart of accounts](#chart-of-accounts)) at the requested date. The date defaults to the end of financial year date specified at database creation. Current and previous year surpluses from the income statement will automatically be displayed under equity as *Current Year Earnings* and *Retained Earnings*.
+
+A comparative balance sheet report can be generated using the ‘Compare’ option at the top right of the page.
+
+If the compare unit is set to ‘years’, the report will be generated for the specified day and month in each financial year. If the specified day and month is not the end of the financial year, the resulting report will compare year-to-date figures in each financial year.
+
+If the compare unit is set to ‘months’, the report will be generated for the specified day in each calendar month. If the specified day exceeds the number of days in a previous month, the date for that month will be set to the last day of the calendar month. For example, if the date is set to 29 May and ‘Compare 3 months’ is requested, the report will be generated for 29 May, 28 Feb and 29 Jan. However, as an exception, if the specified date is the last day of a calendar month, the dates for all comparative reports will also be set to the last day of the calendar month. For example, if the date is set to 30 Jun and ‘Compare 3 months’ is requested, the report will be generated for 30 Jun, 31 May and 30 Apr.
+
+For comparative balance sheet reports, *Current Year Earnings* and *Retained Earnings* will show financial year-to-date figures in each requested period.
+
+## Income statement
+
+The income statement report displays the balances of income and equity accounts (see [Chart of accounts](#chart-of-accounts)) for the period between two requested dates. The dates default to the financial year specified at database creation.
+
+A comparative income statement report can be generated using the ‘Compare’ option at the top right of the page.
+
+If the compare unit is set to ‘years’, the start and end dates of the report will each be shifted backwards by 1 calendar year for each comparison period. If the selected period is longer than 1 calendar year, the resulting report will include overlapping transactions in consecutive periods. If the selected period is shorter than 1 calendar year, the resulting report will have disjoint periods. The selected period should usually be set to 1 calendar year.
+
+If the compare unit is set to ‘months’, the start and end dates of the report will each be shifted backwards by 1 calendar month for each comparison period. If the selected period is longer than 1 calendar month, the resulting report will include overlapping transactions in consecutive periods. If the selected period is shorter than 1 calendar month, the resulting report will have disjoint periods. The selected period should usually be set to 1 calendar month. If the specified start or end date exceeds the number of days in a previous month, the relevant date for that month will be set to the last day of the calendar month. For example, if the dates are set to 1–29 May and ‘Compare 3 months’ is requested, the report will be generated for 1–29 May, 1–28 Feb and 1–29 Jan. However, as an exception, if the specified end date is the last day of a calendar month, the end dates for all comparative reports will also be set to the last day of the calendar month. For example, if the dates are set to 1–30 Jun and ‘Compare 3 months’ is requested, the report will be generated for 1–30 Jun, 1–31 May and 1–30 Apr.
+
+If the selected period is 1 calendar year and the compare unit is changed from ‘years’ to ‘months’, the selected period will automatically be changed to 1 calendar month ending on the original end date. Similarly, if the selected period is 1 calendar month and the compare unit is changed from ‘months’ to ‘years’, the selected period will automatically be changed to 1 calendar year ending on the original end date. The start date can be manually adjusted after changing the compare unit, if this is not the desired behaviour.

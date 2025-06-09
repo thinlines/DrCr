@@ -1,5 +1,5 @@
 --!strict
---  DrCr: Web-based double-entry bookkeeping framework
+--  DrCr: Double-entry bookkeeping framework
 --  Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 --
 --  This program is free software: you can redistribute it and/or modify
@@ -15,8 +15,8 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-local libdrcr = require('../libdrcr')
-local reporting = require('../austax/reporting')
+local libdrcr = require('./libdrcr')
+local reporting = require('./austax/reporting')
 
 local plugin: libdrcr.Plugin = {
 	name = 'austax',

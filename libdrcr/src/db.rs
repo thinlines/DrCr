@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 
 	This program is free software: you can redistribute it and/or modify
@@ -216,6 +216,7 @@ pub struct DbMetadata {
 	pub eofy_date: NaiveDate,
 	pub reporting_commodity: String,
 	pub dps: u32,
+	pub plugins: Vec<String>,
 }
 
 impl DbMetadata {
@@ -256,11 +257,27 @@ impl DbMetadata {
 			.await
 			.expect("SQL error");
 
+		let plugins_joined = sqlx::query("SELECT value FROM metadata WHERE key = 'plugins'")
+			.map(|r: SqliteRow| r.get::<String, _>(0))
+			.fetch_one(&mut *connection)
+			.await
+			.expect("SQL error");
+
+		let plugins = if plugins_joined.len() > 0 {
+			plugins_joined
+				.split(';')
+				.map(String::from)
+				.collect::<Vec<_>>()
+		} else {
+			vec![]
+		};
+
 		DbMetadata {
 			version,
 			eofy_date,
 			reporting_commodity,
 			dps,
+			plugins,
 		}
 	}
 }

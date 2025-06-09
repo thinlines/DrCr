@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 
 	This program is free software: you can redistribute it and/or modify
@@ -41,7 +41,7 @@ fn load_plugin(plugin_dir: &str, plugin_name: &str) -> (Lua, Plugin) {
 	// Init Lua environment
 	let package = lua.globals().get::<Table>("package").unwrap();
 	package
-		.set("path", format!("{}/?.luau", plugin_dir))
+		.set("path", format!("{0}/?.luau;{0}/?/init.luau", plugin_dir))
 		.unwrap();
 
 	// Require and call the plugin

@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 
 	This program is free software: you can redistribute it and/or modify
@@ -42,11 +42,6 @@ fn prepare_reporting_context(context: &mut ReportingContext) {
 	libdrcr::plugin::register_lookup_fns(context);
 }
 
-fn get_plugins() -> Vec<String> {
-	// FIXME: Dynamically get this
-	vec!["austax.plugin".to_string()]
-}
-
 pub(crate) async fn get_report(
 	app: AppHandle,
 	state: State<'_, Mutex<AppState>>,
@@ -61,6 +56,7 @@ pub(crate) async fn get_report(
 
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
+	let plugin_names = db_connection.metadata().plugins.clone();
 	let mut context = ReportingContext::new(
 		db_connection,
 		app.path()
@@ -69,22 +65,25 @@ pub(crate) async fn get_report(
 			.to_str()
 			.unwrap()
 			.to_string(),
-		get_plugins(),
+		plugin_names,
 		eofy_date,
 		"$".to_string(),
 	);
 	prepare_reporting_context(&mut context);
 
 	// Get dynamic report
-	let targets = vec![
-		// FIXME: Make this configurable
-		ReportingProductId {
+	let mut targets = vec![target.clone()];
+
+	// Add plugin targets
+	// FIXME: Detect this robustly
+	if context.plugin_names.contains(&"austax".to_string()) {
+		targets.push(ReportingProductId {
 			name: "CalculateIncomeTax".to_string(),
 			kind: ReportingProductKind::Transactions,
 			args: ReportingStepArgs::VoidArgs,
-		},
-		target.clone(),
-	];
+		});
+	}
+
 	let products = generate_report(targets, Arc::new(context)).await.unwrap();
 	let result = products.get_owned_or_err(&target).unwrap();
 
@@ -262,6 +261,7 @@ pub(crate) async fn get_validated_balance_assertions(
 
 	// Initialise ReportingContext
 	let eofy_date = db_connection.metadata().eofy_date;
+	let plugin_names = db_connection.metadata().plugins.clone();
 	let mut context = ReportingContext::new(
 		db_connection,
 		app.path()
@@ -270,24 +270,30 @@ pub(crate) async fn get_validated_balance_assertions(
 			.to_str()
 			.unwrap()
 			.to_string(),
-		get_plugins(),
+		plugin_names,
 		eofy_date,
 		"$".to_string(),
 	);
 	prepare_reporting_context(&mut context);
 
 	// Get report targets
-	let mut targets = vec![ReportingProductId {
-		name: "CalculateIncomeTax".to_string(),
-		kind: ReportingProductKind::Transactions,
-		args: ReportingStepArgs::VoidArgs,
-	}];
+	let mut targets = Vec::new();
 	for dt in dates {
 		// Request ordinary transaction balances at each balance assertion date
 		targets.push(ReportingProductId {
 			name: "CombineOrdinaryTransactions".to_string(),
 			kind: ReportingProductKind::BalancesAt,
 			args: ReportingStepArgs::DateArgs(DateArgs { date: dt.date() }),
+		});
+	}
+	
+	// Add plugin targets
+	// FIXME: Detect this robustly
+	if context.plugin_names.contains(&"austax".to_string()) {
+		targets.push(ReportingProductId {
+			name: "CalculateIncomeTax".to_string(),
+			kind: ReportingProductKind::Transactions,
+			args: ReportingStepArgs::VoidArgs,
 		});
 	}
 

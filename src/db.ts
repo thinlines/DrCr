@@ -23,7 +23,7 @@ import { readTextFile } from '@tauri-apps/plugin-fs';
 import Database from '@tauri-apps/plugin-sql';
 import { reactive } from 'vue';
 
-import { Balance } from './amounts.ts';
+import { asCost } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 import { CriticalError } from './error.ts';
 
@@ -274,12 +274,11 @@ export class Transaction {
 	) {}
 	
 	doesBalance(): boolean {
-		const balance = new Balance();
+		let total = 0;
 		for (const posting of this.postings) {
-			balance.add(posting.quantity, posting.commodity);
+			total += asCost(posting.quantity, posting.commodity);
 		}
-		balance.clean();
-		return balance.amounts.length === 0;
+		return total === 0;
 	}
 }
 

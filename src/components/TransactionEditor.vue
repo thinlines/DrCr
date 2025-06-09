@@ -339,7 +339,7 @@
 	
 	async function onAmountChange(posting: EditingPosting) {
 		// Synchronise the amounts if only two postings
-		if (transaction.postings.length == 2) {
+		if (transaction.postings.length === 2 && posting === transaction.postings[0]) {
 			for (const otherPosting of transaction.postings) {
 				if (otherPosting !== posting) {
 					otherPosting.amount_abs = posting.amount_abs;

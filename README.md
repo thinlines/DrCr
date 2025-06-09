@@ -16,3 +16,9 @@ $ pnpm tauri dev
 ## Usage
 
 See [docs.md](docs/docs.md) for further information.
+
+## Screenshots
+
+![Balance sheet screenshot](https://yingtongli.me/blog/assets/posts/2025/drcr3.png)
+
+More screenshots are available in its introduction post [here](https://yingtongli.me/blog/2025/06/09/drcr.html).

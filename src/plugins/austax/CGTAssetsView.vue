@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -90,8 +90,6 @@
 		const session = await db.load();
 		cgtAssets.value = await getCGTAssets(session);
 		eofyDate.value = dayjs(db.metadata.eofy_date);
-		
-		console.log(cgtAssets.value);
 	}
 	
 	load();

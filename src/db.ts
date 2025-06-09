@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -39,6 +39,7 @@ export const db = reactive({
 		eofy_date: null! as string,
 		reporting_commodity: null! as string,
 		dps: null! as number,
+		plugins: null! as string[],
 	},
 	
 	init: async function(filename: string | null): Promise<void> {
@@ -77,6 +78,7 @@ export const db = reactive({
 			this.metadata.eofy_date = metadataObject.eofy_date;
 			this.metadata.reporting_commodity = metadataObject.reporting_commodity;
 			this.metadata.dps = parseInt(metadataObject.amount_dps);
+			this.metadata.plugins = metadataObject.plugins.length > 0 ? metadataObject.plugins.split(';') : [];
 		}
 	},
 	
@@ -113,6 +115,10 @@ export async function createNewDatabase(filename: string, eofy_date: string, rep
 	await transaction.execute(
 		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
 		['amount_dps', dps.toString()]  // Manually call .toString() to format as int, otherwise sqlx formats as float
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['plugins', '']
 	);
 	
 	await transaction.commit();

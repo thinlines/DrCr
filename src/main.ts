@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -20,16 +20,26 @@ import { invoke } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 import { createApp } from 'vue';
-import { createRouter, createWebHistory } from 'vue-router';
+import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 
 import App from './App.vue';
-
 import { db } from './db.ts';
 import { handleCriticalError } from './error.ts';
+import austax from './plugins/austax/plugin.ts';
 
 async function initApp() {
+	// Init state
+	const dbFilename: string = await invoke('get_open_filename');
+	if (dbFilename !== null) {
+		try {
+			await db.init(dbFilename);  // Ensure all metadata cached before loading Vue
+		} catch (err) {
+			handleCriticalError(err);
+		}
+	}
+	
 	// Init router
-	const routes = [
+	let routes: RouteRecordRaw[] = [
 		{ path: '/', name: 'index', component: () => import('./pages/HomeView.vue') },
 		{ path: '/balance-assertions', name: 'balance-assertions', component: () => import('./pages/BalanceAssertionsView.vue') },
 		{ path: '/balance-assertions/edit/:id', name: 'balance-assertions-edit', component: () => import('./pages/EditBalanceAssertionView.vue') },
@@ -46,28 +56,17 @@ async function initApp() {
 		{ path: '/statement-lines/import', name: 'import-statement', component: () => import('./pages/ImportStatementView.vue') },
 		{ path: '/transactions/:account', name: 'transactions', component: () => import('./pages/TransactionsView.vue') },
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./reports/TrialBalanceReport.vue') },
-		// TODO: Generate this list dynamically
-		{ path: '/austax/cgt-adjustments', name: 'cgt-adjustments', component: () => import('./plugins/austax/CGTAdjustmentsView.vue') },
-		{ path: '/austax/cgt-adjustments/edit/:id', name: 'cgt-adjustments-edit', component: () => import('./plugins/austax/EditCGTAdjustmentView.vue') },
-		{ path: '/austax/cgt-adjustments/new', name: 'cgt-adjustments-new', component: () => import('./plugins/austax/NewCGTAdjustmentView.vue') },
-		{ path: '/austax/cgt-adjustments/multinew', name: 'cgt-adjustments-multinew', component: () => import('./plugins/austax/MultiNewCGTAdjustmentView.vue') },
-		{ path: '/austax/cgt-assets', name: 'cgt-assets', component: () => import('./plugins/austax/CGTAssetsView.vue') },
-		{ path: '/austax/tax-summary', name: 'tax-summary', component: () => import('./plugins/austax/TaxSummaryReport.vue') },
 	];
+	
+	// Init plugin routes
+	if (db.metadata.plugins.indexOf('austax') >= 0) {
+		routes.push(...austax.getRoutes());
+	}
+	
 	const router = createRouter({
 		history: createWebHistory(),
 		routes,
 	});
-	
-	// Init state
-	const dbFilename: string = await invoke('get_open_filename');
-	if (dbFilename !== null) {
-		try {
-			await db.init(dbFilename);  // Ensure all metadata cached before loading Vue
-		} catch (err) {
-			handleCriticalError(err);
-		}
-	}
 	
 	// Create Vue app
 	createApp(App).use(router).mount('#app');

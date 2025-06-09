@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 -->
 
 <template>
-	<div class="grid grid-cols-3 divide-x divide-gray-200">
+	<div :class="{'grid divide-x divide-gray-200': true, 'grid-cols-2': db.metadata.plugins.indexOf('austax') < 0, 'grid-cols-3': db.metadata.plugins.indexOf('austax') >= 0}">
 		<div class="pr-4">
 			<h2 class="font-medium text-gray-700 mb-2">Data sources</h2>
 			<ul class="list-disc ml-6">
@@ -26,8 +26,7 @@
 				<li><RouterLink :to="{ name: 'balance-assertions' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</RouterLink></li>
 				<li><RouterLink :to="{ name: 'chart-of-accounts' }" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</RouterLink></li>
 				<!-- Plugin reports -->
-				<!-- TODO: Generate this list dynamically -->
-				<li><RouterLink :to="{ name: 'cgt-adjustments' }" class="text-gray-900 hover:text-blue-700 hover:underline">CGT adjustments</RouterLink></li>
+				<component :is="austax.getDataSourcesLinks()" v-if="db.metadata.plugins.indexOf('austax') >= 0"></component>
 			</ul>
 		</div>
 		<div class="px-4">
@@ -37,15 +36,21 @@
 				<li><RouterLink :to="{ name: 'trial-balance' }" class="text-gray-900 hover:text-blue-700 hover:underline">Trial balance</RouterLink></li>
 				<li><RouterLink :to="{ name: 'balance-sheet' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance sheet</RouterLink></li>
 				<li><RouterLink :to="{ name: 'income-statement' }" class="text-gray-900 hover:text-blue-700 hover:underline">Income statement</RouterLink></li>
+				<!-- Plugin reports -->
+				<component :is="austax.getGeneralReportsLinks()" v-if="db.metadata.plugins.indexOf('austax') >= 0"></component>
 			</ul>
 		</div>
-		<div class="pl-4">
+		<div class="pl-4" v-if="db.metadata.plugins.indexOf('austax') >= 0">
 			<h2 class="font-medium text-gray-700 mb-2">Advanced reports</h2>
 			<ul class="list-disc ml-6">
-				<!-- TODO: Generate this list dynamically -->
-				<li><RouterLink :to="{ name: 'cgt-assets' }" class="text-gray-900 hover:text-blue-700 hover:underline">CGT assets</RouterLink></li>
-				<li><RouterLink :to="{ name: 'tax-summary' }" class="text-gray-900 hover:text-blue-700 hover:underline">Tax summary</RouterLink></li>
+				<!-- Plugin reports -->
+				<component :is="austax.getAdvancedReportsLinks()" v-if="db.metadata.plugins.indexOf('austax') >= 0"></component>
 			</ul>
 		</div>
 	</div>
 </template>
+
+<script setup lang="ts">
+	import { db } from '../db.ts';
+	import austax from '../plugins/austax/plugin.ts';
+</script>

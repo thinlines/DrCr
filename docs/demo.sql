@@ -39,6 +39,7 @@ INSERT INTO metadata VALUES(1,'version','3');
 INSERT INTO metadata VALUES(2,'eofy_date','2025-06-30');
 INSERT INTO metadata VALUES(3,'reporting_commodity','$');
 INSERT INTO metadata VALUES(4,'amount_dps','2');
+INSERT INTO metadata VALUES(5,'plugins','');
 CREATE TABLE postings (
 	id INTEGER NOT NULL,
 	transaction_id INTEGER,

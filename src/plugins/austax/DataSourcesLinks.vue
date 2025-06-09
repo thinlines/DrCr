@@ -1,4 +1,4 @@
-/*
+<!--
 	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
@@ -14,26 +14,8 @@
 	
 	You should have received a copy of the GNU Affero General Public License
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
+-->
 
-import { db } from './db.ts';
-import austax from './plugins/austax/plugin.ts';
-
-export const drcrAccountKinds: [string, string][] = [
-	['drcr.asset', 'Asset'],
-	['drcr.liability', 'Liability'],
-	['drcr.income', 'Income'],
-	['drcr.expense', 'Expense'],
-	['drcr.equity', 'Equity']
-];
-
-export async function getAccountKinds() {
-	const accountKinds = [...drcrAccountKinds];
-	
-	// Add plugin account kinds
-	if (db.metadata.plugins.indexOf('austax') >= 0) {
-		accountKinds.push(...await austax.getAccountKinds());
-	}
-	
-	return accountKinds;
-}
+<template>
+	<li><RouterLink :to="{ name: 'cgt-adjustments' }" class="text-gray-900 hover:text-blue-700 hover:underline">CGT adjustments</RouterLink></li>
+</template>

@@ -16,24 +16,13 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { db } from './db.ts';
-import austax from './plugins/austax/plugin.ts';
+import { Component } from 'vue';
+import { RouteRecordRaw } from 'vue-router';
 
-export const drcrAccountKinds: [string, string][] = [
-	['drcr.asset', 'Asset'],
-	['drcr.liability', 'Liability'],
-	['drcr.income', 'Income'],
-	['drcr.expense', 'Expense'],
-	['drcr.equity', 'Equity']
-];
-
-export async function getAccountKinds() {
-	const accountKinds = [...drcrAccountKinds];
-	
-	// Add plugin account kinds
-	if (db.metadata.plugins.indexOf('austax') >= 0) {
-		accountKinds.push(...await austax.getAccountKinds());
-	}
-	
-	return accountKinds;
+export interface Plugin {
+	getAccountKinds: () => Promise<[string, string][]>,
+	getAdvancedReportsLinks: () => Component,
+	getDataSourcesLinks: () => Component,
+	getGeneralReportsLinks: () => Component,
+	getRoutes: () => RouteRecordRaw[],
 }

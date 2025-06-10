@@ -62,6 +62,11 @@ From the main menu, click *Trial balance*. The trial balance now correctly shows
 
 If we click *Balance sheet* from the main menu, the report will show zero balances for assets, liabilities and equity. This is because we have not configured *Cash on Hand* as an asset or *Opening Balances* as equity. We will do so now.
 
+<table><tr>
+	<td>ⓘ</td>
+	<td>An account is not shown on the balance sheet or income statement, unless it is configured in the chart of accounts.</td>
+</tr></table>
+
 From the main menu, click *Chart of accounts*. The dropdown box at the top of the page is pre-populated with *Asset*. Select the checkbox next to *Cash on Hand*, and click *Add type*. The table updates to show that *Cash on Hand* is now configured as an asset account. Select the checkbox next to *Opening Balances*. Change the dropdown box from *Asset* to *Equity*, and click *Add type*. The table now shows:
 
 &nbsp;|Account|Associated types
@@ -94,6 +99,11 @@ Now add another transaction from the journal page:
 </table>
 
 If we now click *Balance sheet* from the main menu, a warning is displayed ‘Total assets do not equal total liabilities and equity.’ As the warning goes on to note, this is because the *Sales* account has not been configured.
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>If accounts with nonzero balances are not configured in the chart of accounts, the balance sheet may fail to balance.</td>
+</tr></table>
 
 Configure the *Sales* account as an income account in the chart of accounts.
 
@@ -232,6 +242,16 @@ The balance assertions page displays all existing balance assertions. The status
 
 The chart of accounts page allows for accounts to be configured as particular types of accounts (asset, liability, equity, income, expense). To add a type to an account, select the checkbox to the left of the account name, choose the account type from the dropdown box, and click *Add type*. To remove a type from an account, select the checkbox to the left of the account name, choose the account type from the dropdown box, and click *Remove type*.
 
+<table><tr>
+	<td>ⓘ</td>
+	<td>An account is not shown on the balance sheet or income statement, unless it is configured in the chart of accounts.</td>
+</tr></table>
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>If accounts with nonzero balances are not configured in the chart of accounts, the balance sheet may fail to balance.</td>
+</tr></table>
+
 # 6. General reports
 
 Functionality for generating common accounting reports is grouped within the ‘General reports’ panel of the main menu.
@@ -258,6 +278,16 @@ If the compare unit is set to ‘months’, the report will be generated for the
 
 For comparative balance sheet reports, *Current Year Earnings* and *Retained Earnings* will show financial year-to-date figures in each requested period.
 
+<table><tr>
+	<td>ⓘ</td>
+	<td>An account is not shown on the balance sheet, unless it is configured in the chart of accounts as an asset, liability or equity (see <a href="#chart-of-accounts">Chart of accounts</a>).</td>
+</tr></table>
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>If accounts with nonzero balances are not configured in the chart of accounts, the balance sheet may fail to balance.</td>
+</tr></table>
+
 ## Income statement
 
 The income statement report displays the balances of income and equity accounts (see [Chart of accounts](#chart-of-accounts)) for the period between two requested dates. The dates default to the financial year specified at database creation.
@@ -269,3 +299,8 @@ If the compare unit is set to ‘years’, the start and end dates of the report
 If the compare unit is set to ‘months’, the start and end dates of the report will each be shifted backwards by 1 calendar month for each comparison period. If the selected period is longer than 1 calendar month, the resulting report will include overlapping transactions in consecutive periods. If the selected period is shorter than 1 calendar month, the resulting report will have disjoint periods. The selected period should usually be set to 1 calendar month. If the specified start or end date exceeds the number of days in a previous month, the relevant date for that month will be set to the last day of the calendar month. For example, if the dates are set to 1–29 May and ‘Compare 3 months’ is requested, the report will be generated for 1–29 May, 1–28 Feb and 1–29 Jan. However, as an exception, if the specified end date is the last day of a calendar month, the end dates for all comparative reports will also be set to the last day of the calendar month. For example, if the dates are set to 1–30 Jun and ‘Compare 3 months’ is requested, the report will be generated for 1–30 Jun, 1–31 May and 1–30 Apr.
 
 If the selected period is 1 calendar year and the compare unit is changed from ‘years’ to ‘months’, the selected period will automatically be changed to 1 calendar month ending on the original end date. Similarly, if the selected period is 1 calendar month and the compare unit is changed from ‘months’ to ‘years’, the selected period will automatically be changed to 1 calendar year ending on the original end date. The start date can be manually adjusted after changing the compare unit, if this is not the desired behaviour.
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>An account is not shown on the income statement, unless it is configured in the chart of accounts as income or an expense (see <a href="#chart-of-accounts">Chart of accounts</a>).</td>
+</tr></table>

@@ -207,13 +207,20 @@ The statement lines page displays all previously imported statement lines.
 
 To import a new statement, click *Import statement* on the statement lines page. This opens the statement importer. Supported formats are OFX (1.x/2.x) and CSV. A CSV file must contain the headers *Date* (YYYY-MM-DD), *Description*, *Amount*. When the statement lines are imported and eventually reconciled, they will be posted as transactions to the *Source account* specified on the statement importer. Increases to account balances will be converted to debits, and decreases will be converted to credits (note that this terminology is consistent with the accounting convention, but opposite to that conventionally shown on bank statements).
 
-When a statement line is initially imported, it will be shown on the statement lines page as *Unclassified*. Click *Unclassified* to open the statement line reconciliation dropdown box, to select the corresponding account to charge the transaction to (e.g. an income or expense account). Reconciling a statement line will create a transaction in the journal (see [Journal](#journal)), and link the journal transaction with the statement line.
+When a statement line is initially imported, it will be shown on the statement lines page as *Unclassified*. Unclassified statement lines will be automatically posted to the *Unclassified Statement Line Debits* or *Unclassified Statement Line Credits* account by default. It is recommended to configure these as income and expense accounts (see [Chart of accounts](#chart-of-accounts)).
+
+<table><tr>
+	<td>ⓘ</td>
+	<td>It is recommended to configure <i>Unclassified Statement Line Debits</i> as an income account, and <i>Unclassified Statement Line Credits</i> as an expense account.</td>
+</tr></table>
+
+To reconcile a statement line, click *Unclassified* to open the statement line reconciliation dropdown box, and select the corresponding account to charge the transaction to (e.g. an income or expense account). Reconciling a statement line will create a transaction in the journal (see [Journal](#journal)), and link the journal transaction with the statement line.
 
 If a statement line has already been reconciled, the statement lines page will display the name of the corresponding account. Clicking the pencil icon next to the name of the corresponding account will open the transaction editor for the corresponding journal transaction.
 
 It is not currently possible to reconcile a single statement line to more than one corresponding account using multiple postings. It is suggested to first reconcile the statement line to one account, then open the transaction editor and edit the postings as required.
 
-If there is a transfer between two accounts and both statements have been imported, there will be one imported statement line per account. To reconcile both statement lines as a single transfer between the two accounts, select the checkboxes to the left of the statement lines, and click *Reconcile selected as transfer*.
+If there is a transfer between two accounts and both statements have been imported, there will be one imported statement line per account. To reconcile both statement lines as a single transfer between the two accounts, select the checkboxes to the left of the statement lines, and click *Reconcile selected as transfer*. The date and description of the resulting transaction will be that of the top-most selected statement line.
 
 ## Balance assertions
 

@@ -52,21 +52,21 @@ We will now enter a new transaction. From the main menu, click *Journal* → *Ne
 <table>
 	<tr><th>Date</th><th colspan="2">Description</th><th>Dr</th><th>Cr</th></tr>
 	<tr><td>Today's date</td><td colspan="2">Opening balance</td><td></td><td></td></tr>
-	<tr><td></td><td>Dr</td><td>Cash at Hand</td><td>$100</td><td></td></tr>
+	<tr><td></td><td>Dr</td><td>Cash on Hand</td><td>$100</td><td></td></tr>
 	<tr><td></td><td>Cr</td><td>Opening Balances</td><td></td><td>$100</td></tr>
 </table>
 
 Click *Save*. The journal page has updated to show the new transaction.
 
-From the main menu, click *Trial balance*. The trial balance now correctly shows a $100 debit balance in the *Cash at Hand* account, and a $100 credit balance in the *Opening Balances* account.
+From the main menu, click *Trial balance*. The trial balance now correctly shows a $100 debit balance in the *Cash on Hand* account, and a $100 credit balance in the *Opening Balances* account.
 
-If we click *Balance sheet* from the main menu, the report will show zero balances for assets, liabilities and equity. This is because we have not configured *Cash at Hand* as an asset or *Opening Balances* as equity. We will do so now.
+If we click *Balance sheet* from the main menu, the report will show zero balances for assets, liabilities and equity. This is because we have not configured *Cash on Hand* as an asset or *Opening Balances* as equity. We will do so now.
 
-From the main menu, click *Chart of accounts*. The dropdown box at the top of the page is pre-populated with *Asset*. Select the checkbox next to *Cash at Hand*, and click *Add type*. The table updates to show that *Cash at Hand* is now configured as an asset account. Select the checkbox next to *Opening Balances*. Change the dropdown box from *Asset* to *Equity*, and click *Add type*. The table now shows:
+From the main menu, click *Chart of accounts*. The dropdown box at the top of the page is pre-populated with *Asset*. Select the checkbox next to *Cash on Hand*, and click *Add type*. The table updates to show that *Cash on Hand* is now configured as an asset account. Select the checkbox next to *Opening Balances*. Change the dropdown box from *Asset* to *Equity*, and click *Add type*. The table now shows:
 
 &nbsp;|Account|Associated types
 -|-|-
-☐|Cash at Hand|• Asset
+☐|Cash on Hand|• Asset
 ☐|Opening Balances|• Equity
 
 Return to the *Balance sheet* report. The report is now correct:
@@ -74,7 +74,7 @@ Return to the *Balance sheet* report. The report is now correct:
 &nbsp;|$
 -|-:
 **Assets**|
-Cash at Hand|100.00
+Cash on Hand|100.00
 **Total assets**|**100.00**
 &nbsp;|
 **Liabilities**|
@@ -89,7 +89,7 @@ Now add another transaction from the journal page:
 <table>
 	<tr><th>Date</th><th colspan="2">Description</th><th>Dr</th><th>Cr</th></tr>
 	<tr><td>Today's date</td><td colspan="2">Cash sales for the day</td><td></td><td></td></tr>
-	<tr><td></td><td>Dr</td><td>Cash at Hand</td><td>$10</td><td></td></tr>
+	<tr><td></td><td>Dr</td><td>Cash on Hand</td><td>$10</td><td></td></tr>
 	<tr><td></td><td>Cr</td><td>Sales</td><td></td><td>$10</td></tr>
 </table>
 
@@ -115,7 +115,7 @@ From the main menu, click *Balance sheet*. The current year surplus is automatic
 &nbsp;|$
 -|-:
 **Assets**|
-Cash at Hand|110.00
+Cash on Hand|110.00
 **Total assets**|**110.00**
 &nbsp;|
 **Liabilities**|

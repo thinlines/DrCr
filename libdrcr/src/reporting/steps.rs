@@ -31,7 +31,7 @@ use crate::model::transaction::{
 };
 use crate::reporting::types::{BalancesAt, DateStartDateEndArgs, ReportingProductId, Transactions};
 use crate::util::{get_eofy, sofy_from_eofy};
-use crate::QuantityInt;
+use crate::{QuantityInt, UNCLASSIFIED_STATEMENT_LINE_CREDITS, UNCLASSIFIED_STATEMENT_LINE_DEBITS};
 
 use super::calculator::ReportingGraphDependencies;
 use super::dynamic_report::{entries_for_kind, DynamicReport, DynamicReportEntry, Row, Section};
@@ -1238,9 +1238,9 @@ impl ReportingStep for PostUnreconciledStatementLines {
 
 		for line in unreconciled_statement_lines {
 			let unclassified_account = if line.quantity >= 0 {
-				"Unclassified Statement Line Debits"
+				UNCLASSIFIED_STATEMENT_LINE_DEBITS
 			} else {
-				"Unclassified Statement Line Credits"
+				UNCLASSIFIED_STATEMENT_LINE_CREDITS
 			};
 			transactions.transactions.push(TransactionWithPostings {
 				transaction: Transaction {

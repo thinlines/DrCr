@@ -14,3 +14,5 @@ pub type QuantityInt = i64;
 // TODO: Make this configurable
 pub const CURRENT_YEAR_EARNINGS: &'static str = "Current Year Earnings";
 pub const RETAINED_EARNINGS: &'static str = "Retained Earnings";
+pub const UNCLASSIFIED_STATEMENT_LINE_CREDITS: &'static str = "Unclassified Statement Line Credits";
+pub const UNCLASSIFIED_STATEMENT_LINE_DEBITS: &'static str = "Unclassified Statement Line Debits";

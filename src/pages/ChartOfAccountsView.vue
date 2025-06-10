@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -57,11 +57,13 @@
 </template>
 
 <script setup lang="ts">
+	import { invoke } from '@tauri-apps/api/core';
 	import { computed, ref } from 'vue';
 	
 	import { drcrAccountKinds, getAccountKinds } from '../registry.ts';
 	import { db } from '../db.ts';
 	import DropdownBox from '../components/DropdownBox.vue';
+	import { DynamicReport, reportEntryById, Row, Section } from '../reports/base.ts';
 	
 	const accountKinds = ref([...drcrAccountKinds]);
 	const accountKindsMap = computed(() => new Map(accountKinds.value));
@@ -74,19 +76,26 @@
 	async function loadAccountConfigurations() {
 		const session = await db.load();
 		
-		const accountKindsRaw: {account: string, kind: string | null}[] = await session.select(
-			`SELECT q1.account, q2.kind FROM
-			(SELECT account FROM account_configurations UNION SELECT account FROM postings ORDER BY account) q1
-			LEFT JOIN account_configurations q2 ON q1.account = q2.account`
-		);
+		// Get all accounts on the trial balance
+		const trialBalance = JSON.parse(await invoke('get_trial_balance', { date: '9999-12-31' })) as DynamicReport;
+		const trialBalanceAccounts = (reportEntryById(trialBalance, 'accounts') as { Section: Section }).Section.entries.map((e) => (e as { Row: Row }).Row.text);
 		
-		for (const accountKindRaw of accountKindsRaw) {
-			const kinds = accounts.value.get(accountKindRaw.account) ?? [];
-			if (accountKindRaw.kind !== null) {
-				kinds.push(accountKindRaw.kind);
-			}
-			accounts.value.set(accountKindRaw.account, kinds);
+		// Get all configured account kinds
+		const accountKindsRaw: {account: string, kind: string}[] = await session.select(
+			`SELECT account, kind FROM account_configurations`
+		);
+		const accountKindsMap = Map.groupBy(accountKindsRaw, (a) => a.account);
+		
+		// Include all accounts on the trial balance or which have configurations
+		const combinedAccountNames = [...new Set([...trialBalanceAccounts, ...accountKindsMap.keys()])];
+		combinedAccountNames.sort();
+		
+		const accountKinds = new Map();
+		for (const accountName of combinedAccountNames) {
+			accountKinds.set(accountName, accountKindsMap.get(accountName)?.map((a) => a.kind) ?? []);
 		}
+		
+		accounts.value = accountKinds;
 	}
 	
 	async function loadAccountKinds() {

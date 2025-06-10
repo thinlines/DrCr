@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -51,6 +51,9 @@ export interface Spacer {
 export function reportEntryById(report: DynamicReport | Section, id: string): DynamicReportEntry | null {
 	for (const entry of report.entries) {
 		if ((entry as { Section: Section }).Section) {
+			if ((entry as { Section: Section }).Section.id === id) {
+				return entry;
+			}
 			const result = reportEntryById((entry as { Section: Section }).Section, id);
 			if (result !== null) {
 				return result;

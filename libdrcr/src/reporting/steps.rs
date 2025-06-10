@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 
 	This program is free software: you can redistribute it and/or modify
@@ -1519,7 +1519,7 @@ impl ReportingStep for TrialBalance {
 		// Add entry for each account
 		let mut section = Section {
 			text: None,
-			id: None,
+			id: Some("accounts".to_string()),
 			visible: true,
 			entries: Vec::new(),
 		};

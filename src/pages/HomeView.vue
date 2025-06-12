@@ -17,7 +17,7 @@
 -->
 
 <template>
-	<div :class="{'grid divide-x divide-gray-200': true, 'grid-cols-2': db.metadata.plugins.indexOf('austax') < 0, 'grid-cols-3': db.metadata.plugins.indexOf('austax') >= 0}">
+	<div :class="{'grid divide-x divide-gray-200': true, 'grid-cols-2': loadedPlugins.indexOf('austax') < 0, 'grid-cols-3': loadedPlugins.indexOf('austax') >= 0}">
 		<div class="pr-4">
 			<h2 class="font-medium text-gray-700 mb-2">Data sources</h2>
 			<ul class="list-disc ml-6">
@@ -26,7 +26,7 @@
 				<li><RouterLink :to="{ name: 'balance-assertions' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</RouterLink></li>
 				<li><RouterLink :to="{ name: 'chart-of-accounts' }" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</RouterLink></li>
 				<!-- Plugin reports -->
-				<component :is="austax.getDataSourcesLinks()" v-if="db.metadata.plugins.indexOf('austax') >= 0"></component>
+				<component :is="austax.getDataSourcesLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
 			</ul>
 		</div>
 		<div class="px-4">
@@ -37,20 +37,22 @@
 				<li><RouterLink :to="{ name: 'balance-sheet' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance sheet</RouterLink></li>
 				<li><RouterLink :to="{ name: 'income-statement' }" class="text-gray-900 hover:text-blue-700 hover:underline">Income statement</RouterLink></li>
 				<!-- Plugin reports -->
-				<component :is="austax.getGeneralReportsLinks()" v-if="db.metadata.plugins.indexOf('austax') >= 0"></component>
+				<component :is="austax.getGeneralReportsLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
 			</ul>
 		</div>
-		<div class="pl-4" v-if="db.metadata.plugins.indexOf('austax') >= 0">
+		<div class="pl-4" v-if="loadedPlugins.indexOf('austax') >= 0">
 			<h2 class="font-medium text-gray-700 mb-2">Advanced reports</h2>
 			<ul class="list-disc ml-6">
 				<!-- Plugin reports -->
-				<component :is="austax.getAdvancedReportsLinks()" v-if="db.metadata.plugins.indexOf('austax') >= 0"></component>
+				<component :is="austax.getAdvancedReportsLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
 			</ul>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-	import { db } from '../db.ts';
+	// Must use loadedPlugins not db.metadata.plugins, since we only want to update after routes are initialised
+	import { loadedPlugins } from '../plugin.ts';
+	
 	import austax from '../plugins/austax/plugin.ts';
 </script>

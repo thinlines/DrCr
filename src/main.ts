@@ -25,7 +25,7 @@ import { RouteRecordRaw, createRouter, createWebHistory } from 'vue-router';
 import App from './App.vue';
 import { db } from './db.ts';
 import { handleCriticalError } from './error.ts';
-import austax from './plugins/austax/plugin.ts';
+import { initPlugins } from './plugin.ts';
 
 async function initApp() {
 	// Init state
@@ -58,15 +58,12 @@ async function initApp() {
 		{ path: '/trial-balance', name: 'trial-balance', component: () => import('./reports/TrialBalanceReport.vue') },
 	];
 	
-	// Init plugin routes
-	if (db.metadata.plugins.indexOf('austax') >= 0) {
-		routes.push(...austax.getRoutes());
-	}
-	
 	const router = createRouter({
 		history: createWebHistory(),
 		routes,
 	});
+	
+	initPlugins(router);
 	
 	// Create Vue app
 	createApp(App).use(router).mount('#app');

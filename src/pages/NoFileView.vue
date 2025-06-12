@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -26,8 +26,12 @@
 
 <script setup lang="ts">
 	import { open } from '@tauri-apps/plugin-dialog';
+	import { useRouter } from 'vue-router';
 	
 	import { db } from '../db.js';
+	import { initPlugins } from '../plugin.js';
+	
+	const router = useRouter();
 	
 	async function openFile() {
 		const file = await open({
@@ -41,5 +45,8 @@
 		if (file !== null) {
 			await db.init(file);
 		}
+		
+		// Re-load plugin routes in case a new plugin is enabled
+		initPlugins(router);
 	}
 </script>

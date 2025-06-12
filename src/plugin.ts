@@ -16,8 +16,13 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { Component } from 'vue';
-import { RouteRecordRaw } from 'vue-router';
+import { Component, ref } from 'vue';
+import { Router, RouteRecordRaw } from 'vue-router';
+
+import { db } from './db.ts';
+import austax from './plugins/austax/plugin.ts';
+
+export const loadedPlugins = ref([] as string[]);
 
 export interface Plugin {
 	getAccountKinds: () => Promise<[string, string][]>,
@@ -25,4 +30,17 @@ export interface Plugin {
 	getDataSourcesLinks: () => Component,
 	getGeneralReportsLinks: () => Component,
 	getRoutes: () => RouteRecordRaw[],
+}
+
+export function initPlugins(router: Router) {
+	// Add plugin routes to router
+	if (db.filename !== null) {
+		if (db.metadata.plugins.indexOf('austax') >= 0) {
+			for (const route of austax.getRoutes()) {
+				router.addRoute(route);
+			}
+		}
+		
+		loadedPlugins.value = db.metadata.plugins;
+	}
 }

@@ -98,7 +98,7 @@ Now add another transaction from the journal page:
 	<tr><td></td><td>Cr</td><td>Sales</td><td></td><td>$10</td></tr>
 </table>
 
-If we now click *Balance sheet* from the main menu, a warning is displayed ‘Total assets do not equal total liabilities and equity.’ As the warning goes on to note, this is because the *Sales* account has not been configured.
+If we now click *Balance sheet* from the main menu, a warning is displayed that ‘Total assets do not equal total liabilities and equity.’ As the warning goes on to note, this is because the *Sales* account has not been configured.
 
 <table><tr>
 	<td>ⓘ</td>
@@ -234,7 +234,7 @@ If there is a transfer between two accounts and both statements have been import
 
 ## Balance assertions
 
-The balance assertions allows the expected balance of an account at a particular time to be specified, and DrCr will confirm whether (or not) the account has the expected balance at that time.
+The balance assertions feature allows the expected balance of an account at a particular time to be specified, and DrCr will confirm whether (or not) the account has the expected balance at that time.
 
 The balance assertions page displays all existing balance assertions. The status of the balance assertion is displayed with a tick if the account has the expected balance, or a cross if it does not. To edit an existing balance assertion, click the pencil icon at the right-hand side of the table. To add a new balance assertion, click *New assertion*.
 

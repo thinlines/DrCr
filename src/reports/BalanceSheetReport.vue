@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -32,6 +32,7 @@
 						</select>
 					</div>
 				</div>
+				<DynamicReportMenu />
 			</div>
 		</div>
 		<div class="rounded-md bg-red-50 mt-4 p-4 col-span-2" v-if="!doesBalance">
@@ -57,6 +58,7 @@
 	import { DynamicReport, Row, reportEntryById } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
+	import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 	
 	const report = ref(null as DynamicReport | null);
 	const reportColumns = ref([] as string[]);

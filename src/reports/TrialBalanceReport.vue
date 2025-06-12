@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -18,11 +18,10 @@
 
 <template>
 	<DynamicReportComponent :report="report">
-		<div class="my-2 py-2 flex">
-			<div class="grow flex gap-x-2 items-baseline">
-				<span class="whitespace-nowrap">As at</span>
-				<input type="date" class="bordered-field" v-model.lazy="dt">
-			</div>
+		<div class="my-2 py-2 flex gap-x-2 items-baseline">
+			<span class="whitespace-nowrap">As at</span>
+			<input type="date" class="bordered-field" v-model.lazy="dt">
+			<DynamicReportMenu />
 		</div>
 	</DynamicReportComponent>
 </template>
@@ -35,6 +34,7 @@
 	import { DynamicReport } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
+	import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 	
 	const report = ref(null as DynamicReport | null);
 	

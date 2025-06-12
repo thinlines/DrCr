@@ -17,27 +17,25 @@
 -->
 
 <template>
-	<DynamicReportComponent :report="report">
-		<div class="relative">
-			<div class="absolute -top-10 right-0">
-				<DynamicReportMenu />
-			</div>
-		</div>
-	</DynamicReportComponent>
+	<div class="relative print:hidden">
+		<button class="text-gray-400 align-middle hover:text-gray-500" @click="isMenuOpen = !isMenuOpen"><EllipsisHorizontalCircleIcon class="size-6" /></button>
+		<ul class="absolute top-8 right-0 bg-white w-[11rem] shadow-lg ring-1 ring-black/5 focus:outline-hidden" :class="isMenuOpen ? 'block' : 'hidden'">
+			<li class="group cursor-pointer select-none py-1 px-3 text-gray-900 hover:text-white hover:bg-emerald-600" @click="menuPrint">
+				<PrinterIcon class="inline size-5 text-gray-500 group-hover:text-white" />
+				Print/Save as PDF
+			</li>
+		</ul>
+	</div>
 </template>
 
-<script setup lang="ts">
-	import { invoke } from '@tauri-apps/api/core';
+<script setup type="ts">
+	import { EllipsisHorizontalCircleIcon, PrinterIcon } from '@heroicons/vue/24/outline';
 	import { ref } from 'vue';
 	
-	import DynamicReportComponent from '../../components/DynamicReportComponent.vue';
-	import DynamicReportMenu from '../../components/DynamicReportMenu.vue';
-	import { DynamicReport } from '../../reports/base.ts';
+	const isMenuOpen = ref(false);
 	
-	const report = ref(null as DynamicReport | null);
-	
-	async function load() {
-		report.value = JSON.parse(await invoke('get_tax_summary'));
+	function menuPrint() {
+		window.print();
+		isMenuOpen.value = false;
 	}
-	load();
 </script>

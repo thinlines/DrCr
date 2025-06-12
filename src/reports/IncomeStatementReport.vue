@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -18,22 +18,21 @@
 
 <template>
 	<DynamicReportComponent :report="report" :columns="reportColumns">
-		<div class="my-2 py-2 flex">
-			<div class="grow flex gap-x-2 items-baseline">
-				<input type="date" class="bordered-field" v-model.lazy="dtStart">
-				<span>to</span>
-				<input type="date" class="bordered-field" v-model.lazy="dt">
-				<span>Compare</span>
-				<div class="relative flex flex-grow items-stretch shadow-sm">
-					<input type="number" min="1" class="bordered-field w-[9.5em] pr-[6em]" v-model.lazy="comparePeriods">
-					<div class="absolute inset-y-0 right-0 flex items-center z-10">
-						<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600" v-model="compareUnit" @change="onCompareUnitChange">
-							<option value="years">years</option>
-							<option value="months">months</option>
-						</select>
-					</div>
+		<div class="my-2 py-2 flex gap-x-2 items-baseline">
+			<input type="date" class="bordered-field" v-model.lazy="dtStart">
+			<span>to</span>
+			<input type="date" class="bordered-field" v-model.lazy="dt">
+			<span>Compare</span>
+			<div class="relative flex flex-grow items-stretch shadow-sm">
+				<input type="number" min="1" class="bordered-field w-[9.5em] pr-[6em]" v-model.lazy="comparePeriods">
+				<div class="absolute inset-y-0 right-0 flex items-center z-10">
+					<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600" v-model="compareUnit" @change="onCompareUnitChange">
+						<option value="years">years</option>
+						<option value="months">months</option>
+					</select>
 				</div>
 			</div>
+			<DynamicReportMenu />
 		</div>
 	</DynamicReportComponent>
 </template>
@@ -46,6 +45,7 @@
 	import { DynamicReport } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
+	import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 	
 	const report = ref(null as DynamicReport | null);
 	const reportColumns = ref([] as string[]);

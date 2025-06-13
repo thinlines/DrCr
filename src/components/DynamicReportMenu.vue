@@ -19,20 +19,47 @@
 <template>
 	<div class="relative print:hidden">
 		<button class="text-gray-400 align-middle hover:text-gray-500" @click="isMenuOpen = !isMenuOpen"><EllipsisHorizontalCircleIcon class="size-6" /></button>
-		<ul class="absolute top-8 right-0 bg-white w-[11rem] shadow-lg ring-1 ring-black/5 focus:outline-hidden" :class="isMenuOpen ? 'block' : 'hidden'">
+		<ul class="absolute top-8 right-0 py-1 bg-white w-[11rem] shadow-lg ring-1 ring-black/5 focus:outline-hidden" :class="isMenuOpen ? 'block' : 'hidden'">
 			<li class="group cursor-pointer select-none py-1 px-3 text-gray-900 hover:text-white hover:bg-emerald-600" @click="menuPrint">
 				<PrinterIcon class="inline size-5 text-gray-500 group-hover:text-white" />
 				Print/Save as PDF
+			</li>
+			<li class="group cursor-pointer select-none py-1 px-3 text-gray-900 hover:text-white hover:bg-emerald-600" @click="menuCsv">
+				<DocumentTextIcon class="inline size-5 text-gray-500 group-hover:text-white" />
+				Save as CSV
 			</li>
 		</ul>
 	</div>
 </template>
 
-<script setup type="ts">
-	import { EllipsisHorizontalCircleIcon, PrinterIcon } from '@heroicons/vue/24/outline';
+<script setup lang="ts">
+	import { DocumentTextIcon, EllipsisHorizontalCircleIcon, PrinterIcon } from '@heroicons/vue/24/outline';
+	import { save } from '@tauri-apps/plugin-dialog';
+	import { writeTextFile } from '@tauri-apps/plugin-fs';
 	import { ref } from 'vue';
 	
+	import { DynamicReport } from '../reports/base.ts';
+	
+	const { report, columns, subtitle } = defineProps<{ report: DynamicReport | null, columns?: string[], subtitle?: string }>();
+	
 	const isMenuOpen = ref(false);
+	
+	async function menuCsv() {
+		// Export report to CSV
+		const csv = report!.toCSV(columns, subtitle);
+		
+		// Save to file
+		const csvFilename = await save({
+			filters: [
+				{ name: 'Comma separated values (CSV)', extensions: ['csv'] }
+			],
+		});
+		if (csvFilename !== null) {
+			await writeTextFile(csvFilename, csv);
+		}
+		
+		isMenuOpen.value = false;
+	}
 	
 	function menuPrint() {
 		window.print();

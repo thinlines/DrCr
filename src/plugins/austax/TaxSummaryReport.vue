@@ -20,7 +20,7 @@
 	<DynamicReportComponent :report="report">
 		<div class="relative">
 			<div class="absolute -top-10 right-0">
-				<DynamicReportMenu />
+				<DynamicReportMenu :report="report" />
 			</div>
 		</div>
 	</DynamicReportComponent>

@@ -32,7 +32,7 @@
 						</select>
 					</div>
 				</div>
-				<DynamicReportMenu />
+				<DynamicReportMenu :report="report" :columns="reportColumns" :subtitle="'As at ' + dt" />
 			</div>
 		</div>
 		<div class="rounded-md bg-red-50 mt-4 p-4 col-span-2" v-if="!doesBalance">

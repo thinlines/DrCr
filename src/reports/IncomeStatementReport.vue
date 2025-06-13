@@ -32,7 +32,7 @@
 					</select>
 				</div>
 			</div>
-			<DynamicReportMenu />
+			<DynamicReportMenu :report="report" :columns="reportColumns" :subtitle="dtStart + ' to ' + dt" />
 		</div>
 	</DynamicReportComponent>
 </template>

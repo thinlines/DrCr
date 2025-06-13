@@ -16,6 +16,9 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import { db, serialiseAmount } from '../db.ts';
+import { CriticalError } from '../error.ts';
+
 export class DynamicReport {
 	title!: string;
 	columns!: string[];
@@ -27,6 +30,30 @@ export class DynamicReport {
 	
 	byId(id: string): DynamicReportEntry | null {
 		return reportEntryById(this, id);
+	}
+	
+	// Convert to report to CSV
+	toCSV(columns?: string[], subtitle?: string): string {
+		let csv = '';
+		
+		// Title and subtitle
+		csv += escapeCSV(this.title) + '\n';
+		if (subtitle) {
+			csv += escapeCSV(subtitle) + '\n';
+		}
+		
+		// Columns
+		for (const column of columns || this.columns) {
+			csv += ',' + escapeCSV(column);
+		}
+		csv += '\n';
+		
+		// Entries
+		for (const entry of this.entries) {
+			csv += entryToCSV(entry);
+		}
+		
+		return csv;
 	}
 }
 
@@ -72,4 +99,38 @@ export function reportEntryById(report: DynamicReport | Section, id: string): Dy
 		}
 	}
 	return null;
+}
+
+// Escape the given text as contents of a single CSV field
+function escapeCSV(cell: string): string {
+	if (cell.indexOf('"') >= 0) {
+		return '"' + cell.replaceAll('"', '""') + '"';
+	}
+	if (cell.indexOf(',') >= 0) {
+		return '"' + cell + '"';
+	}
+	return cell;
+}
+
+function entryToCSV(entry: DynamicReportEntry): string {
+	if (entry === 'Spacer') {
+		return '\n';
+	} else if ((entry as { Section: Section }).Section) {
+		const section = (entry as { Section: Section }).Section;
+		let csv = '';
+		for (const sectionEntry of section.entries) {
+			csv += entryToCSV(sectionEntry);
+		}
+		return csv;
+	} else if ((entry as { Row: Row }).Row) {
+		const row = (entry as { Row: Row}).Row;
+		let csv = escapeCSV(row.text);
+		for (const quantity of row.quantity) {
+			csv += ',' + escapeCSV(serialiseAmount(quantity, db.metadata.reporting_commodity));
+		}
+		csv += '\n';
+		return csv;
+	} else {
+		throw new CriticalError('Unexpected DynamicReportEntry');
+	}
 }

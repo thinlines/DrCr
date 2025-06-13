@@ -21,7 +21,7 @@
 		<div class="my-2 py-2 flex gap-x-2 items-baseline">
 			<span class="whitespace-nowrap">As at</span>
 			<input type="date" class="bordered-field" v-model.lazy="dt">
-			<DynamicReportMenu />
+			<DynamicReportMenu :report="report" :subtitle="'As at ' + dt" />
 		</div>
 	</DynamicReportComponent>
 </template>

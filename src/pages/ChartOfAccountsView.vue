@@ -63,7 +63,7 @@
 	import { drcrAccountKinds, getAccountKinds } from '../registry.ts';
 	import { db } from '../db.ts';
 	import DropdownBox from '../components/DropdownBox.vue';
-	import { DynamicReport, reportEntryById, Row, Section } from '../reports/base.ts';
+	import { DynamicReport, Row, Section } from '../reports/base.ts';
 	
 	const accountKinds = ref([...drcrAccountKinds]);
 	const accountKindsMap = computed(() => new Map(accountKinds.value));
@@ -77,8 +77,8 @@
 		const session = await db.load();
 		
 		// Get all accounts on the trial balance
-		const trialBalance = JSON.parse(await invoke('get_trial_balance', { date: '9999-12-31' })) as DynamicReport;
-		const trialBalanceAccounts = (reportEntryById(trialBalance, 'accounts') as { Section: Section }).Section.entries.map((e) => (e as { Row: Row }).Row.text);
+		const trialBalance = DynamicReport.fromJSON(await invoke('get_trial_balance', { date: '9999-12-31' })) as DynamicReport;
+		const trialBalanceAccounts = (trialBalance.byId('accounts') as { Section: Section }).Section.entries.map((e) => (e as { Row: Row }).Row.text);
 		
 		// Get all configured account kinds
 		const accountKindsRaw: {account: string, kind: string}[] = await session.select(

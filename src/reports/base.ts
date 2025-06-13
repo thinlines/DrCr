@@ -16,11 +16,18 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Cannot be a class as these are directly deserialised from JSON
-export interface DynamicReport {
-	title: string;
-	columns: string[];
-	entries: DynamicReportEntry[];
+export class DynamicReport {
+	title!: string;
+	columns!: string[];
+	entries!: DynamicReportEntry[];
+	
+	static fromJSON(json: string): DynamicReport {
+		return Object.assign(new DynamicReport(), JSON.parse(json));
+	}
+	
+	byId(id: string): DynamicReportEntry | null {
+		return reportEntryById(this, id);
+	}
 }
 
 // serde_json serialises an enum like this

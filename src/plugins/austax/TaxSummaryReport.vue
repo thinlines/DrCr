@@ -37,7 +37,7 @@
 	const report = ref(null as DynamicReport | null);
 	
 	async function load() {
-		report.value = JSON.parse(await invoke('get_tax_summary'));
+		report.value = DynamicReport.fromJSON(await invoke('get_tax_summary'));
 	}
 	load();
 </script>

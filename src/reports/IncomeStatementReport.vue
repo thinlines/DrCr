@@ -106,7 +106,7 @@
 			newReportColumns = ['$'];
 		}
 		
-		report.value = JSON.parse(await invoke('get_income_statement', { dates: reportDates }));
+		report.value = DynamicReport.fromJSON(await invoke('get_income_statement', { dates: reportDates }));
 		reportColumns.value = newReportColumns;  // Wait until report available to update this
 	}
 	

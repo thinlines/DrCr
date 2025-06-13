@@ -55,7 +55,7 @@
 	
 	import { ExclamationCircleIcon } from '@heroicons/vue/20/solid';
 	
-	import { DynamicReport, Row, reportEntryById } from './base.ts';
+	import { DynamicReport, Row } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	import DynamicReportMenu from '../components/DynamicReportMenu.vue';
@@ -111,7 +111,7 @@
 			newReportColumns = ['$'];
 		}
 		
-		report.value = JSON.parse(await invoke('get_balance_sheet', { dates: reportDates }));
+		report.value = DynamicReport.fromJSON(await invoke('get_balance_sheet', { dates: reportDates }));
 		reportColumns.value = newReportColumns;  // Wait until report available to update this
 	}
 	
@@ -120,9 +120,9 @@
 			return true;
 		}
 		
-		const totalAssets = (reportEntryById(report.value, 'total_assets') as { Row: Row }).Row.quantity;
-		const totalLiabilities = (reportEntryById(report.value, 'total_liabilities') as { Row: Row }).Row.quantity;
-		const totalEquity = (reportEntryById(report.value, 'total_equity') as { Row: Row }).Row.quantity;
+		const totalAssets = (report.value.byId('total_assets') as { Row: Row }).Row.quantity;
+		const totalLiabilities = (report.value.byId('total_liabilities') as { Row: Row }).Row.quantity;
+		const totalEquity = (report.value.byId('total_equity') as { Row: Row }).Row.quantity;
 		
 		let doesBalance = true;
 		for (let column = 0; column < report.value.columns.length; column++) {

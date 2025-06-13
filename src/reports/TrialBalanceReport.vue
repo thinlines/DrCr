@@ -55,6 +55,6 @@
 	
 	async function updateReport() {
 		const reportDate = dayjs(dt.value!).format('YYYY-MM-DD');
-		report.value = JSON.parse(await invoke('get_trial_balance', { date: reportDate }));
+		report.value = DynamicReport.fromJSON(await invoke('get_trial_balance', { date: reportDate }));
 	}
 </script>

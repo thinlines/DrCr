@@ -1,6 +1,6 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	DrCr: Double-entry bookkeeping framework
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -171,7 +171,7 @@
 			const outerDiv = document.getElementById('statement-line-list')!;
 			const divReconciler = document.getElementById('statement-line-classifier')!;
 			divReconciler.classList.remove('hidden');
-			divReconciler.style.top = (td.getBoundingClientRect().y - outerDiv.getBoundingClientRect().y - 4) + 'px';
+			divReconciler.style.top = (outerDiv.scrollTop + td.getBoundingClientRect().y - outerDiv.getBoundingClientRect().y - 4) + 'px';
 			divReconciler.style.left = (td.getBoundingClientRect().x - outerDiv.getBoundingClientRect().x) + 'px';
 			
 			// Focus classify line panel

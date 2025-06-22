@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -70,6 +70,17 @@
 			</tbody>
 		</table>
 		
+		<div class="rounded-md bg-red-50 mt-4 p-4 col-span-2" v-if="hasZeroAmounts">
+			<div class="flex">
+				<div class="flex-shrink-0">
+					<ExclamationCircleIcon class="h-5 w-5 text-red-400" />
+				</div>
+				<div class="ml-3 flex-1">
+					<p class="text-sm text-red-700">The imported statement will contain lines with zero amounts.</p>
+				</div>
+			</div>
+		</div>
+		
 		<div class="flex justify-end mt-4 space-x-2">
 			<button class="btn-primary" @click="doImport">Import</button>
 		</div>
@@ -78,8 +89,8 @@
 
 <script setup lang="ts">
 	import dayjs from 'dayjs';
-	
-	import { ref, useTemplateRef } from 'vue';
+	import { ExclamationCircleIcon } from '@heroicons/vue/20/solid';
+	import { computed, ref, useTemplateRef } from 'vue';
 	import { useRouter } from 'vue-router';
 	
 	import { StatementLine, db } from '../db.ts';
@@ -122,6 +133,8 @@
 		} else {
 			throw new Error('Unexpected import format');
 		}
+		
+		// TODO: Warn if contains duplicate statement line
 	}
 	
 	async function doImport() {
@@ -141,4 +154,13 @@
 		
 		router.push({ name: 'statement-lines' });
 	}
+	
+	const hasZeroAmounts = computed(function() {
+		for (const line of statementLines.value) {
+			if (line.quantity === 0) {
+				return true;
+			}
+		}
+		return false;
+	});
 </script>

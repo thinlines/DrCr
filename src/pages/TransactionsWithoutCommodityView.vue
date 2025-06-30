@@ -1,6 +1,6 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
-	Copyright (C) 2022–2025  Lee Yingtong Li (RunasSudo)
+	DrCr: Double-entry bookkeeping framework
+	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -82,8 +82,9 @@
 				editLink = `<a href="/journal/edit/${ transaction.id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
 			}
 			
-			if (transaction.postings.length == 2) {
-				// Simple transaction
+			if (transaction.postings.length == 2 && (transaction.postings[0].account !== route.params.account || transaction.postings[1].account !== route.params.account)) {
+				// Simple transaction - if only 2 postings, and a transfer between this and another account
+				
 				let thisAccountPosting, otherAccountPosting;
 				
 				for (const posting of transaction.postings) {

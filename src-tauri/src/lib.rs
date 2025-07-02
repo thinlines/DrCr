@@ -1,5 +1,5 @@
 /*
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 
 	This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,8 @@ mod libdrcr_austax;
 mod libdrcr_bridge;
 mod sql;
 
+use gtk::prelude::{BinExt, Cast, GtkWindowExt, HeaderBarExt};
+use gtk::{EventBox, HeaderBar};
 use tauri::{AppHandle, Builder, Manager, State};
 use tauri_plugin_store::StoreExt;
 use tokio::sync::Mutex;
@@ -34,9 +36,7 @@ struct AppState {
 // Filename state
 
 #[tauri::command]
-async fn get_open_filename(
-	state: State<'_, Mutex<AppState>>,
-) -> Result<Option<String>, tauri_plugin_sql::Error> {
+async fn get_open_filename(state: State<'_, Mutex<AppState>>) -> Result<Option<String>, ()> {
 	let state = state.lock().await;
 	Ok(state.db_filename.clone())
 }
@@ -46,13 +46,41 @@ async fn set_open_filename(
 	state: State<'_, Mutex<AppState>>,
 	app: AppHandle,
 	filename: Option<String>,
-) -> Result<(), tauri_plugin_sql::Error> {
+) -> Result<(), ()> {
 	let mut state = state.lock().await;
 	state.db_filename = filename.clone();
 
 	// Persist in store
 	let store = app.store("store.json").expect("Error opening store");
 	store.set("db_filename", filename);
+
+	Ok(())
+}
+
+#[tauri::command]
+async fn set_window_title(app: AppHandle, label: &str, title: &str) -> Result<(), ()> {
+	// First call Tauri
+	let tauri_window = app.get_webview_window(label).unwrap();
+	tauri_window.set_title(title).unwrap();
+
+	// Then work around https://github.com/tauri-apps/tauri/issues/13749
+	let gtk_window = tauri_window.gtk_window().unwrap();
+	match gtk_window.titlebar() {
+		Some(titlebar) => {
+			let event_box = titlebar
+				.downcast::<EventBox>()
+				.expect("ApplicationWindow.titlebar not EventBox");
+
+			let header_bar = event_box
+				.child()
+				.expect("ApplicationWindow.titlebar has null child")
+				.downcast::<HeaderBar>()
+				.expect("ApplicationWindow.titlebar.child not HeaderBar");
+
+			header_bar.set_title(Some(title));
+		}
+		None => (),
+	}
 
 	Ok(())
 }
@@ -75,7 +103,10 @@ pub fn run() {
 						None
 					}
 				}
-				_ => panic!("Unexpected db_filename in store: {:?}", store.get("db_filename")),
+				_ => panic!(
+					"Unexpected db_filename in store: {:?}",
+					store.get("db_filename")
+				),
 			};
 
 			app.manage(Mutex::new(AppState {
@@ -93,6 +124,7 @@ pub fn run() {
 		.invoke_handler(tauri::generate_handler![
 			get_open_filename,
 			set_open_filename,
+			set_window_title,
 			libdrcr_austax::get_tax_summary,
 			libdrcr_bridge::get_all_transactions_except_earnings_to_equity,
 			libdrcr_bridge::get_all_transactions_except_earnings_to_equity_for_account,

@@ -19,6 +19,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 chrono = "0.4.41"
+gtk = "0.18.2"
 indexmap = { version = "2", features = ["serde"] }
 libdrcr = { path = "../libdrcr" }
 serde = { version = "1", features = ["derive"] }

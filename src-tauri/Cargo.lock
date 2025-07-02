@@ -796,6 +796,7 @@ name = "drcr"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "gtk",
  "indexmap 2.10.0",
  "libdrcr",
  "serde",

@@ -49,9 +49,15 @@ export const db = reactive({
 		await invoke('set_open_filename', { 'filename': filename });
 		
 		if (filename !== null) {
-			await getCurrentWindow().setTitle('DrCr – ' + filename?.replaceAll('\\', '/').split('/').at(-1));
+			await invoke('set_window_title', {
+				'label': await getCurrentWindow().label,
+				'title': 'DrCr – ' + filename?.replaceAll('\\', '/').split('/').at(-1)
+			});
 		} else {
-			await getCurrentWindow().setTitle('DrCr');
+			await invoke('set_window_title', {
+				'label': await getCurrentWindow().label,
+				'title': 'DrCr'
+			});
 		}
 		
 		if (filename !== null) {

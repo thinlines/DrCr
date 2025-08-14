@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -37,7 +37,6 @@
 		acquisition_dt: dayjs().format('YYYY-MM-DD'),
 		dt: dayjs().format('YYYY-MM-DD'),
 		description: '',
-		sign: 'dr',
-		cost_adjustment_abs: '',
+		cost_adjustment: '',
 	} as EditingCGTAdjustment);
 </script>

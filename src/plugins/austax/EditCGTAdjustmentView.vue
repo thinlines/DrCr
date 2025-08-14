@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -41,8 +41,7 @@
 		acquisition_dt: null!,
 		dt: null!,
 		description: null!,
-		sign: null!,
-		cost_adjustment_abs: null!,
+		cost_adjustment: null!,
 	} as EditingCGTAdjustment);
 	
 	async function load() {
@@ -60,8 +59,7 @@
 		rawAdjustment.asset = serialiseAmount(rawAdjustment.quantity, rawAdjustment.commodity);
 		rawAdjustment.acquisition_dt = dayjs(rawAdjustment.acquisition_dt).format('YYYY-MM-DD');
 		rawAdjustment.dt = dayjs(rawAdjustment.dt).format('YYYY-MM-DD');
-		rawAdjustment.sign = rawAdjustment.cost_adjustment >= 0 ? 'dr' : 'cr';
-		rawAdjustment.cost_adjustment_abs = serialiseAmount(Math.abs(rawAdjustment.cost_adjustment), db.metadata.reporting_commodity);
+		rawAdjustment.cost_adjustment = serialiseAmount(rawAdjustment.cost_adjustment, db.metadata.reporting_commodity);
 		
 		adjustment.value = rawAdjustment as EditingCGTAdjustment;
 	}

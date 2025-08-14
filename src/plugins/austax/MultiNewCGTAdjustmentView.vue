@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -57,13 +57,7 @@
 			<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
 				<span class="text-gray-500">{{ db.metadata.reporting_commodity }}</span>
 			</div>
-			<input type="number" class="bordered-field pl-7 pr-16" step="0.01" v-model="cost_adjustment_abs" placeholder="0.00">
-			<div class="absolute inset-y-0 right-0 flex items-center">
-				<select class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-indigo-600" v-model="sign">
-					<option value="dr">Dr</option>
-					<option value="cr">Cr</option>
-				</select>
-			</div>
+			<input type="number" class="bordered-field pl-7" step="0.01" v-model="cost_adjustment" placeholder="0.00">
 		</div>
 	</div>
 	
@@ -101,8 +95,7 @@
 	const commodity = ref('');
 	const dt = ref(dayjs().format('YYYY-MM-DD'));
 	const description = ref('');
-	const cost_adjustment_abs = ref(null! as number);
-	const sign = ref('dr');
+	const cost_adjustment = ref(null! as number);
 	
 	const error = ref(null as string | null);
 	
@@ -111,9 +104,9 @@
 		
 		error.value = null;
 		
-		let totalAdjustmentAbs;
+		let totalAdjustment;
 		try {
-			totalAdjustmentAbs = deserialiseAmount('' + cost_adjustment_abs.value);
+			totalAdjustment = deserialiseAmount('' + cost_adjustment.value).quantity;
 		} catch (err) {
 			if (err instanceof DeserialiseAmountError) {
 				error.value = err.message;
@@ -122,8 +115,6 @@
 				throw err;
 			}
 		}
-		
-		const totalAdjustment = sign.value === 'dr' ? totalAdjustmentAbs.quantity : -totalAdjustmentAbs.quantity;
 		
 		// Get all postings to the CGT asset account
 		const session = await db.load();

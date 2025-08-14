@@ -183,7 +183,7 @@ export function serialiseAmount(quantity: number, commodity: string): string {
 
 function parseFloatStrict(quantity: string): number {
 	// Parses quantity as a float, throwing error on invalid input
-	if (!/^[0-9]+(\.[0-9]+)?$/.test(quantity)) {
+	if (!/^-?[0-9]+(\.[0-9]+)?$/.test(quantity)) {
 		throw new DeserialiseAmountError('Invalid quantity: ' + quantity);
 	}
 	return parseFloat(quantity);
@@ -216,12 +216,21 @@ export function deserialiseAmount(amount: string): { quantity: number, commodity
 		throw new DeserialiseAmountError('Amount cannot be blank');
 	}
 	
+	if (amount.charAt(0) === '-') {
+		// Handle negative amount
+		const amountAbs = deserialiseAmount(amount.substring(1));
+		return {
+			quantity: -amountAbs.quantity,
+			commodity: amountAbs.commodity
+		};
+	}
+	
 	if (amount.charAt(0) < '0' || amount.charAt(0) > '9') {
 		// Check for single letter commodity
 		if (amount.length === 1) {
 			throw new DeserialiseAmountError('Quantity cannot be blank (expected quantity after commodity symbol ' + amount + ')');
 		}
-		if (amount.charAt(1) < '0' || amount.charAt(1) > '9') {
+		if ((amount.charAt(1) < '0' || amount.charAt(1) > '9') && amount.charAt(1) !== '-') {
 			throw new DeserialiseAmountError('Invalid quantity: ' + amount + ' (expected quantity after single-letter commodity symbol ' + amount.charAt(0) + ')');
 		}
 		

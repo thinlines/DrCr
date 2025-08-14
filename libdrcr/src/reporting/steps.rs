@@ -830,7 +830,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 								account: account.clone(),
 								quantity: -balance,
 								commodity: context.reporting_commodity.clone(),
-								quantity_ascost: None,
+								quantity_ascost: Some(-balance),
 							},
 							Posting {
 								id: None,
@@ -839,7 +839,7 @@ impl ReportingStep for CurrentYearEarningsToEquity {
 								account: crate::CURRENT_YEAR_EARNINGS.to_string(),
 								quantity: *balance,
 								commodity: context.reporting_commodity.clone(),
-								quantity_ascost: None,
+								quantity_ascost: Some(*balance),
 							},
 						],
 					})
@@ -1396,7 +1396,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 								account: account.clone(),
 								quantity: -balance,
 								commodity: context.reporting_commodity.clone(),
-								quantity_ascost: None,
+								quantity_ascost: Some(-balance),
 							},
 							Posting {
 								id: None,
@@ -1405,7 +1405,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 								account: crate::RETAINED_EARNINGS.to_string(),
 								quantity: *balance,
 								commodity: context.reporting_commodity.clone(),
-								quantity_ascost: None,
+								quantity_ascost: Some(*balance),
 							},
 						],
 					})

@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -66,7 +66,7 @@
 	import { UnlistenFn, listen } from '@tauri-apps/api/event';
 	import { onUnmounted, ref, watch } from 'vue';
 	
-	import { Transaction } from '../db.ts';
+	import { Transaction, postingQuantityAsCost } from '../db.ts';
 	import { pp, ppWithCommodity } from '../display.ts';
 	import { renderComponent } from '../webutil.ts';
 	
@@ -124,10 +124,10 @@
 							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
 							<td class="py-0.5 px-1 text-gray-900 lg:w-[30%]"><a href="/transactions/${ encodeURIComponent(posting.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ posting.account }</a></td>
 							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">
-								${ posting.quantity >= 0 ? pp(posting.quantity_ascost!) : '' }
+								${ posting.quantity >= 0 ? pp(postingQuantityAsCost(posting)) : '' }
 							</td>
 							<td class="py-0.5 pl-1 text-gray-900 lg:w-[12ex] text-end">
-								${ posting.quantity < 0 ? pp(-posting.quantity_ascost!) : '' }
+								${ posting.quantity < 0 ? pp(-postingQuantityAsCost(posting)) : '' }
 							</td>
 						</tr>`
 					);

@@ -49,7 +49,7 @@
 	import { onMounted, onUnmounted, watch } from 'vue';
 	import { useRoute } from 'vue-router';
 	
-	import { Transaction } from '../db.ts';
+	import { Transaction, postingQuantityAsCost } from '../db.ts';
 	import { pp } from '../display.ts';
 	import { renderComponent } from '../webutil.ts';
 	
@@ -66,7 +66,7 @@
 			const transaction = transactions[i];
 			for (const posting of transaction.postings) {
 				if (posting.account === route.params.account) {
-					balance += posting.quantity_ascost!;
+					balance += postingQuantityAsCost(posting);
 					posting.running_balance = balance;
 				}
 			}
@@ -100,8 +100,8 @@
 						<td class="py-0.5 pr-1 text-gray-900 lg:w-[12ex]">${ dayjs(transaction.dt).format('YYYY-MM-DD') }</td>
 						<td class="py-0.5 px-1 text-gray-900">${ transaction.description } ${ editLink }</td>
 						<td class="py-0.5 px-1 text-gray-900"><a href="/transactions/${ encodeURIComponent(otherAccountPosting!.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ otherAccountPosting!.account }</a></td>
-						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ thisAccountPosting!.quantity >= 0 ? pp(thisAccountPosting!.quantity_ascost!) : '' }</td>
-						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ thisAccountPosting!.quantity < 0 ? pp(-thisAccountPosting!.quantity_ascost!) : '' }</td>
+						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ thisAccountPosting!.quantity >= 0 ? pp(postingQuantityAsCost(thisAccountPosting!)) : '' }</td>
+						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ thisAccountPosting!.quantity < 0 ? pp(-postingQuantityAsCost(thisAccountPosting!)) : '' }</td>
 						<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ pp(Math.abs(thisAccountPosting!.running_balance!)) }</td>
 						<td class="py-0.5 text-gray-900">${ thisAccountPosting!.running_balance! >= 0 ? 'Dr' : 'Cr' }</td>
 					</tr>`
@@ -125,8 +125,8 @@
 							<td></td>
 							<td class="py-0.5 px-1 text-gray-900 text-end"><i>${ posting.quantity >= 0 ? 'Dr' : 'Cr' }</i></td>
 							<td class="py-0.5 px-1 text-gray-900"><a href="/transactions/${ encodeURIComponent(posting.account) }" class="text-gray-900 hover:text-blue-700 hover:underline">${ posting.account }</a></td>
-							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ posting.quantity >= 0 ? pp(posting.quantity_ascost!) : '' }</td>
-							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ posting.quantity < 0 ? pp(-posting.quantity_ascost!) : '' }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ posting.quantity >= 0 ? pp(postingQuantityAsCost(posting)) : '' }</td>
+							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ posting.quantity < 0 ? pp(-postingQuantityAsCost(posting)) : '' }</td>
 							<td class="py-0.5 px-1 text-gray-900 lg:w-[12ex] text-end">${ posting.account === route.params.account ? pp(Math.abs(posting.running_balance!)) : '' }</td>
 							<td class="py-0.5 text-gray-900">${ posting.account === route.params.account ? (posting.running_balance! >= 0 ? 'Dr' : 'Cr') : '' }</td>
 						</tr>`

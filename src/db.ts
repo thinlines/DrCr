@@ -326,6 +326,17 @@ export interface JoinedTransactionPosting {
 	running_balance?: number
 }
 
+export function postingQuantityAsCost(posting: Posting | JoinedTransactionPosting) {
+	// Convert the posting amount to cost price in the reporting commodity
+	
+	if (posting.quantity_ascost) {
+		return posting.quantity_ascost;
+	} else {
+		// NB: This branch is rarely taken - most conversions are performed in SQL via the transactions_with_quantity_ascost view
+		return asCost(posting.quantity, posting.commodity);
+	}
+}
+
 export interface StatementLine {
 	id: number | null,
 	source_account: string,

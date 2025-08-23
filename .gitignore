@@ -1,3 +1,5 @@
+src/version.ts
+
 # Logs
 logs
 *.log

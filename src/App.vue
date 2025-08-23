@@ -1,5 +1,5 @@
 <!--
-	DrCr: Web-based double-entry bookkeeping framework
+	DrCr: Double-entry bookkeeping framework
 	Copyright (C) 2022-2025  Lee Yingtong Li (RunasSudo)
 	
 	This program is free software: you can redistribute it and/or modify
@@ -32,6 +32,7 @@
 				</div>
 			</main>
 		</div>
+		<FooterBar />
 	</div>
 </template>
 
@@ -39,6 +40,7 @@
 	import { onErrorCaptured } from 'vue';
 	import { useRoute } from 'vue-router';
 	
+	import FooterBar from './components/FooterBar.vue';
 	import HeaderBar from './components/HeaderBar.vue';
 	import { db } from './db.js';
 	import { error, handleCriticalError } from './error.js';

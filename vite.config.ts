@@ -1,12 +1,27 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-// @ts-expect-error process is a nodejs global
+import * as child from "child_process";
+import * as fs from "node:fs";
+
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    {
+      // Update version.ts when frontend built
+      name: "update-version",
+      async buildStart(options) {
+        // Get commit from git
+        const commitHash = child.execSync("git rev-parse --short HEAD").toString().trim();
+
+        // Write to src/version.ts
+        fs.writeFileSync("src/version.ts", "export const COMMIT_HASH = " + JSON.stringify(commitHash) + ";");
+      },
+    },
+  ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

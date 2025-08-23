@@ -1334,9 +1334,9 @@ impl ReportingStep for RetainedEarningsToEquity {
 		let eofy_date = get_eofy(&self.args.date, &context.eofy_date);
 		let last_eofy_date = eofy_date.with_year(eofy_date.year() - 1).unwrap();
 
-		// RetainedEarningsToEquity depends on CombineOrdinaryTransactions for last financial year
+		// RetainedEarningsToEquity depends on AllTransactionsExceptEarningsToEquity for last financial year
 		vec![ReportingProductId {
-			name: "CombineOrdinaryTransactions".to_string(),
+			name: "AllTransactionsExceptEarningsToEquity".to_string(),
 			kind: ReportingProductKind::BalancesAt,
 			args: ReportingStepArgs::DateArgs(DateArgs {
 				date: last_eofy_date,
@@ -1358,7 +1358,7 @@ impl ReportingStep for RetainedEarningsToEquity {
 		// Get balances at end of last financial year
 		let balances_last_eofy = products
 			.get_or_err(&ReportingProductId {
-				name: "CombineOrdinaryTransactions".to_string(),
+				name: "AllTransactionsExceptEarningsToEquity".to_string(),
 				kind: ReportingProductKind::BalancesAt,
 				args: ReportingStepArgs::DateArgs(DateArgs {
 					date: last_eofy_date.clone(),

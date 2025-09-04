@@ -258,8 +258,11 @@
 		(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
 		(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
 		
-		// Hide the statement line classifier
+		// Hide the statement line classifier and unhide any hidden reconciliation cells
 		document.getElementById('statement-line-classifier')!.classList.add('hidden');
+		for (const el of document.querySelectorAll('#statement-line-list .charge-account > span')) {
+			el.classList.remove('invisible');
+		}
 		
 		// Reload transactions and re-render the table
 		await load();

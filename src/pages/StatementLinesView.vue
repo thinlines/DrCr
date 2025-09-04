@@ -38,9 +38,9 @@
     </div>
     
     <div id="statement-line-list" class="flex-1 min-h-0 overflow-y-auto wk-aa relative">
-        <table class="min-w-full">
-			<thead>
-				<tr class="border-b border-gray-300">
+        <table class="min-w-full sticky-table">
+			<thead class="sticky-header">
+				<tr class="">
 					<th class="py-0.5 pr-1 align-bottom">
 						<input id="statement-line-select-all" class="checkbox-primary" type="checkbox" @change="onToggleAll">
 					</th>
@@ -461,3 +461,17 @@
 		}
 	});
 </script>
+
+<style scoped>
+.sticky-table {
+  @apply border-separate;
+  border-spacing: 0;
+}
+.sticky-header th {
+  @apply sticky top-0 bg-white z-10 border-b border-gray-300;
+}
+
+#statement-line-classifier {
+  @apply z-20;
+}
+</style>

@@ -28,21 +28,13 @@ export default function importOfx1(sourceAccount: string, content: string): Stat
 	if (start < 0) {
 		throw new Error('OFX payload not found');
 	}
-	let rawPayload = content.substring(start);
+	const rawPayload = content.substring(start);
 
-	// 2) Escape bare ampersands (avoid double-escaping entities)
-	// Replace & not followed by an entity pattern with &amp;
-	rawPayload = rawPayload.replace(/&(?![a-zA-Z]+;|#[0-9]+;)/g, '&amp;');
+	// 2) Convert OFX SGML to well-formed XML with a small streaming converter
+	const xmlPayload = ofxSgmlToXml(rawPayload);
 
-	// 3) Convert SGML-style tags <TAG>value into well-formed XML <TAG>value</TAG>
-	// This handles values up to the next '<' (i.e., the next tag)
-	let xmlPayload = rawPayload.replace(/<([A-Za-z0-9_.]+)>([^<]+)/g, '<$1>$2</$1>');
-	// Also close empty leaf tags that appear as <TAG> immediately followed by another tag
-	xmlPayload = xmlPayload.replace(/<([A-Za-z0-9_.]+)>(?=\s*<)/g, '<$1></$1>');
-
-	// 4) Parse as XML
-	const xmlHeader = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>';
-	const tree = new DOMParser().parseFromString(xmlHeader + xmlPayload, 'application/xml');
+	// 3) Parse as XML
+	const tree = new DOMParser().parseFromString(xmlPayload, 'application/xml');
 
 	// Read transactions
 	const statementLines: StatementLine[] = [];
@@ -88,4 +80,81 @@ export default function importOfx1(sourceAccount: string, content: string): Stat
 	}
 
 	return statementLines;
+}
+
+function ofxSgmlToXml(sgml: string): string {
+	// Convert OFX 1.x SGML to well-formed XML by walking tags
+	// - Treat <TAG>text as leaf => <TAG>text</TAG>
+	// - Treat <TAG> followed by another tag/newline as container => <TAG> ... </TAG>
+	// - Honor explicit closing tags </TAG>
+	// - Escape bare ampersands in text
+	const out: string[] = [];
+	out.push('<?xml version="1.0" encoding="UTF-8" standalone="no"?>');
+
+	const stack: string[] = [];
+	let i = 0;
+	const n = sgml.length;
+	while (i < n) {
+		const lt = sgml.indexOf('<', i);
+		if (lt < 0) { break; }
+		const gt = sgml.indexOf('>', lt + 1);
+		if (gt < 0) { break; }
+		const rawTag = sgml.slice(lt + 1, gt).trim();
+		i = gt + 1;
+
+		if (rawTag.startsWith('!')) {
+			// Skip comments/decls if any (rare in OFX1)
+			continue;
+		}
+
+		if (rawTag.startsWith('/')) {
+			const closeName = rawTag.slice(1).trim();
+			// Close up to the matching tag (case-insensitive)
+			let found = false;
+			for (let j = stack.length - 1; j >= 0; j--) {
+				if (stack[j].toUpperCase() === closeName.toUpperCase()) {
+					while (stack.length - 1 >= j) {
+						const name = stack.pop()!;
+						out.push(`</${name}>`);
+					}
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				// If unmatched, emit a closing anyway to keep balance
+				out.push(`</${closeName}>`);
+			}
+			continue;
+		}
+
+		const openName = rawTag.split(/\s+/)[0];
+		// Look ahead to next '<' for inline text
+		let nextLt = sgml.indexOf('<', i);
+		if (nextLt < 0) nextLt = n;
+		const between = sgml.slice(i, nextLt);
+		if (between.trim().length > 0) {
+			// Leaf with inline text
+			out.push(`<${openName}>${escapeText(between)}</${openName}>`);
+			i = nextLt;
+		} else {
+			// Container with children
+			out.push(`<${openName}>`);
+			stack.push(openName);
+			i = nextLt; // move to next tag (whitespace/newlines skipped)
+		}
+	}
+
+	// Close any remaining open tags
+	while (stack.length > 0) {
+		const name = stack.pop()!;
+		out.push(`</${name}>`);
+	}
+
+	return out.join('');
+}
+
+function escapeText(text: string): string {
+	// Escape bare ampersands; '<' shouldn't occur in text by construction
+	return text.replace(/&(?![a-zA-Z]+;|#[0-9]+;)/g, '&amp;');
 }

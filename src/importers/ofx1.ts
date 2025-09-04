@@ -21,65 +21,71 @@ import dayjs from 'dayjs';
 import { DT_FORMAT, StatementLine, db } from '../db.ts';
 
 export default function importOfx1(sourceAccount: string, content: string): StatementLine[] {
-	// Import an OFX1 SGML file
-	
-	// Strip OFX header and parse
-	const raw_payload = content.substring(content.indexOf('<OFX')).replaceAll('&', '&amp;');
-	const tree = new DOMParser().parseFromString(raw_payload, 'text/html');  // HTML was originally based on SGML so use this parser
-	
+	// Import an OFX1/QFX SGML file by converting it to XML and parsing
+
+	// 1) Strip OFX header (everything before the first <OFX), case-insensitive
+	const start = content.search(/<OFX/i);
+	if (start < 0) {
+		throw new Error('OFX payload not found');
+	}
+	let rawPayload = content.substring(start);
+
+	// 2) Escape bare ampersands (avoid double-escaping entities)
+	// Replace & not followed by an entity pattern with &amp;
+	rawPayload = rawPayload.replace(/&(?![a-zA-Z]+;|#[0-9]+;)/g, '&amp;');
+
+	// 3) Convert SGML-style tags <TAG>value into well-formed XML <TAG>value</TAG>
+	// This handles values up to the next '<' (i.e., the next tag)
+	let xmlPayload = rawPayload.replace(/<([A-Za-z0-9_.]+)>([^<]+)/g, '<$1>$2</$1>');
+	// Also close empty leaf tags that appear as <TAG> immediately followed by another tag
+	xmlPayload = xmlPayload.replace(/<([A-Za-z0-9_.]+)>(?=\s*<)/g, '<$1></$1>');
+
+	// 4) Parse as XML
+	const xmlHeader = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>';
+	const tree = new DOMParser().parseFromString(xmlHeader + xmlPayload, 'application/xml');
+
 	// Read transactions
 	const statementLines: StatementLine[] = [];
-	
-	for (const transaction of tree.querySelectorAll('banktranlist stmttrn')) {
-		let dateRaw = getNodeText(transaction.querySelector('dtposted'));
+
+	for (const transaction of tree.querySelectorAll('BANKTRANLIST STMTTRN, banktranlist stmttrn')) {
+		// Date may include fractional seconds and/or a timezone in brackets
+		let dateRaw = (transaction.querySelector('DTPOSTED') || transaction.querySelector('dtposted'))?.textContent || '';
 		if (dateRaw && dateRaw.indexOf('[') >= 0) {
-			// Ignore time zone
-			dateRaw = dateRaw?.substring(0, dateRaw.indexOf('['));
+			// Ignore time zone bracket
+			dateRaw = dateRaw.substring(0, dateRaw.indexOf('['));
 		}
-		const date = dayjs(dateRaw, 'YYYYMMDDHHmmss.SSS').hour(0).minute(0).second(0).millisecond(0).format(DT_FORMAT);
-		
-		const description = getNodeText(transaction.querySelector('memo'));
-		const amount = getNodeText(transaction.querySelector('trnamt'));
-		
-		const quantity = Math.round(parseFloat(amount!) * Math.pow(10, db.metadata.dps));
+		// Keep only digits; take first 14 as YYYYMMDDHHmmss
+		const dateDigits = (dateRaw.match(/\d+/)?.[0] || '').slice(0, 14);
+		if (dateDigits.length < 8) { continue; }
+		const date = dayjs(dateDigits.padEnd(14, '0'), 'YYYYMMDDHHmmss')
+			.hour(0).minute(0).second(0).millisecond(0)
+			.format(DT_FORMAT);
+
+		const description =
+			(transaction.querySelector('MEMO') || transaction.querySelector('memo'))?.textContent?.trim() ||
+			(transaction.querySelector('NAME') || transaction.querySelector('name'))?.textContent?.trim() ||
+			'';
+		const amountStr = (transaction.querySelector('TRNAMT') || transaction.querySelector('trnamt'))?.textContent;
+		if (!amountStr) { continue; }
+
+		const quantity = Math.round(parseFloat(amountStr) * Math.pow(10, db.metadata.dps));
 		if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
-		
+
 		if (description.indexOf('PENDING') >= 0) {
 			// FIXME: This needs to be configurable
 			continue;
 		}
-		
+
 		statementLines.push({
 			id: null,
 			source_account: sourceAccount,
 			dt: date,
-			description: description ?? '',
+			description: description,
 			quantity: quantity,
 			balance: null,
 			commodity: db.metadata.reporting_commodity
 		});
 	}
-	
-	return statementLines;
-}
 
-function getNodeText(node: Node | null): string {
-	// Get text of the first text node
-	// HTML parser does not understand SGML/OFX nesting rules, so siblings will be incorrectly considered as children
-	// Therefore we use only the first text node
-	
-	if (node === null) {
-		throw new Error('Node not found');
-	}
-	
-	for (const child of node.childNodes) {
-		if (child.nodeType === Node.TEXT_NODE && child.nodeValue !== null && child.nodeValue.trim().length > 0) {
-			return child.nodeValue.trim();
-		}
-		if (child.nodeType === Node.ELEMENT_NODE) {
-			break;
-		}
-	}
-	
-	throw new Error('No text in node');
+	return statementLines;
 }

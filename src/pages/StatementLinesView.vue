@@ -251,7 +251,7 @@
 			[statementLine.id, accountPostingId]
 		);
 		
-		dbTransaction.commit();
+		await dbTransaction.commit();
 		
 		// Reset statement line classifier state
 		classificationAccount.value = '';
@@ -330,7 +330,7 @@
 			[line2.id, postingId2]
 		);
 		
-		dbTransaction.commit();
+		await dbTransaction.commit();
 		
 		// Reload transactions and re-render the table
 		await load();

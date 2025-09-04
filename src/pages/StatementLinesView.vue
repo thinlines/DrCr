@@ -41,7 +41,9 @@
         <table class="min-w-full">
 			<thead>
 				<tr class="border-b border-gray-300">
-					<th></th>
+					<th class="py-0.5 pr-1 align-bottom">
+						<input id="statement-line-select-all" class="checkbox-primary" type="checkbox" @change="onToggleAll">
+					</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Source account</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Description</th>
@@ -98,8 +100,9 @@
 		posting_accounts: string[]
 	}
 	
-	const showOnlyUnclassified = ref(false);
-	const statementLines = ref([] as StatementLine[]);
+    const showOnlyUnclassified = ref(false);
+    const statementLines = ref([] as StatementLine[]);
+    const selectAll = ref(false);
 	
 	const classificationLineId = ref(0);
 	const classificationAccount = ref('');
@@ -144,11 +147,31 @@
 		statementLines.value = newStatementLines;
 	}
 	
-	function onClickTableElement(event: MouseEvent) {
-		// Use event delegation to avoid polluting global scope with the event listener
-		if (event.target && (event.target as Element).classList.contains('classify-link')) {
-			// ------------------------
-			// Show classify line panel
+    function onClickTableElement(event: MouseEvent) {
+        // Use event delegation to avoid polluting global scope with the event listener
+        if (event.target && (event.target as Element).classList.contains('statement-line-checkbox')) {
+            const allBoxes = document.querySelectorAll('.statement-line-checkbox');
+            const checkedBoxes = document.querySelectorAll('.statement-line-checkbox:checked');
+            const header = document.getElementById('statement-line-select-all') as HTMLInputElement | null;
+            if (header) {
+                if (allBoxes.length === 0) {
+                    header.checked = false;
+                    header.indeterminate = false;
+                } else if (checkedBoxes.length === 0) {
+                    header.checked = false;
+                    header.indeterminate = false;
+                } else if (checkedBoxes.length === allBoxes.length) {
+                    header.checked = true;
+                    header.indeterminate = false;
+                } else {
+                    header.checked = false;
+                    header.indeterminate = true;
+                }
+            }
+        }
+        if (event.target && (event.target as Element).classList.contains('classify-link')) {
+            // ------------------------
+            // Show classify line panel
 			
 			// Prevent selecting a different line when already classifying one line
 			if ((document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled) {
@@ -179,13 +202,22 @@
 			// Focus classify line panel
 			divReconciler.querySelector('input')!.focus();
 		}
-	}
-	
-	async function onLineClassified(event: Event) {
-		// Callback when clicking OK to classify a statement line
-		if ((event.target! as any).disabled) {
-			return;
-		}
+    }
+
+    function onToggleAll(event: Event) {
+        const el = event.target as HTMLInputElement;
+        selectAll.value = !!el.checked;
+        // When toggling explicitly, clear indeterminate
+        el.indeterminate = false;
+        // Re-render so all rows reflect selection
+        renderTable();
+    }
+
+    async function onLineClassified(event: Event) {
+        // Callback when clicking OK to classify a statement line
+        if ((event.target! as any).disabled) {
+            return;
+        }
 		
 		const lineId = classificationLineId.value;
 		const chargeAccount = classificationAccount.value;
@@ -343,14 +375,14 @@
 		const PencilIconHTML = renderComponent(PencilIcon, { 'class': 'w-4 h-4 inline align-middle -mt-0.5' });  // Pre-render the pencil icon
 		const rows = [];
 		
-		for (const line of statementLines.value) {
-			let reconciliationCell, checkboxCell;
-			if (line.posting_accounts.length === 0) {
-				// Unreconciled
-				reconciliationCell =
-					`<a href="#" class="classify-link text-red-500 hover:text-red-600 hover:underline" onclick="return false;">Unclassified</a>`;
-				checkboxCell = `<input class="checkbox-primary statement-line-checkbox" type="checkbox">`;  // Only show checkbox for unreconciled lines
-			} else if (line.posting_accounts.length === 2) {
+        for (const line of statementLines.value) {
+            let reconciliationCell, checkboxCell;
+            if (line.posting_accounts.length === 0) {
+                // Unreconciled
+                reconciliationCell =
+                    `<a href="#" class="classify-link text-red-500 hover:text-red-600 hover:underline" onclick="return false;">Unclassified</a>`;
+                checkboxCell = `<input class="checkbox-primary statement-line-checkbox" type="checkbox"${ selectAll.value ? ' checked' : '' }>`;  // Only show checkbox for unreconciled lines
+            } else if (line.posting_accounts.length === 2) {
 				// Simple reconciliation
 				const otherAccount = line.posting_accounts.find((a) => a !== line.source_account);
 				reconciliationCell =
@@ -390,13 +422,33 @@
 				contentElem: document.querySelector('#statement-line-list tbody')!,
 				show_no_data_row: false
 			});
-		} else {
-			clusterize.update(rows);
-		}
-		
-		// Hide the statement line classifier
-		document.getElementById('statement-line-classifier')!.classList.add('hidden');
-	}
+        } else {
+            clusterize.update(rows);
+        }
+
+        // Update header checkbox state based on current rows
+        const header = document.getElementById('statement-line-select-all') as HTMLInputElement | null;
+        if (header) {
+            const allBoxes = document.querySelectorAll('.statement-line-checkbox');
+            const checkedBoxes = document.querySelectorAll('.statement-line-checkbox:checked');
+            if (allBoxes.length === 0) {
+                header.checked = false;
+                header.indeterminate = false;
+            } else if (checkedBoxes.length === 0) {
+                header.checked = false;
+                header.indeterminate = false;
+            } else if (checkedBoxes.length === allBoxes.length) {
+                header.checked = true;
+                header.indeterminate = false;
+            } else {
+                header.checked = false;
+                header.indeterminate = true;
+            }
+        }
+
+        // Hide the statement line classifier
+        document.getElementById('statement-line-classifier')!.classList.add('hidden');
+    }
 	
 	watch(showOnlyUnclassified, renderTable);
 	watch(statementLines, renderTable);

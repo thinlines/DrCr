@@ -22,13 +22,9 @@
 		<div class="py-8">
 			<main>
 				<div class="mx-auto max-w-7xl px-6 lg:px-8">
-					<template v-if="error === null">
-						<NoFileView v-if="!(db.filename !== null || route.name === 'new-file')" />
-						<RouterView v-if="db.filename !== null || route.name === 'new-file'" />
-					</template>
-					<template v-if="error !== null">
-						<CriticalErrorView />
-					</template>
+					<CriticalErrorView v-if="error !== null" />
+					<NoFileView v-if="!(db.filename !== null || route.name === 'new-file')" />
+					<RouterView v-if="db.filename !== null || route.name === 'new-file'" />
 				</div>
 			</main>
 		</div>

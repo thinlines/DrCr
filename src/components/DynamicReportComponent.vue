@@ -17,25 +17,27 @@
 -->
 
 <template>
-	<template v-if="report !== null">
+	<div v-if="report !== null" class="flex flex-col h-full min-h-0">
 		<h1 class="page-heading">
 			{{ report.title }}
 		</h1>
 		
 		<slot />
 		
-		<table class="min-w-full">
-			<thead>
-				<tr class="border-b border-gray-300">
-					<th></th>
-					<th v-for="column of (columns ?? report.columns)" class="py-0.5 pl-1 text-gray-900 font-semibold text-end">{{ column }}&nbsp;</th>
-				</tr>
-			</thead>
-			<tbody>
-				<DynamicReportEntryComponent :entry="entry" v-for="entry of report.entries" />
-			</tbody>
-		</table>
-	</template>
+		<div class="flex-1 min-h-0 overflow-y-auto wk-aa print:h-auto print:overflow-visible">
+			<table class="min-w-full">
+				<thead>
+					<tr class="border-b border-gray-300">
+						<th></th>
+						<th v-for="column of (columns ?? report.columns)" class="py-0.5 pl-1 text-gray-900 font-semibold text-end">{{ column }}&nbsp;</th>
+					</tr>
+				</thead>
+				<tbody>
+					<DynamicReportEntryComponent :entry="entry" v-for="entry of report.entries" />
+				</tbody>
+			</table>
+		</div>
+	</div>
 </template>
 
 <script setup lang="ts">

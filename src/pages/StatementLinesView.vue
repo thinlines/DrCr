@@ -37,9 +37,9 @@
 	</div>
 	
 	<div id="statement-line-list" class="min-h-[50vh] max-h-[100vh] overflow-y-scroll wk-aa relative">
-		<table class="min-w-full">
-			<thead>
-				<tr class="border-b border-gray-300">
+		<table class="min-w-full sticky-table">
+			<thead class="sticky-header">
+				<tr class="">
 					<th></th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Source account</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>
@@ -404,3 +404,17 @@
 		}
 	});
 </script>
+
+<style scoped>
+.sticky-table {
+  @apply border-separate;
+  border-spacing: 0;
+}
+.sticky-header th {
+  @apply sticky top-0 bg-white z-10 border-b border-gray-300;
+}
+
+#statement-line-classifier {
+  @apply z-20;
+}
+</style>

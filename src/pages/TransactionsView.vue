@@ -17,11 +17,12 @@
 -->
 
 <template>
-	<h1 class="page-heading">
-		{{ route.params.account }}
-	</h1>
-	
-	<div class="my-4 flex gap-x-2 items-center">
+    <div class="flex flex-col h-full min-h-0">
+    <h1 class="page-heading">
+        {{ route.params.account }}
+    </h1>
+    
+    <div class="my-4 flex gap-x-2 items-center">
 		<!-- Use a rather than RouterLink because RouterLink adds its own event handler -->
 		<a :href="$router.resolve({name: 'journal-new-transaction'}).fullPath" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
 			<PlusIcon class="w-4 h-4" />
@@ -31,10 +32,13 @@
 			<input id="only-unclassified" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="commodityDetail">
 			<label for="only-unclassified" class="text-gray-900">Show commodity detail</label>
 		</div>
-	</div>
-	
-	<TransactionsWithCommodityView v-if="commodityDetail" :transactions="transactions"/>
-	<TransactionsWithoutCommodityView v-if="!commodityDetail" :transactions="transactions"/>
+    </div>
+    
+    <div class="flex-1 min-h-0">
+        <TransactionsWithCommodityView v-if="commodityDetail" :transactions="transactions"/>
+        <TransactionsWithoutCommodityView v-if="!commodityDetail" :transactions="transactions"/>
+    </div>
+    </div>
 </template>
 
 <script setup lang="ts">

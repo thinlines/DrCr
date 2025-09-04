@@ -17,23 +17,23 @@
 -->
 
 <template>
-	<div class="min-h-full">
-		<HeaderBar />
-		<div class="py-8">
-			<main>
-				<div class="mx-auto max-w-7xl px-6 lg:px-8">
-					<template v-if="error === null">
-						<NoFileView v-if="!(db.filename !== null || route.name === 'new-file')" />
-						<RouterView v-if="db.filename !== null || route.name === 'new-file'" />
-					</template>
-					<template v-if="error !== null">
-						<CriticalErrorView />
-					</template>
-				</div>
-			</main>
-		</div>
-		<FooterBar />
-	</div>
+    <div class="h-full flex flex-col">
+        <HeaderBar />
+        <div class="flex-1 min-h-0">
+            <main class="h-full overflow-hidden">
+                <div class="mx-auto max-w-7xl px-6 lg:px-8 py-8 h-full">
+                    <template v-if="error === null">
+                        <NoFileView v-if="!(db.filename !== null || route.name === 'new-file')" />
+                        <RouterView v-if="db.filename !== null || route.name === 'new-file'" />
+                    </template>
+                    <template v-if="error !== null">
+                        <CriticalErrorView />
+                    </template>
+                </div>
+            </main>
+        </div>
+        <FooterBar />
+    </div>
 </template>
 
 <script setup lang="ts">

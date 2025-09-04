@@ -17,11 +17,12 @@
 -->
 
 <template>
-	<h1 class="page-heading">
-		Statement lines
-	</h1>
-	
-	<div class="my-2 py-2 flex bg-white sticky top-0">
+    <div class="flex flex-col h-full min-h-0">
+    <h1 class="page-heading">
+        Statement lines
+    </h1>
+    
+    <div class="my-2 py-2 flex bg-white sticky top-0">
 		<div class="grow flex gap-x-2 items-baseline">
 			<button @click="reconcileAsTransfer" class="btn-secondary text-emerald-700 ring-emerald-600">
 				Reconcile selected as transfer
@@ -34,10 +35,10 @@
 				<label for="only-unclassified" class="text-gray-900">Show only unclassified lines</label>
 			</div>
 		</div>
-	</div>
-	
-	<div id="statement-line-list" class="min-h-[50vh] max-h-[100vh] overflow-y-scroll wk-aa relative">
-		<table class="min-w-full">
+    </div>
+    
+    <div id="statement-line-list" class="flex-1 min-h-0 overflow-y-auto wk-aa relative">
+        <table class="min-w-full">
 			<thead>
 				<tr class="border-b border-gray-300">
 					<th></th>
@@ -67,7 +68,8 @@
 				</button>
 			</div>
 		</div>
-	</div>
+    </div>
+    </div>
 </template>
 
 <script setup lang="ts">

@@ -17,11 +17,12 @@
 -->
 
 <template>
-	<h1 class="page-heading">
-		Journal
-	</h1>
-	
-	<div class="my-4 flex gap-x-2 items-center">
+    <div class="flex flex-col h-full min-h-0">
+    <h1 class="page-heading">
+        Journal
+    </h1>
+    
+    <div class="my-4 flex gap-x-2 items-center">
 		<!-- Use a rather than RouterLink because RouterLink adds its own event handler -->
 		<a :href="$router.resolve({name: 'journal-new-transaction'}).fullPath" class="btn-primary pl-2" onclick="return openLinkInNewWindow(this);">
 			<PlusIcon class="w-4 h-4" />
@@ -31,10 +32,10 @@
 			<input id="only-unclassified" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="commodityDetail">
 			<label for="only-unclassified" class="text-gray-900">Show commodity detail</label>
 		</div>
-	</div>
-	
-	<div id="transaction-list" class="max-h-[100vh] overflow-y-scroll wk-aa">
-		<table class="min-w-full">
+    </div>
+    
+    <div id="transaction-list" class="flex-1 min-h-0 overflow-y-auto wk-aa">
+        <table class="min-w-full">
 			<thead>
 				<tr>
 					<th class="py-0.5 pr-1 text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>
@@ -55,7 +56,8 @@
 				</tr>
 			</tbody>
 		</table>
-	</div>
+    </div>
+    </div>
 </template>
 
 <script setup lang="ts">

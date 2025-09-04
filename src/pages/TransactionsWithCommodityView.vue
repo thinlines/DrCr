@@ -17,8 +17,8 @@
 -->
 
 <template>
-	<div id="transaction-list" class="max-h-[100vh] overflow-y-scroll wk-aa">
-		<table class="min-w-full">
+    <div id="transaction-list" class="h-full overflow-y-auto wk-aa">
+        <table class="min-w-full">
 			<thead>
 				<tr>
 					<th class="py-0.5 pr-1 text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>

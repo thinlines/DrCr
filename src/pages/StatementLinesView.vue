@@ -72,6 +72,9 @@
 				<button @click="onLineClassified" id="statement-line-classifier-button" type="button" class="relative -ml-px inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 bg-white hover:bg-gray-50">
 					<CheckIcon class="w-5 h-5" />
 				</button>
+				<button @click="closeClassifier" id="statement-line-classifier-cancel" type="button" class="relative -ml-px inline-flex items-center gap-x-1.5 px-3 py-1 text-gray-800 shadow-sm ring-1 ring-inset ring-gray-400 bg-white hover:bg-gray-50" title="Cancel">
+					<XMarkIcon class="w-5 h-5" />
+				</button>
 			</div>
 		</div>
     </div>
@@ -83,9 +86,9 @@
 	
 	import dayjs from 'dayjs';
 	
-	import { CheckIcon, PencilIcon } from '@heroicons/vue/24/outline';
+	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 	
-	import { onUnmounted, ref, watch } from 'vue';
+	import { onMounted, onUnmounted, ref, watch } from 'vue';
 	
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { db } from '../db.ts';
@@ -468,13 +471,58 @@
 	
 	load();
 
-	function positionClassifierAtElement(el: Element) {
+	function positionClassifierAtElement(el: Element, toRightOf: boolean = false) {
 		const outerDiv = document.getElementById('statement-line-list')!;
 		const divReconciler = document.getElementById('statement-line-classifier')!;
 		divReconciler.classList.remove('hidden');
-		divReconciler.style.top = (outerDiv.scrollTop + el.getBoundingClientRect().y - outerDiv.getBoundingClientRect().y - 4) + 'px';
-		divReconciler.style.left = (el.getBoundingClientRect().x - outerDiv.getBoundingClientRect().x) + 'px';
+		const elRect = el.getBoundingClientRect();
+		const outerRect = outerDiv.getBoundingClientRect();
+		if (toRightOf) {
+			// Use fixed positioning so it overlays the sticky toolbar/buttons
+			divReconciler.style.position = 'fixed';
+			divReconciler.style.top = (elRect.top - 4) + 'px';
+			divReconciler.style.left = (elRect.right + 8) + 'px';
+		} else {
+			// Position relative to the scrollable list container
+			divReconciler.style.position = 'absolute';
+			divReconciler.style.top = (outerDiv.scrollTop + elRect.y - outerRect.y - 4) + 'px';
+			divReconciler.style.left = (elRect.x - outerRect.x) + 'px';
+		}
 	}
+
+	function closeClassifier() {
+		// Reset UI state and hide classifier panel
+		classificationAccount.value = '';
+		isBatchClassify.value = false;
+		batchSelectedLineIds.value = [];
+		
+		const inputEl = document.querySelector('.statement-line-classifier-input') as HTMLInputElement | null;
+		if (inputEl) { inputEl.disabled = false; }
+		const okBtn = document.getElementById('statement-line-classifier-button') as HTMLButtonElement | null;
+		if (okBtn) { okBtn.disabled = false; }
+		
+		const classifier = document.getElementById('statement-line-classifier');
+		if (classifier) { classifier.classList.add('hidden'); }
+		
+		// Unhide any reconciliation cells that were hidden
+		for (const el of document.querySelectorAll('#statement-line-list .charge-account > span')) {
+			el.classList.remove('invisible');
+		}
+	}
+
+	function onGlobalKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			const classifier = document.getElementById('statement-line-classifier');
+			if (classifier && !classifier.classList.contains('hidden')) {
+				e.preventDefault();
+				closeClassifier();
+			}
+		}
+	}
+
+	onMounted(() => {
+		window.addEventListener('keydown', onGlobalKeydown);
+	});
 
 	function openBatchClassifier(event: MouseEvent) {
 		// Prepare batch selection and open classifier near the clicked button
@@ -487,9 +535,9 @@
 			el.classList.remove('invisible');
 		}
 		
-		// Position classifier at the button location
+		// Position classifier to the right of the clicked button
 		const target = (event.currentTarget as Element) ?? (event.target as Element);
-		positionClassifierAtElement(target);
+		positionClassifierAtElement(target, true);
 		
 		// Focus classify line panel
 		const divReconciler = document.getElementById('statement-line-classifier')!;
@@ -567,6 +615,7 @@
 	}
 	
 	onUnmounted(() => {
+		window.removeEventListener('keydown', onGlobalKeydown);
 		if (clusterize !== null) {
 			clusterize.destroy();
 		}
@@ -583,6 +632,7 @@
 }
 
 #statement-line-classifier {
-  @apply z-20;
+  /* Ensure classifier appears above sticky headers/buttons */
+  @apply z-50;
 }
 </style>

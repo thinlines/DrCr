@@ -24,6 +24,10 @@
     
     <div class="my-2 py-2 flex bg-white sticky top-0">
 		<div class="grow flex gap-x-2 items-baseline">
+			<!-- Batch classify selected lines -->
+			<button v-if="selectedCount >= 2" @click="openBatchClassifier" class="btn-secondary">
+				Charge to…
+			</button>
 			<button @click="reconcileAsTransfer" class="btn-secondary text-emerald-700 ring-emerald-600">
 				Reconcile selected as transfer
 			</button>
@@ -106,6 +110,9 @@
 	
 	const classificationLineId = ref(0);
 	const classificationAccount = ref('');
+	const isBatchClassify = ref(false);
+	const batchSelectedLineIds = ref([] as number[]);
+	const selectedCount = ref(0);
 	
 	let clusterize: Clusterize | null = null;
 	
@@ -168,6 +175,8 @@
                     header.indeterminate = true;
                 }
             }
+            // Update batch selection count for top-bar button visibility
+            selectedCount.value = checkedBoxes.length;
         }
         if (event.target && (event.target as Element).classList.contains('classify-link')) {
             // ------------------------
@@ -193,13 +202,10 @@
 			span.classList.add('invisible');
 			
 			// Position the classify line panel in place (relative to #statement-line-list)
-			const outerDiv = document.getElementById('statement-line-list')!;
-			const divReconciler = document.getElementById('statement-line-classifier')!;
-			divReconciler.classList.remove('hidden');
-			divReconciler.style.top = (outerDiv.scrollTop + td.getBoundingClientRect().y - outerDiv.getBoundingClientRect().y - 4) + 'px';
-			divReconciler.style.left = (td.getBoundingClientRect().x - outerDiv.getBoundingClientRect().x) + 'px';
+			positionClassifierAtElement(td);
 			
 			// Focus classify line panel
+			const divReconciler = document.getElementById('statement-line-classifier')!;
 			divReconciler.querySelector('input')!.focus();
 		}
     }
@@ -213,13 +219,12 @@
         renderTable();
     }
 
-    async function onLineClassified(event: Event) {
-        // Callback when clicking OK to classify a statement line
-        if ((event.target! as any).disabled) {
-            return;
-        }
+	async function onLineClassified(event: Event) {
+		// Callback when clicking OK to classify a statement line
+		if ((event.target! as any).disabled) {
+			return;
+		}
 		
-		const lineId = classificationLineId.value;
 		const chargeAccount = classificationAccount.value;
 		
 		if (!chargeAccount) {
@@ -230,74 +235,79 @@
 		(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = true;
 		(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = true;
 		
-		const statementLine = statementLines.value.find((l) => l.id === lineId)!;
-		
-		if (statementLine.posting_accounts.length !== 0) {
-			await alert('Cannot reconcile already reconciled statement line');
-			return;
-		}
-		
-		// Check if account exists
-		const session = await db.load();
-		const countResult = await session.select('SELECT COUNT(*) FROM postings WHERE account = $1', [chargeAccount]) as any[];
-		const doesAccountExist = countResult[0]['COUNT(*)'] > 0;
-		if (!doesAccountExist) {
-			// Prompt for confirmation
-			if (!await confirm('Account "' + chargeAccount + '" does not exist. Continue to reconcile this transaction and create a new account?')) {
-				(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
-				(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
+		if (isBatchClassify.value) {
+			await classifySelectedWithAccount(chargeAccount);
+		} else {
+			const lineId = classificationLineId.value;
+			const statementLine = statementLines.value.find((l) => l.id === lineId)!;
+			
+			if (statementLine.posting_accounts.length !== 0) {
+				await alert('Cannot reconcile already reconciled statement line');
 				return;
 			}
+			
+			// Check if account exists
+			const session = await db.load();
+			const countResult = await session.select('SELECT COUNT(*) FROM postings WHERE account = $1', [chargeAccount]) as any[];
+			const doesAccountExist = countResult[0]['COUNT(*)'] > 0;
+			if (!doesAccountExist) {
+				// Prompt for confirmation
+				if (!await confirm('Account "' + chargeAccount + '" does not exist. Continue to reconcile this transaction and create a new account?')) {
+					(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
+					(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
+					return;
+				}
+			}
+			
+			// Insert transaction and statement line reconciliation atomically
+			const dbTransaction = await session.begin();
+			
+			// Insert transaction
+			const transactionResult = await dbTransaction.execute(
+				`INSERT INTO transactions (dt, description)
+				VALUES ($1, $2)`,
+				[statementLine.dt, statementLine.description]
+			);
+			const transactionId = transactionResult.lastInsertId;
+			
+			// Insert posting for this account
+			const accountPostingResult = await dbTransaction.execute(
+				`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+				VALUES ($1, NULL, $2, $3, $4)`,
+				[transactionId, statementLine.source_account, statementLine.quantity, statementLine.commodity]
+			);
+			const accountPostingId = accountPostingResult.lastInsertId;
+			
+			// Insert posting for the charge account - no need to remember this ID
+			await dbTransaction.execute(
+				`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+				VALUES ($1, NULL, $2, $3, $4)`,
+				[transactionId, chargeAccount, -statementLine.quantity, statementLine.commodity]
+			);
+			
+			// Insert statement line reconciliation
+			await dbTransaction.execute(
+				`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
+				VALUES ($1, $2)`,
+				[statementLine.id, accountPostingId]
+			);
+			
+			await dbTransaction.commit();
+			
+			// Reset statement line classifier state
+			classificationAccount.value = '';
+			(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
+			(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
+			
+			// Hide the statement line classifier and unhide any hidden reconciliation cells
+			document.getElementById('statement-line-classifier')!.classList.add('hidden');
+			for (const el of document.querySelectorAll('#statement-line-list .charge-account > span')) {
+				el.classList.remove('invisible');
+			}
+			
+			// Reload transactions and re-render the table
+			await load();
 		}
-		
-		// Insert transaction and statement line reconciliation atomically
-		const dbTransaction = await session.begin();
-		
-		// Insert transaction
-		const transactionResult = await dbTransaction.execute(
-			`INSERT INTO transactions (dt, description)
-			VALUES ($1, $2)`,
-			[statementLine.dt, statementLine.description]
-		);
-		const transactionId = transactionResult.lastInsertId;
-		
-		// Insert posting for this account
-		const accountPostingResult = await dbTransaction.execute(
-			`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
-			VALUES ($1, NULL, $2, $3, $4)`,
-			[transactionId, statementLine.source_account, statementLine.quantity, statementLine.commodity]
-		);
-		const accountPostingId = accountPostingResult.lastInsertId;
-		
-		// Insert posting for the charge account - no need to remember this ID
-		await dbTransaction.execute(
-			`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
-			VALUES ($1, NULL, $2, $3, $4)`,
-			[transactionId, chargeAccount, -statementLine.quantity, statementLine.commodity]
-		);
-		
-		// Insert statement line reconciliation
-		await dbTransaction.execute(
-			`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
-			VALUES ($1, $2)`,
-			[statementLine.id, accountPostingId]
-		);
-		
-		await dbTransaction.commit();
-		
-		// Reset statement line classifier state
-		classificationAccount.value = '';
-		(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
-		(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
-		
-		// Hide the statement line classifier and unhide any hidden reconciliation cells
-		document.getElementById('statement-line-classifier')!.classList.add('hidden');
-		for (const el of document.querySelectorAll('#statement-line-list .charge-account > span')) {
-			el.classList.remove('invisible');
-		}
-		
-		// Reload transactions and re-render the table
-		await load();
 	}
 	
 	async function reconcileAsTransfer() {
@@ -422,9 +432,9 @@
 				contentElem: document.querySelector('#statement-line-list tbody')!,
 				show_no_data_row: false
 			});
-        } else {
-            clusterize.update(rows);
-        }
+		} else {
+			clusterize.update(rows);
+		}
 
         // Update header checkbox state based on current rows
         const header = document.getElementById('statement-line-select-all') as HTMLInputElement | null;
@@ -446,14 +456,115 @@
             }
         }
 
-        // Hide the statement line classifier
-        document.getElementById('statement-line-classifier')!.classList.add('hidden');
-    }
+		// Hide the statement line classifier
+		document.getElementById('statement-line-classifier')!.classList.add('hidden');
+
+		// Sync selected count after render in case of updates
+		selectedCount.value = document.querySelectorAll('.statement-line-checkbox:checked').length;
+	}
 	
 	watch(showOnlyUnclassified, renderTable);
 	watch(statementLines, renderTable);
 	
 	load();
+
+	function positionClassifierAtElement(el: Element) {
+		const outerDiv = document.getElementById('statement-line-list')!;
+		const divReconciler = document.getElementById('statement-line-classifier')!;
+		divReconciler.classList.remove('hidden');
+		divReconciler.style.top = (outerDiv.scrollTop + el.getBoundingClientRect().y - outerDiv.getBoundingClientRect().y - 4) + 'px';
+		divReconciler.style.left = (el.getBoundingClientRect().x - outerDiv.getBoundingClientRect().x) + 'px';
+	}
+
+	function openBatchClassifier(event: MouseEvent) {
+		// Prepare batch selection and open classifier near the clicked button
+		isBatchClassify.value = true;
+		batchSelectedLineIds.value = [...document.querySelectorAll('.statement-line-checkbox:checked')]
+			.map((el) => parseInt(el.closest('tr')?.dataset.lineId!));
+		
+		// Make sure any previously hidden cells are visible
+		for (const el of document.querySelectorAll('#statement-line-list .charge-account > span')) {
+			el.classList.remove('invisible');
+		}
+		
+		// Position classifier at the button location
+		const target = (event.currentTarget as Element) ?? (event.target as Element);
+		positionClassifierAtElement(target);
+		
+		// Focus classify line panel
+		const divReconciler = document.getElementById('statement-line-classifier')!;
+		divReconciler.querySelector('input')!.focus();
+	}
+
+	async function classifySelectedWithAccount(chargeAccount: string) {
+		if (batchSelectedLineIds.value.length === 0) {
+			return;
+		}
+		
+		// Check if account exists (once for batch)
+		const session = await db.load();
+		const countResult = await session.select('SELECT COUNT(*) FROM postings WHERE account = $1', [chargeAccount]) as any[];
+		const doesAccountExist = countResult[0]['COUNT(*)'] > 0;
+		if (!doesAccountExist) {
+			if (!await confirm('Account "' + chargeAccount + '" does not exist. Continue to reconcile these transactions and create a new account?')) {
+				(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
+				(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
+				return;
+			}
+		}
+		
+		let skipped = 0;
+		for (const lineId of batchSelectedLineIds.value) {
+			const statementLine = statementLines.value.find((l) => l.id === lineId);
+			if (!statementLine) { continue; }
+			if (statementLine.posting_accounts.length !== 0) { skipped++; continue; }
+			
+			const dbTransaction = await session.begin();
+			const transactionResult = await dbTransaction.execute(
+				`INSERT INTO transactions (dt, description)
+				VALUES ($1, $2)`,
+				[statementLine.dt, statementLine.description]
+			);
+			const transactionId = transactionResult.lastInsertId;
+			
+			const accountPostingResult = await dbTransaction.execute(
+				`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+				VALUES ($1, NULL, $2, $3, $4)`,
+				[transactionId, statementLine.source_account, statementLine.quantity, statementLine.commodity]
+			);
+			const accountPostingId = accountPostingResult.lastInsertId;
+			
+			await dbTransaction.execute(
+				`INSERT INTO postings (transaction_id, description, account, quantity, commodity)
+				VALUES ($1, NULL, $2, $3, $4)`,
+				[transactionId, chargeAccount, -statementLine.quantity, statementLine.commodity]
+			);
+			
+			await dbTransaction.execute(
+				`INSERT INTO statement_line_reconciliations (statement_line_id, posting_id)
+				VALUES ($1, $2)`,
+				[statementLine.id, accountPostingId]
+			);
+			
+			dbTransaction.commit();
+		}
+		
+		// Reset UI state
+		isBatchClassify.value = false;
+		batchSelectedLineIds.value = [];
+		classificationAccount.value = '';
+		(document.querySelector('.statement-line-classifier-input')! as HTMLInputElement).disabled = false;
+		(document.getElementById('statement-line-classifier-button')! as HTMLButtonElement).disabled = false;
+		document.getElementById('statement-line-classifier')!.classList.add('hidden');
+		
+		// Feedback if any skipped
+		if (skipped > 0) {
+			await alert(skipped + ' selected lines already reconciled and were skipped');
+		}
+		
+		// Reload and re-render
+		await load();
+	}
 	
 	onUnmounted(() => {
 		if (clusterize !== null) {

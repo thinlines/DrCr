@@ -17,8 +17,11 @@
 -->
 
 <template>
-	<DynamicReportComponent :report="report" :columns="reportColumns">
-		<div class="my-2 py-2 flex">
+    <DynamicReportComponent :report="report" :columns="reportColumns">
+        <p v-if="pageSubtitle" class="text-gray-600 text-sm mt-1">
+            {{ pageSubtitle }}
+        </p>
+		<div class="my-2 py-2 flex print:hidden">
 			<div class="grow flex gap-x-2 items-baseline">
 				<span class="whitespace-nowrap">As at</span>
 				<input type="date" class="bordered-field" v-model.lazy="dt">
@@ -66,7 +69,7 @@ import { DynamicReport, Row } from './base.ts';
 import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
-import { fmtDate, labelForReportMonth } from '../dates.ts';
+import { asAtSubtitle, labelForReportMonth } from '../dates.ts';
 
 const report = ref(null as DynamicReport | null);
 const reportColumns = ref([] as string[]);
@@ -75,7 +78,8 @@ const dt = ref(null as string | null);
 const comparePeriods = ref(1);
 const compareUnit = ref('years');
 
-const menuSubtitle = computed(() => (dt.value ? 'As at ' + fmtDate(dt.value) : undefined));
+const pageSubtitle = computed(() => asAtSubtitle(dt.value, compareUnit.value, comparePeriods.value));
+const menuSubtitle = pageSubtitle;
 
 async function load() {
 	await db.load();

@@ -56,7 +56,7 @@ import { DynamicReport } from './base.ts';
 import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
-import { fmtDateRange, labelForReportMonth } from '../dates.ts';
+import { incomeStatementSubtitle, labelForReportMonth } from '../dates.ts';
 
 dayjs.extend(advancedFormat);
 
@@ -70,25 +70,8 @@ const comparePeriods = ref(1);
 const compareUnit = ref('years');
 
 // Single source of truth for the page/menu subtitle
-const reportSubtitle = computed(() => {
-    // Show explicit range when not comparing
-    if (comparePeriods.value === 1 && dtStart.value && dt.value) {
-        return fmtDateRange(dtStart.value, dt.value);
-    }
-    // Show monthly periods description when comparing months
-    if (compareUnit.value === 'months' && comparePeriods.value > 1 && dt.value) {
-        const dayjsDt = dayjs(dt.value!);
-        const isEom = dayjsDt.add(1, 'day').isSame(dayjsDt.set('date', 1).add(1, 'month'));
-        if (isEom) {
-            return 'For calendar months ending on the last day of the month';
-        }
-        // Use advancedFormat's ordinal for the selected end date
-        return `For monthly periods ending on the ${dayjsDt.format('Do')}`;
-    }
-    return undefined;
-});
-
-// Use the same subtitle for both the on-page text and the menu/CSV
+const reportSubtitle = computed(() => incomeStatementSubtitle(dtStart.value, dt.value, compareUnit.value, comparePeriods.value));
+// Use the same subtitle for both on-page and menu/CSV
 const menuSubtitle = reportSubtitle;
 const pageSubtitle = reportSubtitle;
 

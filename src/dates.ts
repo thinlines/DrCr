@@ -3,7 +3,11 @@
 */
 
 import dayjs, { Dayjs } from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
+
 import { db } from './db.ts';
+
+dayjs.extend(advancedFormat);
 
 // Format a YYYY-MM-DD string according to user preference
 export function fmtDate(dateStr: string | null | undefined): string {
@@ -37,3 +41,43 @@ export function labelForReportMonth(d: Dayjs, isCalendarMonth: boolean): string 
     return fmtDate(d.format('YYYY-MM-DD'));
 }
 
+// Subtitle helpers used across reports
+
+// Returns a description for multiple monthly comparison periods, e.g.
+// "For monthly periods ending on the 31st" or a calendar-month message.
+export function monthlyPeriodsSubtitle(dt: string | null | undefined, compareUnit: string, comparePeriods: number): string | undefined {
+    if (!dt) return undefined;
+    if (compareUnit !== 'months' || comparePeriods <= 1) return undefined;
+    const dayjsDt = dayjs(dt);
+    const isEom = dayjsDt.add(1, 'day').isSame(dayjsDt.set('date', 1).add(1, 'month'));
+    if (isEom) {
+        return 'For calendar months ending on the last day of the month';
+    }
+    return `For monthly periods ending on the ${dayjsDt.format('Do')}`;
+}
+
+// Income statement subtitle: show explicit date range when single period,
+// otherwise fall back to monthly periods description when comparing months.
+export function incomeStatementSubtitle(
+    dtStart: string | null | undefined,
+    dt: string | null | undefined,
+    compareUnit: string,
+    comparePeriods: number,
+): string | undefined {
+    if (comparePeriods === 1 && dtStart && dt) {
+        return fmtDateRange(dtStart, dt);
+    }
+    return monthlyPeriodsSubtitle(dt, compareUnit, comparePeriods);
+}
+
+// Point-in-time reports (e.g., Balance Sheet / Trial Balance):
+// Prefer monthly periods description when comparing months; otherwise "As at <date>".
+export function asAtSubtitle(
+    dt: string | null | undefined,
+    compareUnit?: string,
+    comparePeriods?: number,
+): string | undefined {
+    const monthly = monthlyPeriodsSubtitle(dt, compareUnit ?? 'years', comparePeriods ?? 1);
+    if (monthly) return monthly;
+    return dt ? 'As at ' + fmtDate(dt) : undefined;
+}

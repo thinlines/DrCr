@@ -22,6 +22,26 @@
         </p>
     </div>
 
+    <div class="grid grid-cols-[max-content_1fr] space-y-2 mb-4 items-baseline">
+        <label for="thousands-sep" class="block text-gray-900 pr-4">Thousands separator</label>
+        <div>
+            <select id="thousands-sep" class="bordered-field" v-model="placeSeparator">
+                <option :value="'\u202F'">Space (thin, non-breaking)</option>
+                <option :value="','" >Comma</option>
+                <option :value="''">None</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Used between every three digits in whole numbers.</p>
+        </div>
+
+        <label for="decimal-sep" class="block text-gray-900 pr-4">Decimal separator</label>
+        <div>
+            <select id="decimal-sep" class="bordered-field" v-model="decimalSeparator">
+                <option value=".">Dot (.)</option>
+                <option value=",">Comma (,)</option>
+            </select>
+        </div>
+    </div>
+
     <div class="flex justify-end mt-4 space-x-2">
         <button class="btn-primary" @click="save" :disabled="saving">Save</button>
     </div>
@@ -60,6 +80,10 @@ watch(eofyMonth, () => {
 });
 const saving = ref(false);
 
+// Number formatting settings
+const placeSeparator = ref<string>(db.metadata.place_separator ?? '\u202F');
+const decimalSeparator = ref<string>(db.metadata.decimal_separator ?? '.');
+
 async function save() {
     try {
         saving.value = true;
@@ -73,11 +97,28 @@ async function save() {
 
         const session = await db.load();
         const tx = await session.begin();
+
+        // EOFY date
         await tx.execute(`UPDATE metadata SET value = ? WHERE key = 'eofy_date'`, [newEofy]);
+
+        // Thousands/place separator (upsert)
+        let res = await tx.execute(`UPDATE metadata SET value = ? WHERE key = 'place_separator'`, [placeSeparator.value]);
+        if (res.rowsAffected === 0) {
+            await tx.execute(`INSERT INTO metadata (key, value) VALUES ('place_separator', ?)`, [placeSeparator.value]);
+        }
+
+        // Decimal separator (upsert)
+        res = await tx.execute(`UPDATE metadata SET value = ? WHERE key = 'decimal_separator'`, [decimalSeparator.value]);
+        if (res.rowsAffected === 0) {
+            await tx.execute(`INSERT INTO metadata (key, value) VALUES ('decimal_separator', ?)`, [decimalSeparator.value]);
+        }
+
         await tx.commit();
 
         // Update reactive cache
         db.metadata.eofy_date = newEofy;
+        db.metadata.place_separator = placeSeparator.value;
+        db.metadata.decimal_separator = decimalSeparator.value;
     } finally {
         saving.value = false;
     }

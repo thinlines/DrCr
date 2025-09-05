@@ -39,6 +39,9 @@ export const db = reactive({
 		eofy_date: null! as string,
 		reporting_commodity: null! as string,
 		dps: null! as number,
+		// Number formatting
+		place_separator: '\u202F' as string, // default: thin non-breaking space
+		decimal_separator: '.' as string,
 		plugins: null! as string[],
 	},
 	
@@ -88,6 +91,9 @@ export const db = reactive({
 			this.metadata.eofy_date = metadataObject.eofy_date;
 			this.metadata.reporting_commodity = metadataObject.reporting_commodity;
 			this.metadata.dps = parseInt(metadataObject.amount_dps);
+			// Apply defaults if not present in DB
+			this.metadata.place_separator = (metadataObject.place_separator ?? '\u202F');
+			this.metadata.decimal_separator = (metadataObject.decimal_separator ?? '.');
 			this.metadata.plugins = metadataObject.plugins.length > 0 ? metadataObject.plugins.split(';') : [];
 		}
 	},
@@ -125,6 +131,14 @@ export async function createNewDatabase(filename: string, eofy_date: string, rep
 	await transaction.execute(
 		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
 		['amount_dps', dps.toString()]  // Manually call .toString() to format as int, otherwise sqlx formats as float
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['place_separator', '\u202F']
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['decimal_separator', '.']
 	);
 	await transaction.execute(
 		`INSERT INTO metadata (key, value) VALUES (?, ?)`,

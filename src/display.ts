@@ -27,8 +27,17 @@ export function pp(quantity: number): string {
 	const factor = Math.pow(10, db.metadata.dps);
 	const wholePart = Math.floor(quantity / factor);
 	const fracPart = quantity % factor;
-	
-	return wholePart.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '\u202F') + '.' + fracPart.toString().padStart(db.metadata.dps, '0');
+
+	const thousandsSep = db.metadata.place_separator ?? '\u202F';
+	const decimalSep = db.metadata.decimal_separator ?? '.';
+
+	return (
+		wholePart
+			.toString()
+			.replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSep) +
+		decimalSep +
+		fracPart.toString().padStart(db.metadata.dps, '0')
+	);
 }
 
 export function ppWithCommodity(quantity: number, commodity: string): string {

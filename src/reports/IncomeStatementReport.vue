@@ -48,6 +48,7 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { invoke } from '@tauri-apps/api/core';
 import { ref, watch, computed } from 'vue';
 
@@ -56,6 +57,8 @@ import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 import { fmtDateRange, labelForReportMonth } from '../dates.ts';
+
+dayjs.extend(advancedFormat);
 
 const report = ref(null as DynamicReport | null);
 const reportColumns = ref([] as string[]);
@@ -79,8 +82,8 @@ const reportSubtitle = computed(() => {
         if (isEom) {
             return 'For calendar months ending on the last day of the month';
         }
-        const endDay = parseInt(dayjsDt.format('D'));
-        return `For monthly periods ending on the ${ordinalSuffix(endDay)}`;
+        // Use advancedFormat's ordinal for the selected end date
+        return `For monthly periods ending on the ${dayjsDt.format('Do')}`;
     }
     return undefined;
 });
@@ -88,14 +91,6 @@ const reportSubtitle = computed(() => {
 // Use the same subtitle for both the on-page text and the menu/CSV
 const menuSubtitle = reportSubtitle;
 const pageSubtitle = reportSubtitle;
-
-function ordinalSuffix(n: number): string {
-    const j = n % 10, k = n % 100;
-    if (j == 1 && k != 11) return `${n}st`;
-    if (j == 2 && k != 12) return `${n}nd`;
-    if (j == 3 && k != 13) return `${n}rd`;
-    return `${n}th`;
-}
 
 async function load() {
 	await db.load();

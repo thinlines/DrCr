@@ -35,6 +35,14 @@
 				Import statement
 			</RouterLink>
 			<div class="flex items-baseline">
+				<div class="relative">
+					<input type="text" class="bordered-field pr-8" v-model="searchQuery" placeholder="Search description…">
+					<button v-if="searchQuery" type="button" @click="searchQuery = ''" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700" title="Clear search">
+						<XMarkIcon class="w-4 h-4" />
+					</button>
+				</div>
+			</div>
+			<div class="flex items-baseline">
 				<input id="only-unclassified" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="showOnlyUnclassified">
 				<label for="only-unclassified" class="text-gray-900">Show only unclassified lines</label>
 			</div>
@@ -110,6 +118,7 @@
     const showOnlyUnclassified = ref(false);
     const statementLines = ref([] as StatementLine[]);
     const selectAll = ref(false);
+    const searchQuery = ref('');
 	
 	const classificationLineId = ref(0);
 	const classificationAccount = ref('');
@@ -387,8 +396,13 @@
 	function renderTable() {
 		const PencilIconHTML = renderComponent(PencilIcon, { 'class': 'w-4 h-4 inline align-middle -mt-0.5' });  // Pre-render the pencil icon
 		const rows = [];
+		const query = searchQuery.value.trim().toLowerCase();
 		
         for (const line of statementLines.value) {
+            // Filter by description if a search query is provided
+            if (query && !line.description.toLowerCase().includes(query)) {
+                continue;
+            }
             let reconciliationCell, checkboxCell;
             if (line.posting_accounts.length === 0) {
                 // Unreconciled
@@ -468,6 +482,7 @@
 	
 	watch(showOnlyUnclassified, renderTable);
 	watch(statementLines, renderTable);
+	watch(searchQuery, renderTable);
 	
 	load();
 
@@ -516,6 +531,13 @@
 			if (classifier && !classifier.classList.contains('hidden')) {
 				e.preventDefault();
 				closeClassifier();
+				return;
+			}
+			// Clear search if present and classifier not open
+			if (searchQuery.value !== '') {
+				e.preventDefault();
+				searchQuery.value = '';
+				return;
 			}
 		}
 	}
@@ -594,7 +616,7 @@
 				[statementLine.id, accountPostingId]
 			);
 			
-			dbTransaction.commit();
+			await dbTransaction.commit();
 		}
 		
 		// Reset UI state

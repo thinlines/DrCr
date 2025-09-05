@@ -27,7 +27,7 @@ import { asCost } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 import { CriticalError } from './error.ts';
 
-export const DB_VERSION = 3;  // Should match schema.sql
+export const DB_VERSION = 4;  // Should match schema.sql
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
 
 export const db = reactive({
@@ -73,8 +73,12 @@ export const db = reactive({
 			if (dbVersion.length === 0) {
 				throw new CriticalError('Unable to parse database (no metadata.version)');
 			}
-			if (dbVersion[0].value !== DB_VERSION.toString()) {
-				throw new CriticalError('Unsupported database version ' + dbVersion[0].value + ' (expected ' + DB_VERSION + ')');
+			const currentVersion = parseInt(dbVersion[0].value);
+			if (currentVersion > DB_VERSION) {
+				throw new CriticalError('Unsupported database version ' + dbVersion[0].value + ' (expected ' + DB_VERSION + ' or lower)');
+			}
+			if (currentVersion < DB_VERSION) {
+				await migrateDatabase(await this.load(), currentVersion, DB_VERSION);
 			}
 			
 			// Initialise cached data
@@ -341,8 +345,31 @@ export interface StatementLine {
 	id: number | null,
 	source_account: string,
 	dt: string,
+	name: string,
+	memo: string,
 	description: string,
 	quantity: number,
 	balance: number | null,
 	commodity: string
+}
+
+async function migrateDatabase(session: ExtendedDatabase, fromVersion: number, toVersion: number) {
+	// Perform simple in-place migrations
+	const tx = await session.begin();
+	let v = fromVersion;
+	while (v < toVersion) {
+		switch (v) {
+			case 3:
+				// v3 -> v4: add name and memo columns to statement_lines
+				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN name VARCHAR`);
+				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN memo VARCHAR`);
+				break;
+			default:
+				await tx.rollback();
+				throw new CriticalError('No migration path from version ' + v);
+		}
+		v++;
+	}
+	await tx.execute(`UPDATE metadata SET value = ? WHERE key = 'version'`, [toVersion.toString()]);
+	await tx.commit();
 }

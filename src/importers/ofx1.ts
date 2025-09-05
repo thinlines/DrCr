@@ -38,7 +38,12 @@ export default function importOfx1(sourceAccount: string, content: string): Stat
 		}
 		const date = dayjs(dateRaw, 'YYYYMMDDHHmmss.SSS').hour(0).minute(0).second(0).millisecond(0).format(DT_FORMAT);
 		
-		const description = getNodeText(transaction.querySelector('memo'));
+		// Capture NAME (payee) and MEMO (details)
+		let name = '';
+		let memo = '';
+		try { name = getNodeText(transaction.querySelector('name')); } catch (e) { /* optional */ }
+		try { memo = getNodeText(transaction.querySelector('memo')); } catch (e) { /* optional */ }
+		const description = (name + ' ' + memo).trim();
 		const amount = getNodeText(transaction.querySelector('trnamt'));
 		
 		const quantity = Math.round(parseFloat(amount!) * Math.pow(10, db.metadata.dps));
@@ -53,6 +58,8 @@ export default function importOfx1(sourceAccount: string, content: string): Stat
 			id: null,
 			source_account: sourceAccount,
 			dt: date,
+			name: name,
+			memo: memo,
 			description: description ?? '',
 			quantity: quantity,
 			balance: null,

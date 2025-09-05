@@ -47,7 +47,9 @@ export default function importCsv(sourceAccount: string, content: string): State
 		const record = records[i];
 		
 		const date = dayjs(record[0], 'YYYY-MM-DD').format(DT_FORMAT);
-		const description = record[1];
+		const name = record[1];
+		const memo = '';
+		const description = (name + ' ' + memo).trim();
 		const amount = record[2];
 		
 		const quantity = Math.round(parseFloat(amount) * Math.pow(10, db.metadata.dps));
@@ -57,6 +59,8 @@ export default function importCsv(sourceAccount: string, content: string): State
 			id: null,
 			source_account: sourceAccount,
 			dt: date,
+			name: name,
+			memo: memo,
 			description: description,
 			quantity: quantity,
 			balance: null,

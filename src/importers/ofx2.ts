@@ -38,12 +38,15 @@ export default function importOfx2(sourceAccount: string, content: string): Stat
 			dateRaw = dateRaw?.substring(0, dateRaw.indexOf('['));
 		}
 		const date = dayjs(dateRaw, 'YYYYMMDDHHmmss').hour(0).minute(0).second(0).millisecond(0).format(DT_FORMAT);
-		const description = transaction.querySelector('NAME')!.textContent;
+		const name = transaction.querySelector('NAME')?.textContent ?? '';
+		const memoTag = transaction.querySelector('MEMO')?.textContent ?? '';
 		const amount = transaction.querySelector('TRNAMT')!.textContent;
 		
 		if (amount === '0') {
-			// Continuation line
-			statementLines.at(-1)!.description += '\n' + description;
+			// Continuation line: append extra details to memo
+			const last = statementLines.at(-1)!;
+			last.memo = (last.memo ? last.memo + '\n' : '') + (memoTag || name);
+			last.description = (last.name + ' ' + last.memo).trim();
 		} else {
 			const quantity = Math.round(parseFloat(amount!) * Math.pow(10, db.metadata.dps));
 			if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
@@ -52,7 +55,9 @@ export default function importOfx2(sourceAccount: string, content: string): Stat
 				id: null,
 				source_account: sourceAccount,
 				dt: date,
-				description: description ?? '',
+				name: name ?? '',
+				memo: memoTag ?? '',
+				description: ((name ?? '') + ' ' + (memoTag ?? '')).trim(),
 				quantity: quantity,
 				balance: null,
 				commodity: db.metadata.reporting_commodity

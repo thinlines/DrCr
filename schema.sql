@@ -14,7 +14,7 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
--- Current version: 3 (see db.ts)
+-- Current version: 4 (see db.ts)
 
 ---------
 -- Tables
@@ -68,6 +68,8 @@ CREATE TABLE statement_lines (
 	id INTEGER NOT NULL,
 	source_account VARCHAR,
 	dt DATETIME,
+	name VARCHAR,
+	memo VARCHAR,
 	description VARCHAR,
 	quantity INTEGER,
 	balance INTEGER,

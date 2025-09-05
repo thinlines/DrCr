@@ -35,7 +35,7 @@ CREATE TABLE metadata (
 	value VARCHAR,
 	PRIMARY KEY(id)
 );
-INSERT INTO metadata VALUES(1,'version','3');
+INSERT INTO metadata VALUES(1,'version','4');
 INSERT INTO metadata VALUES(2,'eofy_date','2025-06-30');
 INSERT INTO metadata VALUES(3,'reporting_commodity','$');
 INSERT INTO metadata VALUES(4,'amount_dps','2');
@@ -89,6 +89,8 @@ CREATE TABLE statement_lines (
 	id INTEGER NOT NULL,
 	source_account VARCHAR,
 	dt DATETIME,
+	name VARCHAR,
+	memo VARCHAR,
 	description VARCHAR,
 	quantity INTEGER,
 	balance INTEGER,

@@ -48,7 +48,6 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs';
-import advancedFormat from 'dayjs/plugin/advancedFormat';
 import { invoke } from '@tauri-apps/api/core';
 import { ref, watch, computed } from 'vue';
 
@@ -58,7 +57,6 @@ import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 import { incomeStatementSubtitle, labelForReportMonth } from '../dates.ts';
 
-dayjs.extend(advancedFormat);
 
 const report = ref(null as DynamicReport | null);
 const reportColumns = ref([] as string[]);

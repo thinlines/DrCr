@@ -55,7 +55,7 @@ import { DynamicReport } from './base.ts';
 import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
-import { fmtDate, fmtDateRange, labelForReportMonth } from '../dates.ts';
+import { fmtDateRange, labelForReportMonth } from '../dates.ts';
 
 const report = ref(null as DynamicReport | null);
 const reportColumns = ref([] as string[]);

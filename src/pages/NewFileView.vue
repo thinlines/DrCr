@@ -90,7 +90,7 @@ const router = useRouter();
 async function createNewFile() {
     const file = await save({
         filters: [
-            { name: 'DrCr database (SQLite)', extensions: ['db'] }
+            { name: 'DrCr database (SQLite)', extensions: ['db', 'sqlite', 'sqlite3', 'sql'] }
         ],
     });
 

@@ -21,7 +21,7 @@
 		<div class="my-2 py-2 flex gap-x-2 items-baseline">
 			<span class="whitespace-nowrap">As at</span>
 			<input type="date" class="bordered-field" v-model.lazy="dt">
-			<DynamicReportMenu :report="report" :subtitle="'As at ' + dt" />
+			<DynamicReportMenu :report="report" :subtitle="menuSubtitle" />
 		</div>
 	</DynamicReportComponent>
 </template>
@@ -29,16 +29,19 @@
 <script setup lang="ts">
 	import dayjs from 'dayjs';
 	import { invoke } from '@tauri-apps/api/core';
-	import { ref, watch } from 'vue';
+	import { computed, ref, watch } from 'vue';
 	
 	import { DynamicReport } from './base.ts';
 	import { db } from '../db.ts';
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	import DynamicReportMenu from '../components/DynamicReportMenu.vue';
+	import { fmtDate } from '../dates.ts';
 	
 	const report = ref(null as DynamicReport | null);
 	
 	const dt = ref(null as string | null);
+
+	const menuSubtitle = computed(() => (dt.value ? 'As at ' + fmtDate(dt.value) : undefined));
 	
 	async function load() {
 		await db.load();

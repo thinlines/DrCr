@@ -38,7 +38,7 @@
 					</div>
 				</div>
 
-				<DynamicReportMenu :report="report" :columns="reportColumns" :subtitle="'As at ' + dt" />
+    				<DynamicReportMenu :report="report" :columns="reportColumns" :subtitle="menuSubtitle" />
 			</div>
 		</div>
 		<div class="rounded-md bg-red-50 mt-4 p-4 col-span-2" v-if="!doesBalance">
@@ -66,6 +66,7 @@ import { DynamicReport, Row } from './base.ts';
 import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
+import { fmtDate, labelForReportMonth } from '../dates.ts';
 
 const report = ref(null as DynamicReport | null);
 const reportColumns = ref([] as string[]);
@@ -73,6 +74,8 @@ const reportColumns = ref([] as string[]);
 const dt = ref(null as string | null);
 const comparePeriods = ref(1);
 const compareUnit = ref('years');
+
+const menuSubtitle = computed(() => (dt.value ? 'As at ' + fmtDate(dt.value) : undefined));
 
 async function load() {
 	await db.load();
@@ -98,17 +101,18 @@ async function updateReport() {
 		if (compareUnit.value === 'years') {
 			thisReportDt = dayjs(dt.value!).subtract(i, 'year');
 			newReportColumns.push(thisReportDt.format('YYYY'));
-		} else if (compareUnit.value === 'months') {
-			if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
-				// If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
-				thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
-			} else {
-				thisReportDt = dayjs(dt.value!).subtract(i, 'month');
-			}
-			newReportColumns.push(thisReportDt.format('YYYY-MM'));
-		} else {
-			throw new Error('Unexpected compareUnit');
-		}
+    } else if (compareUnit.value === 'months') {
+        if (dayjs(dt.value!).add(1, 'day').isSame(dayjs(dt.value!).set('date', 1).add(1, 'month'))) {
+            // If dt is the end of a calendar month, then fix each prior dt to be the end of the calendar month
+            thisReportDt = dayjs(dt.value!).subtract(i, 'month').set('date', 1).add(1, 'month').subtract(1, 'day');
+        } else {
+            thisReportDt = dayjs(dt.value!).subtract(i, 'month');
+        }
+        const isCalendarMonth = thisReportDt.add(1, 'day').isSame(thisReportDt.set('date', 1).add(1, 'month'));
+        newReportColumns.push(labelForReportMonth(thisReportDt, isCalendarMonth));
+    } else {
+        throw new Error('Unexpected compareUnit');
+    }
 
 		reportDates.push(thisReportDt.format('YYYY-MM-DD'));
 	}

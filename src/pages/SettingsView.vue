@@ -40,6 +40,14 @@
                 <option value=",">Comma (,)</option>
             </select>
         </div>
+
+        <label for="date-style" class="block text-gray-900 pr-4">Date style</label>
+        <div>
+            <select id="date-style" class="bordered-field" v-model="dateStyle">
+                <option v-for="fmt in dateFormats" :key="fmt" :value="fmt">{{ formatSample(fmt) }}</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Affects dates shown on financial statements.</p>
+        </div>
     </div>
 
     <div class="flex justify-end mt-4 space-x-2">
@@ -49,9 +57,13 @@
 
 <script setup lang="ts">
 import dayjs from 'dayjs';
+import advancedFormat from 'dayjs/plugin/advancedFormat';
+
 import { computed, ref, watch } from 'vue';
 
 import { db } from '../db.ts';
+
+dayjs.extend(advancedFormat);
 
 // Initial EOFY from metadata
 const initialEofy = dayjs(db.metadata.eofy_date);
@@ -83,6 +95,22 @@ const saving = ref(false);
 // Number formatting settings
 const placeSeparator = ref<string>(db.metadata.place_separator ?? '\u202F');
 const decimalSeparator = ref<string>(db.metadata.decimal_separator ?? '.');
+// Date formatting settings
+const dateStyle = ref<string>(db.metadata.date_style ?? 'YYYY-MM-DD');
+const dateFormats = [
+    'YYYY-MM-DD',
+    'D MMM YYYY',
+    'D MMMM YYYY',
+    "MMM D, YYYY",
+    'MMM Do, YYYY',
+    "MMMM Do, YYYY",
+    'DD/MM/YYYY',
+    'MM/DD/YYYY',
+] as const;
+
+function formatSample(fmt: string): string {
+    return dayjs().format(fmt);
+}
 
 async function save() {
     try {
@@ -113,12 +141,19 @@ async function save() {
             await tx.execute(`INSERT INTO metadata (key, value) VALUES ('decimal_separator', ?)`, [decimalSeparator.value]);
         }
 
+        // Date style (upsert)
+        res = await tx.execute(`UPDATE metadata SET value = ? WHERE key = 'date_style'`, [dateStyle.value]);
+        if (res.rowsAffected === 0) {
+            await tx.execute(`INSERT INTO metadata (key, value) VALUES ('date_style', ?)`, [dateStyle.value]);
+        }
+
         await tx.commit();
 
         // Update reactive cache
         db.metadata.eofy_date = newEofy;
         db.metadata.place_separator = placeSeparator.value;
         db.metadata.decimal_separator = decimalSeparator.value;
+        db.metadata.date_style = dateStyle.value;
     } finally {
         saving.value = false;
     }

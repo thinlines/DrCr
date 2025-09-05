@@ -55,6 +55,7 @@ import { DynamicReport } from './base.ts';
 import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
+import { fmtDate, fmtDateRange, labelForReportMonth } from '../dates.ts';
 
 const report = ref(null as DynamicReport | null);
 const reportColumns = ref([] as string[]);
@@ -69,7 +70,7 @@ const compareUnit = ref('years');
 const reportSubtitle = computed(() => {
     // Show explicit range when not comparing
     if (comparePeriods.value === 1 && dtStart.value && dt.value) {
-        return `${dtStart.value} to ${dt.value}`;
+        return fmtDateRange(dtStart.value, dt.value);
     }
     // Show monthly periods description when comparing months
     if (compareUnit.value === 'months' && comparePeriods.value > 1 && dt.value) {
@@ -155,13 +156,9 @@ async function updateReport() {
                 thisReportDt = dayjsDt.subtract(i, 'month');
                 thisReportDtStart = dayjsDtStart.subtract(i, 'month');
             }
-            // Simplify labels for calendar-month spans; otherwise show compact end date
+            // Simplify labels for calendar-month spans; otherwise show end date in preferred style
             const isCalendarMonth = thisReportDtStart.date() === 1 && thisReportDt.isSame(thisReportDtStart.add(1, 'month').subtract(1, 'day'), 'day');
-            if (isCalendarMonth) {
-                newReportColumns.push(thisReportDt.format('MMM YYYY'));
-            } else {
-                newReportColumns.push(thisReportDt.format('MMM D, YYYY'));
-            }
+            newReportColumns.push(labelForReportMonth(thisReportDt, isCalendarMonth));
         } else {
             throw new Error('Unexpected compareUnit');
         }

@@ -31,19 +31,21 @@ export const DB_VERSION = 4;  // Should match schema.sql
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
 
 export const db = reactive({
-	filename: null as (string | null),
-	
-	// Cached
-	metadata: {
-		version: null! as number,
-		eofy_date: null! as string,
-		reporting_commodity: null! as string,
-		dps: null! as number,
-		// Number formatting
-		place_separator: '\u202F' as string, // default: thin non-breaking space
-		decimal_separator: '.' as string,
-		plugins: null! as string[],
-	},
+    filename: null as (string | null),
+    
+    // Cached
+    metadata: {
+        version: null! as number,
+        eofy_date: null! as string,
+        reporting_commodity: null! as string,
+        dps: null! as number,
+        // Number formatting
+        place_separator: '\u202F' as string, // default: thin non-breaking space
+        decimal_separator: '.' as string,
+        // Date formatting
+        date_style: 'YYYY-MM-DD' as string,
+        plugins: null! as string[],
+    },
 	
 	init: async function(filename: string | null): Promise<void> {
 		// Set the DB filename and initialise cached data
@@ -89,14 +91,15 @@ export const db = reactive({
 			const metadataObject = Object.fromEntries(metadataRaw.map((x) => [x.key, x.value]));
 			this.metadata.version = parseInt(metadataObject.version);
 			this.metadata.eofy_date = metadataObject.eofy_date;
-			this.metadata.reporting_commodity = metadataObject.reporting_commodity;
-			this.metadata.dps = parseInt(metadataObject.amount_dps);
-			// Apply defaults if not present in DB
-			this.metadata.place_separator = (metadataObject.place_separator ?? '\u202F');
-			this.metadata.decimal_separator = (metadataObject.decimal_separator ?? '.');
-			this.metadata.plugins = metadataObject.plugins.length > 0 ? metadataObject.plugins.split(';') : [];
-		}
-	},
+            this.metadata.reporting_commodity = metadataObject.reporting_commodity;
+            this.metadata.dps = parseInt(metadataObject.amount_dps);
+            // Apply defaults if not present in DB
+            this.metadata.place_separator = (metadataObject.place_separator ?? '\u202F');
+            this.metadata.decimal_separator = (metadataObject.decimal_separator ?? '.');
+            this.metadata.date_style = (metadataObject.date_style ?? 'YYYY-MM-DD');
+            this.metadata.plugins = metadataObject.plugins.length > 0 ? metadataObject.plugins.split(';') : [];
+        }
+    },
 	
 	load: async function(): Promise<ExtendedDatabase> {
 		return new ExtendedDatabase(await Database.load('sqlite:' + this.filename));
@@ -139,6 +142,10 @@ export async function createNewDatabase(filename: string, eofy_date: string, rep
 	await transaction.execute(
 		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
 		['decimal_separator', '.']
+	);
+	await transaction.execute(
+		`INSERT INTO metadata (key, value) VALUES (?, ?)`,
+		['date_style', 'YYYY-MM-DD']
 	);
 	await transaction.execute(
 		`INSERT INTO metadata (key, value) VALUES (?, ?)`,

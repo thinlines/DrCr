@@ -35,8 +35,8 @@
     </div>
     
     <div id="transaction-list" class="flex-1 min-h-0 overflow-y-auto wk-aa">
-        <table class="min-w-full">
-			<thead>
+        <table class="min-w-full sticky-table">
+			<thead class="sticky-header">
 				<tr>
 					<th class="py-0.5 pr-1 text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>
 					<th class="py-0.5 px-1 text-gray-900 font-semibold text-start" colspan="3">Description</th>
@@ -174,3 +174,13 @@
 		}
 	});
 </script>
+
+<style scoped>
+.sticky-table {
+  @apply border-separate;
+  border-spacing: 0;
+}
+.sticky-header th {
+  @apply sticky top-0 bg-white z-10 border-b border-gray-300;
+}
+</style>

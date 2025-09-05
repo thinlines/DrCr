@@ -25,6 +25,7 @@
 				<li><RouterLink :to="{ name: 'statement-lines' }" class="text-gray-900 hover:text-blue-700 hover:underline">Statement lines</RouterLink></li>
 				<li><RouterLink :to="{ name: 'balance-assertions' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</RouterLink></li>
 				<li><RouterLink :to="{ name: 'chart-of-accounts' }" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</RouterLink></li>
+				<li><RouterLink :to="{ name: 'settings' }" class="text-gray-900 hover:text-blue-700 hover:underline">Settings</RouterLink></li>
 				<!-- Plugin reports -->
 				<component :is="austax.getDataSourcesLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
 			</ul>

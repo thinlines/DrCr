@@ -52,8 +52,12 @@
 						<RouterLink :to="{ name: 'income-statement'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Income statement
 						</RouterLink>
+						<!-- Settings link on the right -->
+						<RouterLink :to="{ name: 'settings'}" class="ml-auto border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+							Settings
+						</RouterLink>
 						
-						<a href="#" @click="closeFile" class="ml-auto border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
+						<a href="#" @click="closeFile" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
 							Close file
 						</a>
 					</div>

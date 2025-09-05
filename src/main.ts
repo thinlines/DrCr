@@ -41,6 +41,7 @@ async function initApp() {
 	// Init router
 	let routes: RouteRecordRaw[] = [
 		{ path: '/', name: 'index', component: () => import('./pages/HomeView.vue') },
+		{ path: '/settings', name: 'settings', component: () => import('./pages/SettingsView.vue') },
 		{ path: '/balance-assertions', name: 'balance-assertions', component: () => import('./pages/BalanceAssertionsView.vue') },
 		{ path: '/balance-assertions/edit/:id', name: 'balance-assertions-edit', component: () => import('./pages/EditBalanceAssertionView.vue') },
 		{ path: '/balance-assertions/new', name: 'balance-assertions-new', component: () => import('./pages/NewBalanceAssertionView.vue') },

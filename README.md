@@ -1,5 +1,7 @@
 # DrCr
 
+> Forked from https://yingtongli.me/git/DrCr
+
 DrCr (‘debit-credit’) is a self-contained open-source double-entry bookkeeping framework.
 
 ## Building

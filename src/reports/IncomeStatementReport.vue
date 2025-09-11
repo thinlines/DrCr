@@ -22,9 +22,9 @@
 			{{ pageSubtitle }}
 		</p>
 		<div class="my-2 py-2 flex gap-x-2 items-baseline print:hidden">
-			<input type="date" class="bordered-field" v-model.lazy="dtStart">
+			<FormattedDateInput v-model.lazy="dtStart" />
 			<span>to</span>
-			<input type="date" class="bordered-field" v-model.lazy="dt">
+			<FormattedDateInput v-model.lazy="dt" />
 			<div class="print:hidden flex items-center gap-2">
 				<span>Compare</span>
 				<div class="relative flex flex-grow items-stretch shadow-sm">
@@ -56,6 +56,7 @@ import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 import { incomeStatementSubtitle, labelForReportMonth } from '../dates.ts';
+import FormattedDateInput from '../components/FormattedDateInput.vue';
 
 
 const report = ref(null as DynamicReport | null);

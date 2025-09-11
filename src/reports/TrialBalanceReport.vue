@@ -23,6 +23,7 @@
         </p>
 		<div class="my-2 py-2 flex gap-x-2 items-baseline print:hidden">
 			<span class="whitespace-nowrap">As at</span>
+			<FormattedDateInput v-model.lazy="dtStart" />
 			<input type="date" class="bordered-field" v-model.lazy="dt">
 			<DynamicReportMenu :report="report" :subtitle="menuSubtitle" />
 		</div>
@@ -39,6 +40,7 @@
 	import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 	import DynamicReportMenu from '../components/DynamicReportMenu.vue';
 	import { asAtSubtitle } from '../dates.ts';
+import FormattedDateInput from '../components/FormattedDateInput.vue';
 	
 	const report = ref(null as DynamicReport | null);
 	

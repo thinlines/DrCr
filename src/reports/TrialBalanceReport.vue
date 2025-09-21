@@ -23,8 +23,7 @@
         </p>
 		<div class="my-2 py-2 flex gap-x-2 items-baseline print:hidden">
 			<span class="whitespace-nowrap">As at</span>
-			<FormattedDateInput v-model.lazy="dtStart" />
-			<input type="date" class="bordered-field" v-model.lazy="dt">
+			<FormattedDateInput v-model.lazy="dt" />
 			<DynamicReportMenu :report="report" :subtitle="menuSubtitle" />
 		</div>
 	</DynamicReportComponent>

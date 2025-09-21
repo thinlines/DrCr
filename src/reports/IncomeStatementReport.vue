@@ -77,8 +77,9 @@ const pageSubtitle = reportSubtitle;
 async function load() {
 	await db.load();
 
-	dt.value = db.metadata.eofy_date;
-	dtStart.value = dayjs(db.metadata.eofy_date).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');
+	const endOfCurrentMonth = dayjs().endOf('month').format('YYYY-MM-DD');
+	dt.value = endOfCurrentMonth;
+	dtStart.value = dayjs(endOfCurrentMonth).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');
 
 	await updateReport();
 

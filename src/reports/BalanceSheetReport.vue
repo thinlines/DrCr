@@ -85,7 +85,8 @@ const menuSubtitle = pageSubtitle;
 async function load() {
 	await db.load();
 
-	dt.value = db.metadata.eofy_date;
+	const endOfCurrentMonth = dayjs().endOf('month').format('YYYY-MM-DD');
+	dt.value = endOfCurrentMonth;
 
 	await updateReport();
 

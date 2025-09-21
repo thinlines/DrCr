@@ -18,7 +18,7 @@
 
 <template>
     <div class="flex flex-col h-full min-h-0">
-    <h1 class="page-heading">
+    <h1 class="page-heading hidden print:block">
         General Ledger
     </h1>
     

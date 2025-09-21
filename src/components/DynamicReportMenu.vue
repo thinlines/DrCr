@@ -19,7 +19,7 @@
 <template>
 	<div class="relative print:hidden">
 		<button class="text-gray-400 align-middle hover:text-gray-500" @click="isMenuOpen = !isMenuOpen"><EllipsisHorizontalCircleIcon class="size-6" /></button>
-		<ul class="absolute top-8 right-0 py-1 bg-white w-[11rem] shadow-lg ring-1 ring-black/5 focus:outline-hidden" :class="isMenuOpen ? 'block' : 'hidden'">
+		<ul class="absolute z-20 top-8 right-0 py-1 bg-white w-[11rem] shadow-lg ring-1 ring-black/5 focus:outline-hidden" :class="isMenuOpen ? 'block' : 'hidden'">
 			<li class="group cursor-pointer select-none py-1 px-3 text-gray-900 hover:text-white hover:bg-emerald-600" @click="menuPrint">
 				<PrinterIcon class="inline size-5 text-gray-500 group-hover:text-white" />
 				Print/Save as PDF

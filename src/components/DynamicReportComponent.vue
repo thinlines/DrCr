@@ -18,7 +18,7 @@
 
 <template>
 	<div v-if="report !== null" class="flex flex-col h-full min-h-0">
-		<h1 class="page-heading">
+		<h1 class="page-heading hidden print:block">
 			{{ report.title }}
 		</h1>
 		

@@ -49,8 +49,9 @@
 			Import statement preview
 		</h2>
 		
-		<table class="min-w-full">
-			<thead>
+		<div class="max-h-[60vh] overflow-y-auto wk-aa">
+			<table class="min-w-full table-auto sticky-table">
+				<thead class="sticky-header">
 				<tr class="border-b border-gray-300">
 					<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">Date</th>
 					<th class="py-0.5 px-1 text-gray-900 font-semibold text-start">Description</th>
@@ -59,18 +60,19 @@
 					<th class="py-0.5 px-1 text-gray-900 font-semibold text-end">Cr</th>
 					<th class="py-0.5 pl-1 text-gray-900 font-semibold text-end">Balance</th>
 				</tr>
-			</thead>
-			<tbody>
-				<tr v-for="line in statementLines" :class="line.duplicate ? 'bg-amber-50' : ''">
-					<td :class="['py-0.5 pr-1', tableTextClass(line)]">{{ dayjs(line.dt).format('YYYY-MM-DD') }}</td>
-					<td :class="['py-0.5 px-1', tableTextClass(line)]">{{ line.description }}</td>
-					<td :class="['py-0.5 px-1', tableTextClass(line)]">{{ formatDuplicateStatus(line) }}</td>
-					<td :class="['py-0.5 px-1 text-end', tableTextClass(line)]">{{ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }}</td>
-					<td :class="['py-0.5 px-1 text-end', tableTextClass(line)]">{{ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }}</td>
-					<td :class="['py-0.5 pl-1 text-end', tableTextClass(line)]">{{ line.balance ?? '' }}</td>
-				</tr>
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					<tr v-for="line in statementLines" :class="line.duplicate ? 'bg-amber-50' : ''">
+						<td :class="['py-0.5 pr-1', tableTextClass(line)]">{{ dayjs(line.dt).format('YYYY-MM-DD') }}</td>
+						<td :class="['py-0.5 px-1', tableTextClass(line)]">{{ line.description }}</td>
+						<td :class="['py-0.5 px-1', tableTextClass(line)]">{{ formatDuplicateStatus(line) }}</td>
+						<td :class="['py-0.5 px-1 text-end', tableTextClass(line)]">{{ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }}</td>
+						<td :class="['py-0.5 px-1 text-end', tableTextClass(line)]">{{ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }}</td>
+						<td :class="['py-0.5 pl-1 text-end', tableTextClass(line)]">{{ line.balance ?? '' }}</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
 		
 		<div class="rounded-md bg-amber-50 mt-4 p-4 col-span-2" v-if="duplicateCount > 0">
 			<div class="flex">
@@ -177,6 +179,10 @@
 				return 'Duplicate (already imported – date/amount/description)';
 			case 'file-signature':
 				return 'Duplicate (within file – date/amount/description)';
+			case 'existing-date-amount':
+				return 'Duplicate (already imported – date/amount)';
+			case 'file-date-amount':
+				return 'Duplicate (within file – date/amount)';
 			default:
 				return 'Duplicate';
 		}
@@ -216,3 +222,13 @@
 		return false;
 	});
 </script>
+
+<style scoped>
+.sticky-table {
+	@apply border-separate table-auto;
+	border-spacing: 0;
+}
+.sticky-header th {
+	@apply sticky top-0 bg-white z-10 border-b border-gray-300;
+}
+</style>

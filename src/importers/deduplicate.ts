@@ -18,7 +18,13 @@
 
 import { StatementLine, db } from '../db.ts';
 
-export type DuplicateReason = 'existing-fitid' | 'existing-signature' | 'file-fitid' | 'file-signature';
+export type DuplicateReason =
+    | 'existing-fitid'
+    | 'file-fitid'
+    | 'existing-signature'
+    | 'file-signature'
+    | 'existing-date-amount'
+    | 'file-date-amount';
 
 export interface AnnotatedStatementLine extends StatementLine {
     duplicate: boolean;
@@ -49,9 +55,11 @@ export async function annotateStatementLineDuplicates(sourceAccount: string, lin
 
     const existingFitids = new Set(existingLines.filter((row) => row.fitid !== null).map((row) => row.fitid!));
     const existingSignatures = new Set(existingLines.map(signatureForRow));
+    const existingDateAmounts = new Set(existingLines.map(dateAmountKeyForRow));
 
     const seenFitids = new Set(existingFitids);
     const seenSignatures = new Set(existingSignatures);
+    const seenDateAmounts = new Set(existingDateAmounts);
 
     return lines.map((line) => {
         if (line.fitid) {
@@ -73,6 +81,13 @@ export async function annotateStatementLineDuplicates(sourceAccount: string, lin
             return enrich(line, true, reason);
         }
         seenSignatures.add(signature);
+
+        const dateAmountKey = dateAmountKeyForLine(line);
+        if (seenDateAmounts.has(dateAmountKey)) {
+            const reason: DuplicateReason = existingDateAmounts.has(dateAmountKey) ? 'existing-date-amount' : 'file-date-amount';
+            return enrich(line, true, reason);
+        }
+        seenDateAmounts.add(dateAmountKey);
         return enrich(line, false, null);
     });
 }
@@ -91,4 +106,16 @@ function signatureForRow(row: ExistingStatementLineRow): string {
 
 function signatureForLine(line: StatementLine): string {
     return [normaliseComponent(line.dt), line.quantity, normaliseComponent(line.description), normaliseComponent(line.name), normaliseComponent(line.memo)].join('|');
+}
+
+function dateAmountKeyForRow(row: ExistingStatementLineRow): string {
+    return dateAmountKey(row.dt, row.quantity);
+}
+
+function dateAmountKeyForLine(line: StatementLine): string {
+    return dateAmountKey(line.dt, line.quantity);
+}
+
+function dateAmountKey(dt: string, quantity: number): string {
+    return `${normaliseComponent(dt)}|${quantity}`;
 }

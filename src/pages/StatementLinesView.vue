@@ -46,6 +46,10 @@
 				<input id="only-unclassified" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="showOnlyUnclassified">
 				<label for="only-unclassified" class="text-gray-900">Show only unclassified lines</label>
 			</div>
+			<div class="flex items-baseline">
+				<input id="only-duplicates" class="ml-3 mr-1 self-center checkbox-primary" type="checkbox" v-model="showOnlyDuplicates">
+				<label for="only-duplicates" class="text-gray-900">Show only duplicates</label>
+			</div>
 		</div>
     </div>
     
@@ -100,23 +104,17 @@
 	
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { db } from '../db.ts';
+	import type { AnnotatedStatementLine, DuplicateMatch } from '../importers/deduplicate.ts';
 	import { renderComponent } from '../webutil.ts';
 	import { ppWithCommodity } from '../display.ts';
 	
-	interface StatementLine {
-		id: number,
-		source_account: string,
-		dt: string,
-		description: string,
-		quantity: number,
-		balance: number | null,
-		commodity: string,
-		transaction_id: number,
-		posting_accounts: string[]
+	interface ViewStatementLine extends AnnotatedStatementLine {
+		posting_accounts: string[];
+		transaction_id: number | null;
 	}
 	
     const showOnlyUnclassified = ref(false);
-    const statementLines = ref([] as StatementLine[]);
+    const statementLines = ref([] as ViewStatementLine[]);
     const selectAll = ref(false);
     const searchQuery = ref('');
 	
@@ -125,6 +123,7 @@
 	const isBatchClassify = ref(false);
 	const batchSelectedLineIds = ref([] as number[]);
 	const selectedCount = ref(0);
+	const showOnlyDuplicates = ref(false);
 	
 	let clusterize: Clusterize | null = null;
 	
@@ -142,7 +141,7 @@
 		);
 		
 		// Unflatten statement lines
-		const newStatementLines: StatementLine[] = [];
+		const newStatementLines: ViewStatementLine[] = [];
 		
 		for (const joinedStatementLine of joinedStatementLines) {
 			if (newStatementLines.length === 0 || newStatementLines.at(-1)!.id !== joinedStatementLine.id) {
@@ -150,12 +149,18 @@
 					id: joinedStatementLine.id,
 					source_account: joinedStatementLine.source_account,
 					dt: joinedStatementLine.dt,
+					name: joinedStatementLine.name ?? '',
+					memo: joinedStatementLine.memo ?? '',
 					description: joinedStatementLine.description,
 					quantity: joinedStatementLine.quantity,
 					balance: joinedStatementLine.balance,
 					commodity: joinedStatementLine.commodity,
+					fitid: joinedStatementLine.fitid,
 					transaction_id: joinedStatementLine.transaction_id,
-					posting_accounts: []
+					posting_accounts: [],
+					duplicate: false,
+					duplicateReason: null,
+					duplicateMatch: null
 				});
 			}
 			if (joinedStatementLine.posting_account !== null) {
@@ -163,6 +168,18 @@
 			}
 		}
 		
+		const linesByAccount = new Map<string, ViewStatementLine[]>();
+		for (const line of newStatementLines) {
+			if (!linesByAccount.has(line.source_account)) {
+				linesByAccount.set(line.source_account, []);
+			}
+			linesByAccount.get(line.source_account)!.push(line);
+		}
+
+		for (const linesForAccount of linesByAccount.values()) {
+			annotateExistingDuplicates(linesForAccount);
+		}
+
 		statementLines.value = newStatementLines;
 	}
 	
@@ -403,6 +420,9 @@
             if (query && !line.description.toLowerCase().includes(query)) {
                 continue;
             }
+            if (showOnlyDuplicates.value && !line.duplicate) {
+                continue;
+            }
             let reconciliationCell, checkboxCell;
             if (line.posting_accounts.length === 0) {
                 // Unreconciled
@@ -428,12 +448,14 @@
 				if (showOnlyUnclassified.value) { continue; }
 			}
 			
+			const duplicateBadge = duplicateBadgeHtml(line);
+			const rowClassAttr = line.duplicate ? ' class="bg-amber-50"' : '';
 			rows.push(
-				`<tr data-line-id="${ line.id }">
+				`<tr data-line-id="${ line.id }"${ rowClassAttr }>
 					<td class="py-0.5 pr-1 align-baseline">${ checkboxCell }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="/transactions/${ encodeURIComponent(line.source_account) }" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex]">${ dayjs(line.dt).format('YYYY-MM-DD') }</td>
-					<td class="py-0.5 px-1 align-baseline text-gray-900">${ line.description }</td>
+					<td class="py-0.5 px-1 align-baseline text-gray-900">${ line.description }${ duplicateBadge }</td>
 					<td class="charge-account py-0.5 px-1 align-baseline text-gray-900"><span>${ reconciliationCell }</span></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }</td>
@@ -479,8 +501,173 @@
 		// Sync selected count after render in case of updates
 		selectedCount.value = document.querySelectorAll('.statement-line-checkbox:checked').length;
 	}
+
+	function duplicateBadgeHtml(line: ViewStatementLine): string {
+		if (!line.duplicate) {
+			return '';
+		}
+		const tooltip = escapeHtml(duplicateTooltip(line));
+		return ` <span class="ml-1 inline-flex items-center rounded-full border border-amber-400 bg-amber-50 px-1.5 py-0 text-xs uppercase tracking-wide text-amber-800" title="${ tooltip }">Duplicate</span>`;
+	}
+
+	function annotateExistingDuplicates(lines: ViewStatementLine[]): void {
+		const sorted = [...lines].sort(function(a, b) {
+			const dtCompare = a.dt.localeCompare(b.dt);
+			if (dtCompare !== 0) {
+				return dtCompare;
+			}
+			const idA = a.id ?? Number.MIN_SAFE_INTEGER;
+			const idB = b.id ?? Number.MIN_SAFE_INTEGER;
+			return idA - idB;
+		});
+
+		const fitidMap = new Map<string, ViewStatementLine>();
+		const signatureMap = new Map<string, ViewStatementLine>();
+		const dateAmountMap = new Map<string, ViewStatementLine>();
+
+		for (const line of sorted) {
+			let duplicate = false;
+			let reason: ViewStatementLine['duplicateReason'] = null;
+			let matchLine: ViewStatementLine | null = null;
+
+			const fitid = line.fitid?.trim();
+			if (fitid) {
+				const existing = fitidMap.get(fitid);
+				if (existing && (existing.id ?? Number.MIN_SAFE_INTEGER) !== (line.id ?? Number.MIN_SAFE_INTEGER)) {
+					duplicate = true;
+					reason = 'existing-fitid';
+					matchLine = existing;
+				} else if (!fitidMap.has(fitid)) {
+					fitidMap.set(fitid, line);
+				}
+			}
+
+			if (!duplicate) {
+				const signature = signatureKey(line);
+				const existing = signatureMap.get(signature);
+				if (existing && (existing.id ?? Number.MIN_SAFE_INTEGER) !== (line.id ?? Number.MIN_SAFE_INTEGER)) {
+					duplicate = true;
+					reason = 'existing-signature';
+					matchLine = existing;
+				} else if (!signatureMap.has(signature)) {
+					signatureMap.set(signature, line);
+				}
+			}
+
+			if (!duplicate) {
+				const dateAmount = dateAmountKey(line);
+				const existing = dateAmountMap.get(dateAmount);
+				if (existing && (existing.id ?? Number.MIN_SAFE_INTEGER) !== (line.id ?? Number.MIN_SAFE_INTEGER)) {
+					duplicate = true;
+					reason = 'existing-date-amount';
+					matchLine = existing;
+				} else if (!dateAmountMap.has(dateAmount)) {
+					dateAmountMap.set(dateAmount, line);
+				}
+			}
+
+			line.duplicate = duplicate;
+			line.duplicateReason = reason;
+			line.duplicateMatch = duplicate && matchLine ? toDuplicateMatch(matchLine) : null;
+		}
+	}
+
+	function duplicateTooltip(line: ViewStatementLine): string {
+		if (!line.duplicate || !line.duplicateMatch) {
+			return line.duplicateReason ? formatDuplicateReason(line.duplicateReason) : 'Marked as duplicate';
+		}
+		if (line.duplicateMatch.kind === 'existing') {
+			const match = line.duplicateMatch.statementLine;
+			const parts = [`Existing line #${ match.id }`, dayjs(match.dt).format('YYYY-MM-DD'), formatAmountForTooltip(match.quantity, match.commodity)];
+			const description = summariseDescription(match.description, match.name, match.memo);
+			if (description) {
+				parts.push(description);
+			}
+			return parts.join(' · ');
+		}
+		const previous = line.duplicateMatch.previousLine;
+		const parts = ['Matches earlier line in this file', dayjs(previous.dt).format('YYYY-MM-DD'), formatAmountForTooltip(previous.quantity, previous.commodity)];
+		const description = summariseDescription(previous.description, previous.name, previous.memo);
+		if (description) {
+			parts.push(description);
+		}
+		return parts.join(' · ');
+	}
+
+	function formatDuplicateReason(reason: NonNullable<ViewStatementLine['duplicateReason']>): string {
+		switch (reason) {
+			case 'existing-fitid':
+				return 'Duplicate (already imported – FITID)';
+			case 'file-fitid':
+				return 'Duplicate (within file – FITID)';
+			case 'existing-signature':
+				return 'Duplicate (already imported – date/amount/description)';
+			case 'file-signature':
+				return 'Duplicate (within file – date/amount/description)';
+			case 'existing-date-amount':
+				return 'Duplicate (already imported – date/amount)';
+			case 'file-date-amount':
+				return 'Duplicate (within file – date/amount)';
+			default:
+				return 'Duplicate';
+		}
+	}
+
+	function summariseDescription(description: string, name?: string | null, memo?: string | null): string {
+		const values = [description, name ?? '', memo ?? '']
+			.map((value) => value.trim())
+			.filter((value) => value.length > 0);
+		return Array.from(new Set(values)).join(' · ');
+	}
+
+	function formatAmountForTooltip(quantity: number, commodity: string): string {
+		if (quantity > 0) {
+			return 'Dr ' + ppWithCommodity(quantity, commodity);
+		}
+		if (quantity < 0) {
+			return 'Cr ' + ppWithCommodity(-quantity, commodity);
+		}
+		return ppWithCommodity(0, commodity);
+	}
+
+	function escapeHtml(text: string): string {
+		return text.replaceAll(/&/g, '&amp;')
+			.replaceAll(/</g, '&lt;')
+			.replaceAll(/>/g, '&gt;')
+			.replaceAll(/"/g, '&quot;')
+			.replaceAll(/'/g, '&#39;');
+	}
+
+	function signatureKey(line: ViewStatementLine): string {
+		return [normaliseComponent(line.dt), line.quantity, normaliseComponent(line.description), normaliseComponent(line.name), normaliseComponent(line.memo)].join('|');
+	}
+
+	function dateAmountKey(line: ViewStatementLine): string {
+		return `${ normaliseComponent(line.dt) }|${ line.quantity }`;
+	}
+
+	function normaliseComponent(value: string | null | undefined): string {
+		return (value ?? '').trim().replace(/\s+/g, ' ');
+	}
+
+	function toDuplicateMatch(line: ViewStatementLine): DuplicateMatch {
+		return {
+			kind: 'existing',
+			statementLine: {
+				id: line.id ?? -1,
+				fitid: line.fitid,
+				dt: line.dt,
+				description: line.description,
+				name: line.name,
+				memo: line.memo,
+				quantity: line.quantity,
+				commodity: line.commodity
+			}
+		};
+	}
 	
 	watch(showOnlyUnclassified, renderTable);
+	watch(showOnlyDuplicates, renderTable);
 	watch(statementLines, renderTable);
 	watch(searchQuery, renderTable);
 	

@@ -27,7 +27,7 @@ import { asCost } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 import { CriticalError } from './error.ts';
 
-export const DB_VERSION = 4;  // Should match schema.sql
+export const DB_VERSION = 5;  // Should match schema.sql
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
 
 export const db = reactive({
@@ -371,7 +371,8 @@ export interface StatementLine {
 	description: string,
 	quantity: number,
 	balance: number | null,
-	commodity: string
+	commodity: string,
+	fitid: string | null
 }
 
 async function migrateDatabase(session: ExtendedDatabase, fromVersion: number, toVersion: number) {
@@ -384,6 +385,10 @@ async function migrateDatabase(session: ExtendedDatabase, fromVersion: number, t
 				// v3 -> v4: add name and memo columns to statement_lines
 				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN name VARCHAR`);
 				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN memo VARCHAR`);
+				break;
+			case 4:
+				// v4 -> v5: capture FITID identifiers from statements
+				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN fitid VARCHAR`);
 				break;
 			default:
 				await tx.rollback();

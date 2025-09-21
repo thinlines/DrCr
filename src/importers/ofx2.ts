@@ -41,6 +41,7 @@ export default function importOfx2(sourceAccount: string, content: string): Stat
 		const name = transaction.querySelector('NAME')?.textContent ?? '';
 		const memoTag = transaction.querySelector('MEMO')?.textContent ?? '';
 		const amount = transaction.querySelector('TRNAMT')!.textContent;
+		const fitid = transaction.querySelector('FITID')?.textContent ?? null;
 		
 		if (amount === '0') {
 			// Continuation line: append extra details to memo
@@ -60,7 +61,8 @@ export default function importOfx2(sourceAccount: string, content: string): Stat
 				description: ((name ?? '') + ' ' + (memoTag ?? '')).trim(),
 				quantity: quantity,
 				balance: null,
-				commodity: db.metadata.reporting_commodity
+				commodity: db.metadata.reporting_commodity,
+				fitid: fitid
 			});
 		}
 	}

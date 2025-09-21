@@ -144,9 +144,9 @@
 		
 		for (const line of statementLines.value) {
 			await dbTransaction.execute(
-				`INSERT INTO statement_lines (source_account, dt, name, memo, description, quantity, balance, commodity)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				[line.source_account, line.dt, line.name, line.memo, line.description, line.quantity, line.balance, line.commodity]
+				`INSERT INTO statement_lines (source_account, dt, name, memo, description, quantity, balance, commodity, fitid)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				[line.source_account, line.dt, line.name, line.memo, line.description, line.quantity, line.balance, line.commodity, line.fitid]
 			);
 		}
 		

@@ -20,6 +20,13 @@ import dayjs from 'dayjs';
 
 import { DT_FORMAT, StatementLine, db } from '../db.ts';
 
+function getNodeText(node: Element | null): string {
+	if (!node) {
+		throw new Error('Missing required element');
+	}
+	return (node.textContent ?? '').trim();
+}
+
 export default function importOfx1(sourceAccount: string, content: string): StatementLine[] {
 	// Import an OFX1/QFX SGML file by converting it to XML and parsing
 
@@ -51,10 +58,12 @@ export default function importOfx1(sourceAccount: string, content: string): Stat
 		// Capture NAME (payee) and MEMO (details)
 		let name = '';
 		let memo = '';
-		try { name = getNodeText(transaction.querySelector('name')); } catch (e) { /* optional */ }
-		try { memo = getNodeText(transaction.querySelector('memo')); } catch (e) { /* optional */ }
+		try { name = getNodeText(transaction.querySelector('name') ?? transaction.querySelector('NAME')); } catch (e) { /* optional */ }
+		try { memo = getNodeText(transaction.querySelector('memo') ?? transaction.querySelector('MEMO')); } catch (e) { /* optional */ }
 		const description = (name + ' ' + memo).trim();
-		const amount = getNodeText(transaction.querySelector('trnamt'));
+		const amount = getNodeText(transaction.querySelector('trnamt') ?? transaction.querySelector('TRNAMT'));
+		const fitidNode = transaction.querySelector('fitid') ?? transaction.querySelector('FITID');
+		const fitid = fitidNode ? getNodeText(fitidNode) : null;
 		
 		const quantity = Math.round(parseFloat(amount!) * Math.pow(10, db.metadata.dps));
 		if (!Number.isSafeInteger(quantity)) { throw new Error('Quantity not representable by safe integer'); }
@@ -64,18 +73,19 @@ export default function importOfx1(sourceAccount: string, content: string): Stat
 			continue;
 		}
 
-		statementLines.push({
-			id: null,
-			source_account: sourceAccount,
-			dt: date,
-			name: name,
-			memo: memo,
-			description: description ?? '',
-			quantity: quantity,
-			balance: null,
-			commodity: db.metadata.reporting_commodity
-		});
-	}
+			statementLines.push({
+				id: null,
+				source_account: sourceAccount,
+				dt: date,
+				name: name,
+				memo: memo,
+				description: description ?? '',
+				quantity: quantity,
+				balance: null,
+				commodity: db.metadata.reporting_commodity,
+				fitid: fitid
+			});
+		}
 
 	return statementLines;
 }

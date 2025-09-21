@@ -74,6 +74,7 @@ CREATE TABLE statement_lines (
 	quantity INTEGER,
 	balance INTEGER,
 	commodity VARCHAR,
+	fitid VARCHAR,
 	PRIMARY KEY(id)
 );
 

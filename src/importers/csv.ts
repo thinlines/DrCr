@@ -65,6 +65,7 @@ export default function importCsv(sourceAccount: string, content: string): State
 			quantity: quantity,
 			balance: null,
 			commodity: db.metadata.reporting_commodity,
+			fitid: null,
 		});
 	}
 	

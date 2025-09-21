@@ -49,6 +49,21 @@
 			Import statement preview
 		</h2>
 		
+		<div class="flex flex-wrap items-center justify-between gap-y-2 text-sm text-gray-700 mb-2">
+			<div>
+				{{ importableCount }} new · {{ duplicateCount }} duplicates
+			</div>
+			<div class="flex flex-wrap items-center gap-3">
+				<div v-for="total in formattedImportTotals" :key="total.commodity" class="whitespace-nowrap">
+					Dr {{ total.debitText }} · Cr {{ total.creditText }}
+				</div>
+				<label class="inline-flex items-center gap-2">
+					<input type="checkbox" class="checkbox-primary" v-model="hideDuplicates">
+					<span>Hide duplicates</span>
+				</label>
+			</div>
+		</div>
+		
 		<div class="max-h-[60vh] overflow-y-auto wk-aa">
 			<table class="min-w-full table-auto sticky-table">
 				<thead class="sticky-header">
@@ -62,10 +77,10 @@
 				</tr>
 				</thead>
 				<tbody>
-					<tr v-for="line in statementLines" :class="line.duplicate ? 'bg-amber-50' : ''">
+					<tr v-for="line in filteredStatementLines" :class="line.duplicate ? 'bg-amber-50' : ''">
 						<td :class="['py-0.5 pr-1', tableTextClass(line)]">{{ dayjs(line.dt).format('YYYY-MM-DD') }}</td>
 						<td :class="['py-0.5 px-1', tableTextClass(line)]">{{ line.description }}</td>
-						<td :class="['py-0.5 px-1', tableTextClass(line)]">{{ formatDuplicateStatus(line) }}</td>
+						<td :class="['py-0.5 px-1', tableTextClass(line)]" :title="duplicateMatchTooltip(line)">{{ formatDuplicateStatus(line) }}</td>
 						<td :class="['py-0.5 px-1 text-end', tableTextClass(line)]">{{ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }}</td>
 						<td :class="['py-0.5 px-1 text-end', tableTextClass(line)]">{{ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }}</td>
 						<td :class="['py-0.5 pl-1 text-end', tableTextClass(line)]">{{ line.balance ?? '' }}</td>
@@ -126,6 +141,7 @@
 	const router = useRouter();
 	
 	const statementLines = ref([] as AnnotatedStatementLine[]);
+	const hideDuplicates = ref(false);
 
 	const duplicateCount = computed(function() {
 		return statementLines.value.filter((line) => line.duplicate).length;
@@ -133,6 +149,46 @@
 
 	const importableCount = computed(function() {
 		return statementLines.value.filter((line) => !line.duplicate).length;
+	});
+
+	const filteredStatementLines = computed(function() {
+		if (!hideDuplicates.value) {
+			return statementLines.value;
+		}
+		return statementLines.value.filter((line) => !line.duplicate);
+	});
+
+	const importTotalsByCommodity = computed(function() {
+		const totals = new Map<string, { debit: number; credit: number }>();
+		for (const line of statementLines.value) {
+			if (line.duplicate) {
+				continue;
+			}
+			const entry = totals.get(line.commodity) ?? { debit: 0, credit: 0 };
+			if (line.quantity >= 0) {
+				entry.debit += line.quantity;
+			} else {
+				entry.credit += -line.quantity;
+			}
+			totals.set(line.commodity, entry);
+		}
+		return Array.from(totals.entries()).map(function([commodity, amount]) {
+			return {
+				commodity,
+				debit: amount.debit,
+				credit: amount.credit
+			};
+		});
+	});
+
+	const formattedImportTotals = computed(function() {
+		return importTotalsByCommodity.value.map(function(entry) {
+			return {
+				commodity: entry.commodity,
+				debitText: ppWithCommodity(entry.debit, entry.commodity),
+				creditText: ppWithCommodity(entry.credit, entry.commodity)
+			};
+		});
 	});
 	
 	function openFileDialog() {
@@ -186,6 +242,45 @@
 			default:
 				return 'Duplicate';
 		}
+	}
+
+	function duplicateMatchTooltip(line: AnnotatedStatementLine): string {
+		if (!line.duplicate || !line.duplicateMatch) {
+			return '';
+		}
+		if (line.duplicateMatch.kind === 'existing') {
+			const match = line.duplicateMatch.statementLine;
+			const amount = formatAmountForTooltip(match.quantity, match.commodity);
+			const description = summariseDescription(match.description, match.name, match.memo);
+			const parts = [`Existing line #${match.id}`, dayjs(match.dt).format('YYYY-MM-DD'), amount];
+			if (description) {
+				parts.push(description);
+			}
+			return parts.join(' · ');
+		}
+		const previous = line.duplicateMatch.previousLine;
+		const amount = formatAmountForTooltip(previous.quantity, previous.commodity);
+		const description = summariseDescription(previous.description, previous.name, previous.memo);
+		const parts = ['Matches earlier line in this file', dayjs(previous.dt).format('YYYY-MM-DD'), amount];
+		if (description) {
+			parts.push(description);
+		}
+		return parts.join(' · ');
+	}
+
+	function summariseDescription(description: string, name?: string | null, memo?: string | null): string {
+		const values = [description, name ?? '', memo ?? ''].map((value) => value.trim()).filter((value) => value.length > 0);
+		return Array.from(new Set(values)).join(' · ');
+	}
+
+	function formatAmountForTooltip(quantity: number, commodity: string): string {
+		if (quantity > 0) {
+			return 'Dr ' + ppWithCommodity(quantity, commodity);
+		}
+		if (quantity < 0) {
+			return 'Cr ' + ppWithCommodity(-quantity, commodity);
+		}
+		return ppWithCommodity(0, commodity);
 	}
 
 	function tableTextClass(line: AnnotatedStatementLine): string {

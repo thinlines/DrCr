@@ -26,18 +26,33 @@ export type DuplicateReason =
     | 'existing-date-amount'
     | 'file-date-amount';
 
+export type DuplicateMatch = ExistingDuplicateMatch | FileDuplicateMatch;
+
 export interface AnnotatedStatementLine extends StatementLine {
     duplicate: boolean;
     duplicateReason: DuplicateReason | null;
+    duplicateMatch: DuplicateMatch | null;
 }
 
 interface ExistingStatementLineRow {
+    id: number;
     fitid: string | null;
     dt: string;
     description: string;
     name: string | null;
     memo: string | null;
     quantity: number;
+    commodity: string;
+}
+
+interface ExistingDuplicateMatch {
+    kind: 'existing';
+    statementLine: ExistingStatementLineRow;
+}
+
+interface FileDuplicateMatch {
+    kind: 'file';
+    previousLine: StatementLine;
 }
 
 export async function annotateStatementLineDuplicates(sourceAccount: string, lines: StatementLine[]): Promise<AnnotatedStatementLine[]> {
@@ -47,53 +62,96 @@ export async function annotateStatementLineDuplicates(sourceAccount: string, lin
 
     const session = await db.load();
     const existingLines = await session.select<ExistingStatementLineRow[]>(
-        `SELECT fitid, dt, description, name, memo, quantity
+        `SELECT id, fitid, dt, description, name, memo, quantity, commodity
         FROM statement_lines
         WHERE source_account = ?`,
         [sourceAccount]
     );
 
-    const existingFitids = new Set(existingLines.filter((row) => row.fitid !== null).map((row) => row.fitid!));
-    const existingSignatures = new Set(existingLines.map(signatureForRow));
-    const existingDateAmounts = new Set(existingLines.map(dateAmountKeyForRow));
+    const existingFitidMap = new Map<string, ExistingStatementLineRow>();
+    const existingSignatureMap = new Map<string, ExistingStatementLineRow>();
+    const existingDateAmountMap = new Map<string, ExistingStatementLineRow>();
 
-    const seenFitids = new Set(existingFitids);
-    const seenSignatures = new Set(existingSignatures);
-    const seenDateAmounts = new Set(existingDateAmounts);
+    for (const row of existingLines) {
+        if (row.fitid) {
+            existingFitidMap.set(row.fitid, row);
+        }
+        existingSignatureMap.set(signatureForRow(row), row);
+        existingDateAmountMap.set(dateAmountKeyForRow(row), row);
+    }
+
+    const seenFitids = new Set(existingFitidMap.keys());
+    const seenSignatures = new Set(existingSignatureMap.keys());
+    const seenDateAmounts = new Set(existingDateAmountMap.keys());
+
+    const firstSeenFitids = new Map<string, StatementLine>();
+    const firstSeenSignatures = new Map<string, StatementLine>();
+    const firstSeenDateAmounts = new Map<string, StatementLine>();
 
     return lines.map((line) => {
-        if (line.fitid) {
-            const key = line.fitid.trim();
-            if (!key) {
-                return enrich(line, false, null);
+        let duplicate = false;
+        let reason: DuplicateReason | null = null;
+        let match: DuplicateMatch | null = null;
+
+        const fitid = line.fitid?.trim() ?? '';
+        if (fitid) {
+            if (seenFitids.has(fitid)) {
+                duplicate = true;
+                reason = existingFitidMap.has(fitid) ? 'existing-fitid' : 'file-fitid';
+                match = existingFitidMap.has(fitid)
+                    ? existingDuplicate(existingFitidMap.get(fitid)!)
+                    : firstSeenFitids.has(fitid)
+                        ? fileDuplicate(firstSeenFitids.get(fitid)!)
+                        : null;
+            } else {
+                seenFitids.add(fitid);
+                firstSeenFitids.set(fitid, line);
             }
-            if (seenFitids.has(key)) {
-                const reason: DuplicateReason = existingFitids.has(key) ? 'existing-fitid' : 'file-fitid';
-                return enrich(line, true, reason);
-            }
-            seenFitids.add(key);
-            return enrich(line, false, null);
         }
 
-        const signature = signatureForLine(line);
-        if (seenSignatures.has(signature)) {
-            const reason: DuplicateReason = existingSignatures.has(signature) ? 'existing-signature' : 'file-signature';
-            return enrich(line, true, reason);
+        if (!duplicate) {
+            const signature = signatureForLine(line);
+            if (seenSignatures.has(signature)) {
+                duplicate = true;
+                reason = existingSignatureMap.has(signature) ? 'existing-signature' : 'file-signature';
+                match = existingSignatureMap.has(signature)
+                    ? existingDuplicate(existingSignatureMap.get(signature)!)
+                    : firstSeenSignatures.has(signature)
+                        ? fileDuplicate(firstSeenSignatures.get(signature)!)
+                        : null;
+            } else {
+                seenSignatures.add(signature);
+                firstSeenSignatures.set(signature, line);
+            }
         }
-        seenSignatures.add(signature);
 
-        const dateAmountKey = dateAmountKeyForLine(line);
-        if (seenDateAmounts.has(dateAmountKey)) {
-            const reason: DuplicateReason = existingDateAmounts.has(dateAmountKey) ? 'existing-date-amount' : 'file-date-amount';
-            return enrich(line, true, reason);
+        if (!duplicate) {
+            const dateAmountKey = dateAmountKeyForLine(line);
+            if (seenDateAmounts.has(dateAmountKey)) {
+                duplicate = true;
+                reason = existingDateAmountMap.has(dateAmountKey) ? 'existing-date-amount' : 'file-date-amount';
+                match = existingDateAmountMap.has(dateAmountKey)
+                    ? existingDuplicate(existingDateAmountMap.get(dateAmountKey)!)
+                    : firstSeenDateAmounts.has(dateAmountKey)
+                        ? fileDuplicate(firstSeenDateAmounts.get(dateAmountKey)!)
+                        : null;
+            } else {
+                seenDateAmounts.add(dateAmountKey);
+                firstSeenDateAmounts.set(dateAmountKey, line);
+            }
         }
-        seenDateAmounts.add(dateAmountKey);
-        return enrich(line, false, null);
+
+        return enrich(line, duplicate, reason, match);
     });
 }
 
-function enrich(line: StatementLine, duplicate: boolean, duplicateReason: DuplicateReason | null): AnnotatedStatementLine {
-    return { ...line, duplicate, duplicateReason };
+function enrich(
+    line: StatementLine,
+    duplicate: boolean,
+    duplicateReason: DuplicateReason | null,
+    duplicateMatch: DuplicateMatch | null
+): AnnotatedStatementLine {
+    return { ...line, duplicate, duplicateReason, duplicateMatch };
 }
 
 function normaliseComponent(value: string | null | undefined): string {
@@ -118,4 +176,12 @@ function dateAmountKeyForLine(line: StatementLine): string {
 
 function dateAmountKey(dt: string, quantity: number): string {
     return `${normaliseComponent(dt)}|${quantity}`;
+}
+
+function existingDuplicate(row: ExistingStatementLineRow): ExistingDuplicateMatch {
+    return { kind: 'existing', statementLine: row };
+}
+
+function fileDuplicate(line: StatementLine): FileDuplicateMatch {
+    return { kind: 'file', previousLine: line };
 }

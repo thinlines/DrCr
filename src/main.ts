@@ -66,13 +66,15 @@ async function initApp() {
 
 	initPlugins(router);
 
-	const homeRedirects: Record<string, { tab: 'statements' | 'transactions'; pill: string }> = {
+	const homeRedirects: Record<string, { tab: 'statements' | 'transactions' | 'setup'; pill: string }> = {
 		'trial-balance': { tab: 'statements', pill: 'trial-balance' },
 		'balance-sheet': { tab: 'statements', pill: 'balance-sheet' },
 		'income-statement': { tab: 'statements', pill: 'income-statement' },
 		'journal': { tab: 'transactions', pill: 'general-ledger' },
 		'general-ledger': { tab: 'transactions', pill: 'general-ledger' },
 		'statement-lines': { tab: 'transactions', pill: 'imported-transactions' },
+		'chart-of-accounts': { tab: 'setup', pill: 'chart-of-accounts' },
+		'balance-assertions': { tab: 'setup', pill: 'balance-assertions' },
 	};
 
 	router.beforeEach((to) => {

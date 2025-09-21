@@ -77,7 +77,7 @@ const reportColumns = ref([] as string[]);
 
 const dt = ref(null as string | null);
 const comparePeriods = ref(1);
-const compareUnit = ref('years');
+const compareUnit = ref('months');
 
 const pageSubtitle = computed(() => asAtSubtitle(dt.value, compareUnit.value, comparePeriods.value));
 const menuSubtitle = pageSubtitle;

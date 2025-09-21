@@ -30,8 +30,8 @@
 					<span class="text-sm font-medium text-gray-900">DrCr</span>
 				</div>
 				<div v-if="db.filename !== null" class="flex items-center gap-3">
-					<button type="button" @click="closeFile" class="text-sm text-gray-700 hover:text-emerald-700">
-						Close file
+					<button type="button" @click="openSettings" class="p-1 text-gray-400 hover:text-gray-500" aria-label="Open settings">
+						<Cog6ToothIcon class="w-6 h-6" />
 					</button>
 				</div>
 			</div>
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-	import { ArrowLeftCircleIcon } from '@heroicons/vue/24/outline';
+	import { ArrowLeftCircleIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { useRoute, useRouter } from 'vue-router';
 	
@@ -51,9 +51,10 @@
 	
 	const route = useRoute();
 	const router = useRouter();
-	
-	async function closeFile() {
-		await db.init(null);
-		router.push({ name: 'index' });
+
+	function openSettings() {
+		if (route.name !== 'settings') {
+			router.push({ name: 'settings' });
+		}
 	}
 </script>

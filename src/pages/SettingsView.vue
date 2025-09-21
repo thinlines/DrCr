@@ -50,8 +50,9 @@
         </div>
     </div>
 
-    <div class="flex justify-end mt-4 space-x-2">
-        <button class="btn-primary" @click="save" :disabled="saving">Save</button>
+    <div class="mt-4 flex items-center">
+        <button class="btn-secondary text-red-600 ring-red-500" @click="closeFile">Close file</button>
+        <button class="btn-primary ml-auto" @click="save" :disabled="saving">Save</button>
     </div>
 </template>
 
@@ -60,6 +61,7 @@ import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 
 import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { db } from '../db.ts';
 
@@ -157,5 +159,12 @@ async function save() {
     } finally {
         saving.value = false;
     }
+}
+
+const router = useRouter();
+
+async function closeFile() {
+	await db.init(null);
+	router.push({ name: 'index' });
 }
 </script>

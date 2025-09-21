@@ -35,8 +35,9 @@
 							class="h-full border-0 bg-transparent py-0 pl-2 pr-8 text-gray-900 focus:ring-2 focus:ring-inset focus:ring-emerald-600"
 							v-model="compareUnit"
 							@change="onCompareUnitChange">
-							<option value="years">years</option>
 							<option value="months">months</option>
+							<option value="years">years</option>
+
 						</select>
 					</div>
 				</div>
@@ -66,7 +67,7 @@ const dt = ref(null as string | null);
 const dtStart = ref(null as string | null);
 
 const comparePeriods = ref(1);
-const compareUnit = ref('years');
+const compareUnit = ref('months');
 
 // Single source of truth for the page/menu subtitle
 const reportSubtitle = computed(() => incomeStatementSubtitle(dtStart.value, dt.value, compareUnit.value, comparePeriods.value));

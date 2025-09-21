@@ -19,48 +19,20 @@
 <template>
 	<nav class="border-b border-gray-200 bg-white print:hidden" v-if="isMainWindow">
 		<div class="mx-auto max-w-7xl px-6 lg:px-8">
-			<div class="flex h-12 justify-between mx-[-0.25rem] w-full"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
-				<div class="flex w-full relative">
+			<div class="flex h-12 items-center justify-between mx-[-0.25rem] w-full"><!-- Adjust margin by -0.25rem to align navbar text with body text -->
+				<div class="flex items-center gap-2">
 					<!-- Back button-->
-					<div class="hidden self-center absolute left-[-3.25rem] min-[1408px]:block" v-if="route.name !== 'index'">
-						<a href="#" @click="router.back">
-							<ArrowLeftCircleIcon class="w-6 h-6 text-gray-400 hover:text-gray-500" />
-						</a>
+					<div class="hidden min-[1408px]:block" v-if="route.name !== 'index'">
+						<button type="button" @click="router.back" class="p-1 text-gray-400 hover:text-gray-500">
+							<ArrowLeftCircleIcon class="w-6 h-6" />
+						</button>
 					</div>
-					
-					<!-- App title -->
-					<div class="flex flex-shrink-0">
-						<RouterLink to="/" class="border-transparent text-gray-900 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
-							DrCr
-						</RouterLink>
-					</div>
-					
-					<!-- Menu items -->
-					<div v-if="db.filename !== null" class="hidden sm:-my-px sm:ml-6 sm:flex sm:gap-4 w-full">
-						<RouterLink :to="{ name: 'journal' }" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Journal
-						</RouterLink>
-						<RouterLink :to="{ name: 'statement-lines' }" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Statement lines
-						</RouterLink>
-						<RouterLink :to="{ name: 'trial-balance'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Trial balance
-						</RouterLink>
-						<RouterLink :to="{ name: 'balance-sheet'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Balance sheet
-						</RouterLink>
-						<RouterLink :to="{ name: 'income-statement'}" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Income statement
-						</RouterLink>
-						<!-- Settings link on the right -->
-						<RouterLink :to="{ name: 'settings'}" class="ml-auto border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Settings
-						</RouterLink>
-						
-						<a href="#" @click="closeFile" class="border-transparent text-gray-700 hover:border-emerald-500 hover:text-emerald-700 inline-flex items-center border-b-2 px-1 pt-1 text-sm">
-							Close file
-						</a>
-					</div>
+					<span class="text-sm font-medium text-gray-900">DrCr</span>
+				</div>
+				<div v-if="db.filename !== null" class="flex items-center gap-3">
+					<button type="button" @click="closeFile" class="text-sm text-gray-700 hover:text-emerald-700">
+						Close file
+					</button>
 				</div>
 			</div>
 		</div>

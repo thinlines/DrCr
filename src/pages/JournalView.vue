@@ -19,7 +19,7 @@
 <template>
     <div class="flex flex-col h-full min-h-0">
     <h1 class="page-heading">
-        Journal
+        General Ledger
     </h1>
     
     <div class="my-4 flex gap-x-2 items-center">

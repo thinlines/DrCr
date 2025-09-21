@@ -23,8 +23,7 @@
             <main class="h-full overflow-hidden">
                 <div class="mx-auto max-w-7xl px-6 lg:px-8 py-8 h-full">
                     <template v-if="error === null">
-                        <NoFileView v-if="!(db.filename !== null || route.name === 'new-file')" />
-                        <RouterView v-if="db.filename !== null || route.name === 'new-file'" />
+                        <RouterView />
                     </template>
                     <template v-if="error !== null">
                         <CriticalErrorView />
@@ -37,17 +36,12 @@
 </template>
 
 <script setup lang="ts">
-	import { onErrorCaptured } from 'vue';
-	import { useRoute } from 'vue-router';
+    import { onErrorCaptured } from 'vue';
 	
 	import FooterBar from './components/FooterBar.vue';
 	import HeaderBar from './components/HeaderBar.vue';
-	import { db } from './db.js';
-	import { error, handleCriticalError } from './error.js';
-	import CriticalErrorView from './pages/CriticalErrorView.vue';
-	import NoFileView from './pages/NoFileView.vue';
-	
-	const route = useRoute();
-	
-	onErrorCaptured((err) => handleCriticalError(err));
+    import { error, handleCriticalError } from './error.js';
+    import CriticalErrorView from './pages/CriticalErrorView.vue';
+    
+    onErrorCaptured((err) => handleCriticalError(err));
 </script>

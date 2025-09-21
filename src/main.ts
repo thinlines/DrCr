@@ -63,9 +63,37 @@ async function initApp() {
 		history: createWebHistory(),
 		routes,
 	});
-	
+
 	initPlugins(router);
-	
+
+	const homeRedirects: Record<string, { tab: 'statements' | 'transactions'; pill: string }> = {
+		'trial-balance': { tab: 'statements', pill: 'trial-balance' },
+		'balance-sheet': { tab: 'statements', pill: 'balance-sheet' },
+		'income-statement': { tab: 'statements', pill: 'income-statement' },
+		'journal': { tab: 'transactions', pill: 'general-ledger' },
+		'general-ledger': { tab: 'transactions', pill: 'general-ledger' },
+		'statement-lines': { tab: 'transactions', pill: 'imported-transactions' },
+	};
+
+	router.beforeEach((to) => {
+		const redirectTarget = to.name ? homeRedirects[to.name as string] : undefined;
+		if (!redirectTarget) {
+			return true;
+		}
+		const currentTab = Array.isArray(to.query.tab) ? to.query.tab[0] : to.query.tab;
+		const currentPill = Array.isArray(to.query.pill) ? to.query.pill[0] : to.query.pill;
+		if (to.name === 'index' && currentTab === redirectTarget.tab && currentPill === redirectTarget.pill) {
+			return true;
+		}
+		return {
+			name: 'index',
+			query: {
+				tab: redirectTarget.tab,
+				pill: redirectTarget.pill,
+			},
+		};
+	});
+
 	// Create Vue app
 	createApp(App).use(router).mount('#app');
 }

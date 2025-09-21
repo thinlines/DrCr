@@ -17,43 +17,173 @@
 -->
 
 <template>
-	<div :class="{'grid divide-x divide-gray-200': true, 'grid-cols-2': loadedPlugins.indexOf('austax') < 0, 'grid-cols-3': loadedPlugins.indexOf('austax') >= 0}">
-		<div class="pr-4">
-			<h2 class="font-medium text-gray-700 mb-2">Data sources</h2>
-			<ul class="list-disc ml-6">
-				<li><RouterLink :to="{ name: 'journal' }" class="text-gray-900 hover:text-blue-700 hover:underline">Journal</RouterLink></li>
-				<li><RouterLink :to="{ name: 'statement-lines' }" class="text-gray-900 hover:text-blue-700 hover:underline">Statement lines</RouterLink></li>
-				<li><RouterLink :to="{ name: 'balance-assertions' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance assertions</RouterLink></li>
-				<li><RouterLink :to="{ name: 'chart-of-accounts' }" class="text-gray-900 hover:text-blue-700 hover:underline">Chart of accounts</RouterLink></li>
-				<li><RouterLink :to="{ name: 'settings' }" class="text-gray-900 hover:text-blue-700 hover:underline">Settings</RouterLink></li>
-				<!-- Plugin reports -->
-				<component :is="austax.getDataSourcesLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
-			</ul>
-		</div>
-		<div class="px-4">
-			<h2 class="font-medium text-gray-700 mb-2">General reports</h2>
-			<ul class="list-disc ml-6">
-				<li><RouterLink :to="{ name: 'general-ledger' }" class="text-gray-900 hover:text-blue-700 hover:underline">General ledger</RouterLink></li>
-				<li><RouterLink :to="{ name: 'trial-balance' }" class="text-gray-900 hover:text-blue-700 hover:underline">Trial balance</RouterLink></li>
-				<li><RouterLink :to="{ name: 'balance-sheet' }" class="text-gray-900 hover:text-blue-700 hover:underline">Balance sheet</RouterLink></li>
-				<li><RouterLink :to="{ name: 'income-statement' }" class="text-gray-900 hover:text-blue-700 hover:underline">Income statement</RouterLink></li>
-				<!-- Plugin reports -->
-				<component :is="austax.getGeneralReportsLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
-			</ul>
-		</div>
-		<div class="pl-4" v-if="loadedPlugins.indexOf('austax') >= 0">
-			<h2 class="font-medium text-gray-700 mb-2">Advanced reports</h2>
-			<ul class="list-disc ml-6">
-				<!-- Plugin reports -->
-				<component :is="austax.getAdvancedReportsLinks()" v-if="loadedPlugins.indexOf('austax') >= 0"></component>
-			</ul>
+	<div class="flex flex-col h-full min-h-0">
+		<NoFileView v-if="!hasOpenFile" />
+		<div v-else class="flex flex-col min-h-0 flex-1">
+			<div class="flex items-center gap-4 border-b border-gray-200">
+				<button
+					type="button"
+					class="px-3 py-2 text-sm font-medium border-b-2"
+					:class="activeTab === 'statements' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-800'"
+					@click="setActiveTab('statements')"
+				>
+					Statements
+				</button>
+				<button
+					type="button"
+					class="px-3 py-2 text-sm font-medium border-b-2"
+					:class="activeTab === 'transactions' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-800'"
+					@click="setActiveTab('transactions')"
+				>
+					Transactions
+				</button>
+			</div>
+
+			<div class="mt-6 flex flex-col flex-1 min-h-0">
+				<div class="flex flex-wrap gap-2">
+					<button
+						type="button"
+						v-for="pill in activePills"
+						:key="pill.id"
+						class="px-4 py-1.5 text-sm font-medium rounded-full border"
+						:class="pill.id === activePillId ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:text-gray-900'"
+						@click="selectPill(pill.id)"
+					>
+						{{ pill.label }}
+					</button>
+				</div>
+
+				<div class="mt-6 flex-1 min-h-0 overflow-hidden">
+					<KeepAlive>
+						<component v-if="activeComponent" :is="activeComponent" :key="activePillKey" />
+					</KeepAlive>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-	// Must use loadedPlugins not db.metadata.plugins, since we only want to update after routes are initialised
-	import { loadedPlugins } from '../plugin.ts';
-	
-	import austax from '../plugins/austax/plugin.ts';
+	import type { Component } from 'vue';
+	import { computed, reactive, ref, watch, markRaw } from 'vue';
+	import { useRoute, useRouter } from 'vue-router';
+
+	import NoFileView from './NoFileView.vue';
+	import JournalView from './JournalView.vue';
+	import StatementLinesView from './StatementLinesView.vue';
+	import BalanceSheetReport from '../reports/BalanceSheetReport.vue';
+	import IncomeStatementReport from '../reports/IncomeStatementReport.vue';
+	import TrialBalanceReport from '../reports/TrialBalanceReport.vue';
+	import { db } from '../db.ts';
+
+	type TabId = 'statements' | 'transactions';
+
+	interface PillConfig {
+		id: string;
+		label: string;
+		component: Component;
+	}
+
+	interface TabConfig {
+		id: TabId;
+		pills: PillConfig[];
+	}
+
+	const statementPills: PillConfig[] = [
+		{ id: 'trial-balance', label: 'Trial balance', component: markRaw(TrialBalanceReport) },
+		{ id: 'income-statement', label: 'Income statement', component: markRaw(IncomeStatementReport) },
+		{ id: 'balance-sheet', label: 'Balance sheet', component: markRaw(BalanceSheetReport) },
+	];
+
+	const transactionPills: PillConfig[] = [
+		{ id: 'general-ledger', label: 'General ledger', component: markRaw(JournalView) },
+		{ id: 'imported-transactions', label: 'Imported transactions', component: markRaw(StatementLinesView) },
+	];
+
+	const tabs: Record<TabId, TabConfig> = {
+		statements: { id: 'statements', pills: statementPills },
+		transactions: { id: 'transactions', pills: transactionPills },
+	};
+
+	const activeTab = ref<TabId>('statements');
+	const selectedPillByTab = reactive<Record<TabId, string>>({
+		statements: statementPills[0].id,
+		transactions: transactionPills[0].id,
+	});
+
+	const hasOpenFile = computed(() => db.filename !== null);
+	const activePills = computed(() => tabs[activeTab.value].pills);
+	const activePillId = computed(() => selectedPillByTab[activeTab.value]);
+	const activeComponent = computed<Component | null>(() => {
+		if (!hasOpenFile.value) {
+			return null;
+		}
+		const pills = tabs[activeTab.value].pills;
+		const pill = pills.find((candidate) => candidate.id === activePillId.value) ?? pills[0];
+		return pill.component;
+	});
+
+	const activePillKey = computed(() => `${activeTab.value}:${activePillId.value}`);
+
+	const route = useRoute();
+	const router = useRouter();
+
+	function isTabId(value: unknown): value is TabId {
+		return value === 'statements' || value === 'transactions';
+	}
+
+	function getPillTab(pillId: string): TabId | null {
+		for (const tabId of Object.keys(tabs) as TabId[]) {
+			if (tabs[tabId].pills.some((pill) => pill.id === pillId)) {
+				return tabId;
+			}
+		}
+		return null;
+	}
+
+	function applyRouteState() {
+		const rawTab = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab;
+		const rawPill = Array.isArray(route.query.pill) ? route.query.pill[0] : route.query.pill;
+		let targetTab: TabId | null = null;
+		if (typeof rawPill === 'string') {
+			const pillTab = getPillTab(rawPill);
+			if (pillTab !== null) {
+				selectedPillByTab[pillTab] = rawPill;
+				targetTab = pillTab;
+			}
+		}
+		if (typeof rawTab === 'string' && isTabId(rawTab)) {
+			targetTab = rawTab;
+		}
+		if (targetTab !== null) {
+			activeTab.value = targetTab;
+		}
+	}
+
+	function updateRouteQuery() {
+		if (route.name !== 'index') {
+			return;
+		}
+		const currentTab = activeTab.value;
+		const currentPill = selectedPillByTab[currentTab];
+		const rawTab = Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab;
+		const rawPill = Array.isArray(route.query.pill) ? route.query.pill[0] : route.query.pill;
+		if (rawTab === currentTab && rawPill === currentPill) {
+			return;
+		}
+		router.replace({ name: 'index', query: { tab: currentTab, pill: currentPill } });
+	}
+
+	applyRouteState();
+
+	watch(() => [route.query.tab, route.query.pill], applyRouteState);
+	watch(() => [activeTab.value, selectedPillByTab.statements, selectedPillByTab.transactions], updateRouteQuery);
+
+	function setActiveTab(tab: TabId) {
+		activeTab.value = tab;
+	}
+
+	function selectPill(pillId: string) {
+		selectedPillByTab[activeTab.value] = pillId;
+	}
 </script>

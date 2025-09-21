@@ -18,7 +18,7 @@
 
 <template>
     <DynamicReportComponent :report="report" :columns="reportColumns">
-        <p v-if="pageSubtitle" class="text-gray-600 text-sm mt-1">
+        <p v-if="pageSubtitle" class="text-gray-600 text-sm">
             {{ pageSubtitle }}
         </p>
 		<div class="my-2 py-2 flex print:hidden">

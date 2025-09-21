@@ -63,7 +63,7 @@
 					</button>
 				</div>
 
-				<div class="mt-6 flex-1 min-h-0 overflow-hidden">
+				<div class="mt-4 flex-1 min-h-0 overflow-hidden">
 					<KeepAlive>
 						<component v-if="activeComponent" :is="activeComponent" :key="activePillKey" />
 					</KeepAlive>

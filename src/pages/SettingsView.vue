@@ -4,59 +4,86 @@
 -->
 
 <template>
-    <h1 class="page-heading mb-4">Settings</h1>
+    <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 px-4 py-10">
+        <div class="relative w-full max-w-3xl overflow-hidden rounded-xl bg-white shadow-2xl">
+            <button
+                type="button"
+                class="absolute right-4 top-4 rounded-md p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                aria-label="Close settings"
+                @click="closeSettings"
+            >
+                <XMarkIcon class="h-5 w-5" />
+            </button>
 
-    <div class="grid grid-cols-[max-content_1fr] space-y-2 mb-4 items-baseline">
-        <label for="eofy_month" class="block text-gray-900 pr-4">End of financial year</label>
-        <div class="flex items-center gap-2">
-            <select id="eofy_month" class="bordered-field" v-model.number="eofyMonth">
-                <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
-            </select>
-            <select id="eofy_day" class="bordered-field" v-model.number="eofyDay">
-                <option v-for="d in daysInSelectedMonth" :key="d" :value="d">{{ d }}</option>
-            </select>
+            <div class="max-h-[calc(100vh-8rem)] overflow-y-auto p-6 sm:p-8">
+                <h1 class="page-heading mb-6">Settings</h1>
+
+                <div class="space-y-8">
+                    <section>
+                        <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Financial year</h2>
+                        <div class="grid grid-cols-[max-content_1fr] items-baseline gap-y-2">
+                            <label for="eofy_month" class="block text-gray-900 pr-4">End of financial year</label>
+                            <div class="flex items-center gap-2">
+                                <select id="eofy_month" class="bordered-field" v-model.number="eofyMonth">
+                                    <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
+                                </select>
+                                <select id="eofy_day" class="bordered-field" v-model.number="eofyDay">
+                                    <option v-for="d in daysInSelectedMonth" :key="d" :value="d">{{ d }}</option>
+                                </select>
+                            </div>
+                            <div></div>
+                            <p class="text-xs text-gray-500">
+                                Only month and day are used. Stored as the next upcoming occurrence.
+                            </p>
+                        </div>
+                    </section>
+
+                    <section>
+                        <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Number &amp; date formatting</h2>
+                        <div class="grid grid-cols-[max-content_1fr] items-baseline gap-y-4">
+                            <label for="thousands-sep" class="block text-gray-900 pr-4">Thousands separator</label>
+                            <div>
+                                <select id="thousands-sep" class="bordered-field" v-model="placeSeparator">
+                                    <option :value="'\u202F'">Space (thin, non-breaking)</option>
+                                    <option :value="','">Comma</option>
+                                    <option :value="''">None</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Used between every three digits in whole numbers.</p>
+                            </div>
+
+                            <label for="decimal-sep" class="block text-gray-900 pr-4">Decimal separator</label>
+                            <div>
+                                <select id="decimal-sep" class="bordered-field" v-model="decimalSeparator">
+                                    <option value=".">Dot (.)</option>
+                                    <option value=",">Comma (,)</option>
+                                </select>
+                            </div>
+
+                            <label for="date-style" class="block text-gray-900 pr-4">Date style</label>
+                            <div>
+                                <select id="date-style" class="bordered-field" v-model="dateStyle">
+                                    <option v-for="fmt in dateFormats" :key="fmt" :value="fmt">{{ formatSample(fmt) }}</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Affects dates shown on financial statements.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button class="btn-secondary text-red-600 ring-red-500" @click="closeFile">Close file</button>
+                    <div class="flex flex-col gap-3 sm:ml-auto sm:flex-row">
+                        <button class="btn-secondary" @click="closeSettings">Cancel</button>
+                        <button class="btn-primary" @click="save" :disabled="saving">Save</button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div></div>
-        <p class="text-xs text-gray-500 mt-1">
-            Only month and day are used. Stored as the next upcoming occurrence.
-        </p>
-    </div>
-
-    <div class="grid grid-cols-[max-content_1fr] space-y-2 mb-4 items-baseline">
-        <label for="thousands-sep" class="block text-gray-900 pr-4">Thousands separator</label>
-        <div>
-            <select id="thousands-sep" class="bordered-field" v-model="placeSeparator">
-                <option :value="'\u202F'">Space (thin, non-breaking)</option>
-                <option :value="','" >Comma</option>
-                <option :value="''">None</option>
-            </select>
-            <p class="text-xs text-gray-500 mt-1">Used between every three digits in whole numbers.</p>
-        </div>
-
-        <label for="decimal-sep" class="block text-gray-900 pr-4">Decimal separator</label>
-        <div>
-            <select id="decimal-sep" class="bordered-field" v-model="decimalSeparator">
-                <option value=".">Dot (.)</option>
-                <option value=",">Comma (,)</option>
-            </select>
-        </div>
-
-        <label for="date-style" class="block text-gray-900 pr-4">Date style</label>
-        <div>
-            <select id="date-style" class="bordered-field" v-model="dateStyle">
-                <option v-for="fmt in dateFormats" :key="fmt" :value="fmt">{{ formatSample(fmt) }}</option>
-            </select>
-            <p class="text-xs text-gray-500 mt-1">Affects dates shown on financial statements.</p>
-        </div>
-    </div>
-
-    <div class="mt-4 flex items-center">
-        <button class="btn-secondary text-red-600 ring-red-500" @click="closeFile">Close file</button>
-        <button class="btn-primary ml-auto" @click="save" :disabled="saving">Save</button>
     </div>
 </template>
 
 <script setup lang="ts">
+import { XMarkIcon } from '@heroicons/vue/24/outline';
 import dayjs from 'dayjs';
 import advancedFormat from 'dayjs/plugin/advancedFormat';
 
@@ -66,6 +93,8 @@ import { useRouter } from 'vue-router';
 import { db } from '../db.ts';
 
 dayjs.extend(advancedFormat);
+
+const router = useRouter();
 
 // Initial EOFY from metadata
 const initialEofy = dayjs(db.metadata.eofy_date);
@@ -114,6 +143,14 @@ function formatSample(fmt: string): string {
     return dayjs().format(fmt);
 }
 
+async function closeSettings() {
+    if (window.history.length > 1) {
+        router.back();
+        return;
+    }
+    await router.push({ name: 'index' });
+}
+
 async function save() {
     try {
         saving.value = true;
@@ -156,15 +193,15 @@ async function save() {
         db.metadata.place_separator = placeSeparator.value;
         db.metadata.decimal_separator = decimalSeparator.value;
         db.metadata.date_style = dateStyle.value;
+
+        await closeSettings();
     } finally {
         saving.value = false;
     }
 }
 
-const router = useRouter();
-
 async function closeFile() {
 	await db.init(null);
-	router.push({ name: 'index' });
+	await router.push({ name: 'index' });
 }
 </script>

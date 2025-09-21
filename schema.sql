@@ -14,7 +14,7 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
--- Current version: 4 (see db.ts)
+-- Current version: 6 (see db.ts)
 
 ---------
 -- Tables
@@ -75,6 +75,7 @@ CREATE TABLE statement_lines (
 	balance INTEGER,
 	commodity VARCHAR,
 	fitid VARCHAR,
+	dedup_ignore INTEGER DEFAULT 0,
 	PRIMARY KEY(id)
 );
 

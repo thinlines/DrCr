@@ -27,7 +27,7 @@ import { asCost } from './amounts.ts';
 import { ExtendedDatabase } from './dbutil.ts';
 import { CriticalError } from './error.ts';
 
-export const DB_VERSION = 5;  // Should match schema.sql
+export const DB_VERSION = 6;  // Should match schema.sql
 export const DT_FORMAT = 'YYYY-MM-DD HH:mm:ss.SSS000';
 
 export const db = reactive({
@@ -372,7 +372,8 @@ export interface StatementLine {
 	quantity: number,
 	balance: number | null,
 	commodity: string,
-	fitid: string | null
+	fitid: string | null,
+	dedup_ignore?: number
 }
 
 async function migrateDatabase(session: ExtendedDatabase, fromVersion: number, toVersion: number) {
@@ -389,6 +390,10 @@ async function migrateDatabase(session: ExtendedDatabase, fromVersion: number, t
 			case 4:
 				// v4 -> v5: capture FITID identifiers from statements
 				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN fitid VARCHAR`);
+				break;
+			case 5:
+				// v5 -> v6: allow ignoring duplicate detection for specific lines
+				await tx.execute(`ALTER TABLE statement_lines ADD COLUMN dedup_ignore INTEGER DEFAULT 0`);
 				break;
 			default:
 				await tx.rollback();

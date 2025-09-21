@@ -89,8 +89,54 @@
 				</button>
 			</div>
 		</div>
-    </div>
-    </div>
+	</div>
+
+	<Teleport to="body">
+		<div v-if="duplicateDrawerLine" class="fixed inset-0 z-50 flex">
+			<div class="flex-1 bg-black/40" @click="closeDuplicateDrawer"></div>
+			<aside class="w-full max-w-md bg-white shadow-2xl border-l border-gray-200 flex flex-col">
+				<div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+					<h2 class="text-base font-semibold text-gray-900">Duplicate details</h2>
+					<button type="button" class="text-gray-500 hover:text-gray-700" @click="closeDuplicateDrawer">
+						<XMarkIcon class="w-5 h-5" />
+					</button>
+				</div>
+				<div class="flex-1 overflow-y-auto px-4 py-5 space-y-8">
+					<section>
+						<h3 class="text-sm font-semibold text-gray-700">Selected line</h3>
+						<dl class="mt-2 space-y-1 text-sm text-gray-900">
+							<div class="flex justify-between"><dt class="text-gray-500">Source</dt><dd>{{ duplicateDrawerLine!.source_account }}</dd></div>
+							<div class="flex justify-between"><dt class="text-gray-500">Date</dt><dd>{{ dayjs(duplicateDrawerLine!.dt).format('YYYY-MM-DD') }}</dd></div>
+							<div class="flex justify-between"><dt class="text-gray-500">Description</dt><dd class="text-right">{{ duplicateDrawerLine!.description }}</dd></div>
+							<div class="flex justify-between"><dt class="text-gray-500">Amount</dt><dd>{{ formatAmountForTooltip(duplicateDrawerLine!.quantity, duplicateDrawerLine!.commodity) }}</dd></div>
+						</dl>
+						<div class="mt-3 flex flex-wrap gap-2">
+							<button type="button" class="btn-secondary" @click="focusSelectedLine">Locate in table</button>
+							<button type="button" class="btn-secondary" @click="markSelectedLineNotDuplicate">Mark as not duplicate</button>
+							<button type="button" class="btn-secondary text-red-700 ring-red-600" @click="deleteSelectedLine">Delete line</button>
+						</div>
+						<p v-if="duplicateDrawerReasonText" class="mt-3 text-sm text-amber-700">{{ duplicateDrawerReasonText }}</p>
+					</section>
+					<section v-if="duplicateDrawerMatch">
+						<h3 class="text-sm font-semibold text-gray-700">Matched line</h3>
+						<dl class="mt-2 space-y-1 text-sm text-gray-900">
+							<div v-if="duplicateDrawerMatchDisplay && 'source_account' in duplicateDrawerMatchDisplay" class="flex justify-between"><dt class="text-gray-500">Source</dt><dd>{{ duplicateDrawerMatchDisplay.source_account }}</dd></div>
+							<div class="flex justify-between"><dt class="text-gray-500">Date</dt><dd>{{ dayjs(duplicateDrawerMatchDisplay!.dt).format('YYYY-MM-DD') }}</dd></div>
+							<div class="flex justify-between"><dt class="text-gray-500">Description</dt><dd class="text-right">{{ duplicateDrawerMatchDisplay!.description }}</dd></div>
+							<div class="flex justify-between"><dt class="text-gray-500">Amount</dt><dd>{{ formatAmountForTooltip(duplicateDrawerMatchDisplay!.quantity, duplicateDrawerMatchDisplay!.commodity) }}</dd></div>
+						</dl>
+						<div class="mt-3 flex flex-wrap gap-2">
+							<button v-if="duplicateDrawerMatch?.kind === 'existing'" type="button" class="btn-secondary" @click="jumpToMatchingLine">Jump to matching line</button>
+						</div>
+					</section>
+					<section v-else>
+						<p class="text-sm text-gray-600">No matching line information is available.</p>
+					</section>
+				</div>
+			</aside>
+		</div>
+	</Teleport>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -100,7 +146,7 @@
 	
 	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 	
-	import { onMounted, onUnmounted, ref, watch } from 'vue';
+	import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 	
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
 	import { db } from '../db.ts';
@@ -111,6 +157,7 @@
 	interface ViewStatementLine extends AnnotatedStatementLine {
 		posting_accounts: string[];
 		transaction_id: number | null;
+		dedup_ignore: number;
 	}
 	
     const showOnlyUnclassified = ref(false);
@@ -124,6 +171,45 @@
 	const batchSelectedLineIds = ref([] as number[]);
 	const selectedCount = ref(0);
 	const showOnlyDuplicates = ref(false);
+	const duplicateDrawerLineId = ref<number | null>(null);
+
+	const duplicateDrawerLine = computed(() => {
+		if (duplicateDrawerLineId.value === null) {
+			return null;
+		}
+		return statementLines.value.find((line) => line.id === duplicateDrawerLineId.value) ?? null;
+	});
+
+	const duplicateDrawerMatch = computed(() => duplicateDrawerLine.value?.duplicateMatch ?? null);
+
+	const duplicateDrawerMatchLine = computed(() => {
+		const match = duplicateDrawerMatch.value;
+		if (match && match.kind === 'existing') {
+			return statementLines.value.find((line) => line.id === match.statementLine.id) ?? null;
+		}
+		return null;
+	});
+
+	const duplicateDrawerReasonText = computed(() => {
+		const line = duplicateDrawerLine.value;
+		if (!line || !line.duplicateReason) {
+			return null;
+		}
+		return formatDuplicateReason(line.duplicateReason);
+	});
+
+	const duplicateDrawerMatchFallback = computed(() => {
+		const match = duplicateDrawerMatch.value;
+		if (!match) {
+			return null;
+		}
+		if (match.kind === 'existing') {
+			return match.statementLine;
+		}
+		return match.previousLine;
+	});
+
+	const duplicateDrawerMatchDisplay = computed(() => duplicateDrawerMatchLine.value ?? duplicateDrawerMatchFallback.value);
 	
 	let clusterize: Clusterize | null = null;
 	
@@ -158,6 +244,7 @@
 					fitid: joinedStatementLine.fitid,
 					transaction_id: joinedStatementLine.transaction_id,
 					posting_accounts: [],
+					dedup_ignore: joinedStatementLine.dedup_ignore ?? 0,
 					duplicate: false,
 					duplicateReason: null,
 					duplicateMatch: null
@@ -180,10 +267,17 @@
 			annotateExistingDuplicates(linesForAccount);
 		}
 
+		if (duplicateDrawerLineId.value !== null) {
+			const currentDrawerLine = newStatementLines.find((line) => line.id === duplicateDrawerLineId.value);
+			if (!currentDrawerLine || !currentDrawerLine.duplicate) {
+				duplicateDrawerLineId.value = null;
+			}
+		}
+
 		statementLines.value = newStatementLines;
 	}
 	
-    function onClickTableElement(event: MouseEvent) {
+	    function onClickTableElement(event: MouseEvent) {
         // Use event delegation to avoid polluting global scope with the event listener
         if (event.target && (event.target as Element).classList.contains('statement-line-checkbox')) {
             const allBoxes = document.querySelectorAll('.statement-line-checkbox');
@@ -206,6 +300,15 @@
             }
             // Update batch selection count for top-bar button visibility
             selectedCount.value = checkedBoxes.length;
+        }
+        if (event.target && (event.target as Element).classList.contains('duplicate-badge')) {
+            event.preventDefault();
+            const tr = (event.target as Element).closest('tr');
+            const lineId = tr?.dataset.lineId ? parseInt(tr.dataset.lineId) : NaN;
+            if (!Number.isNaN(lineId)) {
+                openDuplicateDrawerForLine(lineId);
+            }
+            return;
         }
         if (event.target && (event.target as Element).classList.contains('classify-link')) {
             // ------------------------
@@ -507,7 +610,7 @@
 			return '';
 		}
 		const tooltip = escapeHtml(duplicateTooltip(line));
-		return ` <span class="ml-1 inline-flex items-center rounded-full border border-amber-400 bg-amber-50 px-1.5 py-0 text-xs uppercase tracking-wide text-amber-800" title="${ tooltip }">Duplicate</span>`;
+		return ` <button type="button" class="duplicate-badge ml-1 inline-flex items-center rounded-full border border-amber-400 bg-amber-50 px-1.5 py-0 text-xs uppercase tracking-wide text-amber-800" title="${ tooltip }">Duplicate</button>`;
 	}
 
 	function annotateExistingDuplicates(lines: ViewStatementLine[]): void {
@@ -526,6 +629,12 @@
 		const dateAmountMap = new Map<string, ViewStatementLine>();
 
 		for (const line of sorted) {
+			if (line.dedup_ignore) {
+				line.duplicate = false;
+				line.duplicateReason = null;
+				line.duplicateMatch = null;
+				continue;
+			}
 			let duplicate = false;
 			let reason: ViewStatementLine['duplicateReason'] = null;
 			let matchLine: ViewStatementLine | null = null;
@@ -570,6 +679,97 @@
 			line.duplicateReason = reason;
 			line.duplicateMatch = duplicate && matchLine ? toDuplicateMatch(matchLine) : null;
 		}
+	}
+
+	function openDuplicateDrawerForLine(lineId: number) {
+		const line = statementLines.value.find((l) => l.id === lineId);
+		if (!line || !line.duplicate) {
+			duplicateDrawerLineId.value = null;
+			return;
+		}
+		duplicateDrawerLineId.value = lineId;
+		scrollLineIntoView(lineId);
+		highlightLine(lineId);
+	}
+
+	function closeDuplicateDrawer() {
+		duplicateDrawerLineId.value = null;
+	}
+
+	function jumpToMatchingLine() {
+		const match = duplicateDrawerMatch.value;
+		if (match && match.kind === 'existing') {
+			const targetId = match.statementLine.id;
+			scrollLineIntoView(targetId);
+			highlightLine(targetId);
+			if (statementLines.value.some((line) => line.id === targetId)) {
+				duplicateDrawerLineId.value = targetId;
+			}
+		}
+	}
+
+	function focusSelectedLine() {
+		const line = duplicateDrawerLine.value;
+		if (!line || line.id === null) {
+			return;
+		}
+		scrollLineIntoView(line.id);
+		highlightLine(line.id);
+	}
+
+	function scrollLineIntoView(lineId: number | null) {
+		if (lineId === null) {
+			return;
+		}
+		const row = document.querySelector(`#statement-line-list tr[data-line-id="${ lineId }"]`);
+		if (row instanceof HTMLElement) {
+			row.scrollIntoView({ block: 'center' });
+		}
+	}
+
+	function highlightLine(lineId: number | null) {
+		if (lineId === null) {
+			return;
+		}
+		const row = document.querySelector(`#statement-line-list tr[data-line-id="${ lineId }"]`);
+		if (!(row instanceof HTMLElement)) {
+			return;
+		}
+		row.classList.add('ring', 'ring-amber-400');
+		setTimeout(() => {
+			row.classList.remove('ring', 'ring-amber-400');
+		}, 1500);
+	}
+
+	async function markSelectedLineNotDuplicate() {
+		const line = duplicateDrawerLine.value;
+		if (!line || line.id === null) {
+			return;
+		}
+		const session = await db.load();
+		await session.execute(
+			`UPDATE statement_lines SET dedup_ignore = 1 WHERE id = ?`,
+			[line.id]
+		);
+		await load();
+		closeDuplicateDrawer();
+	}
+
+	async function deleteSelectedLine() {
+		const line = duplicateDrawerLine.value;
+		if (!line || line.id === null) {
+			return;
+		}
+		if (!await confirm('Delete this statement line? This action cannot be undone.')) {
+			return;
+		}
+		const session = await db.load();
+		const tx = await session.begin();
+		await tx.execute(`DELETE FROM statement_line_reconciliations WHERE statement_line_id = ?`, [line.id]);
+		await tx.execute(`DELETE FROM statement_lines WHERE id = ?`, [line.id]);
+		await tx.commit();
+		await load();
+		closeDuplicateDrawer();
 	}
 
 	function duplicateTooltip(line: ViewStatementLine): string {
@@ -661,14 +861,23 @@
 				name: line.name,
 				memo: line.memo,
 				quantity: line.quantity,
-				commodity: line.commodity
+				commodity: line.commodity,
+				dedup_ignore: line.dedup_ignore
 			}
 		};
 	}
 	
 	watch(showOnlyUnclassified, renderTable);
 	watch(showOnlyDuplicates, renderTable);
-	watch(statementLines, renderTable);
+	watch(statementLines, () => {
+		if (duplicateDrawerLineId.value !== null) {
+			const current = statementLines.value.find((line) => line.id === duplicateDrawerLineId.value);
+			if (!current || !current.duplicate) {
+				duplicateDrawerLineId.value = null;
+			}
+		}
+		renderTable();
+	});
 	watch(searchQuery, renderTable);
 	
 	load();
@@ -718,6 +927,11 @@
 			if (classifier && !classifier.classList.contains('hidden')) {
 				e.preventDefault();
 				closeClassifier();
+				return;
+			}
+			if (duplicateDrawerLineId.value !== null) {
+				e.preventDefault();
+				closeDuplicateDrawer();
 				return;
 			}
 			// Clear search if present and classifier not open

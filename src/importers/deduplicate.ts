@@ -43,6 +43,7 @@ interface ExistingStatementLineRow {
     memo: string | null;
     quantity: number;
     commodity: string;
+    dedup_ignore: number;
 }
 
 interface ExistingDuplicateMatch {
@@ -62,7 +63,7 @@ export async function annotateStatementLineDuplicates(sourceAccount: string, lin
 
     const session = await db.load();
     const existingLines = await session.select<ExistingStatementLineRow[]>(
-        `SELECT id, fitid, dt, description, name, memo, quantity, commodity
+        `SELECT id, fitid, dt, description, name, memo, quantity, commodity, dedup_ignore
         FROM statement_lines
         WHERE source_account = ?`,
         [sourceAccount]
@@ -73,6 +74,9 @@ export async function annotateStatementLineDuplicates(sourceAccount: string, lin
     const existingDateAmountMap = new Map<string, ExistingStatementLineRow>();
 
     for (const row of existingLines) {
+        if (row.dedup_ignore) {
+            continue;
+        }
         if (row.fitid) {
             existingFitidMap.set(row.fitid, row);
         }

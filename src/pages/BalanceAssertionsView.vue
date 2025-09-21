@@ -17,7 +17,7 @@
 -->
 
 <template>
-	<h1 class="page-heading">
+	<h1 class="page-heading hidden print:block">
 		Balance assertions
 	</h1>
 	

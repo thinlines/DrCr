@@ -317,13 +317,3 @@
 		return false;
 	});
 </script>
-
-<style scoped>
-.sticky-table {
-	@apply border-separate table-auto;
-	border-spacing: 0;
-}
-.sticky-header th {
-	@apply sticky top-0 bg-white z-10 border-b border-gray-300;
-}
-</style>

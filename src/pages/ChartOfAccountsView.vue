@@ -27,8 +27,8 @@
 		<button class="btn-secondary text-red-600 ring-red-500" @click="removeAccountType">Remove type</button>
 	</div>
 	
-	<table class="min-w-full">
-		<thead>
+	<table class="min-w-full sticky-table">
+		<thead class="sticky-header">
 			<tr>
 				<th></th>
 				<th class="py-0.5 px-1 text-gray-900 font-semibold text-start">Account</th>

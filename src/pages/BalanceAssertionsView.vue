@@ -28,8 +28,8 @@
 		</a>
 	</div>
 	
-	<table class="min-w-full">
-		<thead>
+	<table class="min-w-full sticky-table">
+		<thead class="sticky-header">
 			<tr class="border-b border-gray-300">
 				<th class="py-0.5 pr-1 text-gray-900 font-semibold text-start">Date</th>
 				<th class="py-0.5 px-1 text-gray-900 font-semibold text-start">Description</th>

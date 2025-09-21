@@ -1046,14 +1046,6 @@
 </script>
 
 <style scoped>
-.sticky-table {
-  @apply border-separate;
-  border-spacing: 0;
-}
-.sticky-header th {
-  @apply sticky top-0 bg-white z-10 border-b border-gray-300;
-}
-
 #statement-line-classifier {
   /* Ensure classifier appears above sticky headers/buttons */
   @apply z-50;

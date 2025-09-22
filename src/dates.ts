@@ -41,6 +41,28 @@ export function labelForReportMonth(d: Dayjs, isCalendarMonth: boolean): string 
     return fmtDate(d.format('YYYY-MM-DD'));
 }
 
+// Financial year helpers mirror the backend logic in libdrcr/src/util.rs.
+function getEofy(date: Dayjs): Dayjs {
+    const template = dayjs(db.metadata.eofy_date);
+    if (!template.isValid()) {
+        return date.set('month', 11).set('date', 31);
+    }
+
+    let candidate = template.set('year', date.year());
+    if (candidate.isBefore(date, 'day')) {
+        candidate = candidate.add(1, 'year');
+    }
+    return candidate;
+}
+
+export function startOfFinancialYear(date: Dayjs): Dayjs {
+    if (!date.isValid()) {
+        return date;
+    }
+    const eofy = getEofy(date);
+    return eofy.subtract(1, 'year').add(1, 'day');
+}
+
 // Subtitle helpers used across reports
 
 // Returns a description for multiple monthly comparison periods, e.g.

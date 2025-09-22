@@ -56,7 +56,7 @@ import { DynamicReport } from './base.ts';
 import { db } from '../db.ts';
 import DynamicReportComponent from '../components/DynamicReportComponent.vue';
 import DynamicReportMenu from '../components/DynamicReportMenu.vue';
-import { incomeStatementSubtitle, labelForReportMonth } from '../dates.ts';
+import { incomeStatementSubtitle, labelForReportMonth, startOfFinancialYear } from '../dates.ts';
 import FormattedDateInput from '../components/FormattedDateInput.vue';
 
 
@@ -67,7 +67,7 @@ const dt = ref(null as string | null);
 const dtStart = ref(null as string | null);
 
 const comparePeriods = ref(1);
-const compareUnit = ref('months');
+const compareUnit = ref('years');
 
 // Single source of truth for the page/menu subtitle
 const reportSubtitle = computed(() => incomeStatementSubtitle(dtStart.value, dt.value, compareUnit.value, comparePeriods.value));
@@ -80,7 +80,7 @@ async function load() {
 
 	const endOfCurrentMonth = dayjs().endOf('month').format('YYYY-MM-DD');
 	dt.value = endOfCurrentMonth;
-	dtStart.value = dayjs(endOfCurrentMonth).subtract(1, 'year').add(1, 'day').format('YYYY-MM-DD');
+	dtStart.value = startOfFinancialYear(dayjs(endOfCurrentMonth)).format('YYYY-MM-DD');
 
 	await updateReport();
 
@@ -103,13 +103,13 @@ async function updateReport() {
             dtStart.value = expectedStart.format('YYYY-MM-DD');
             dayjsDtStart = expectedStart;
         }
-    } else if (compareUnit.value === 'years') {
-        // For yearly compare, only ensure start <= end; do not override custom spans
-        if (dayjsDtStart.isAfter(dayjsDt)) {
-            const expectedStart = dayjsDt.add(1, 'day').subtract(1, 'year');
-            dtStart.value = expectedStart.format('YYYY-MM-DD');
-            dayjsDtStart = expectedStart;
-        }
+	} else if (compareUnit.value === 'years') {
+		// For yearly compare, ensure the span is not inverted while keeping YTD defaults coherent
+		if (dayjsDtStart.isAfter(dayjsDt)) {
+			const expectedStart = startOfFinancialYear(dayjsDt);
+			dtStart.value = expectedStart.format('YYYY-MM-DD');
+			dayjsDtStart = expectedStart;
+		}
     } else {
         throw new Error('Unexpected compareUnit');
     }
@@ -163,12 +163,13 @@ function onCompareUnitChange() {
 	if (compareUnit.value === 'years') {
 		if (dayjsDt.add(1, 'day').subtract(1, 'month').isSame(dayjsDtStart)) {
 			// Dates were previously set to one month - now compareUnit changed to years
-			// Automatically change dates to one year
-			dtStart.value = dayjsDt.add(1, 'day').subtract(1, 'year').format('YYYY-MM-DD');
+			// Automatically change dates to the current financial year start
+			dtStart.value = startOfFinancialYear(dayjsDt).format('YYYY-MM-DD');
 		}
 	} else if (compareUnit.value === 'months') {
-		if (dayjsDt.add(1, 'day').subtract(1, 'year').isSame(dayjsDtStart)) {
-			// Dates were previously set to one year - now compareUnit changed to months
+		const ytdStart = startOfFinancialYear(dayjsDt);
+		if (dayjsDtStart.isSame(ytdStart)) {
+			// Dates were previously set to financial year-to-date - now compareUnit changed to months
 			// Automatically change dates to one month
 			dtStart.value = dayjsDt.add(1, 'day').subtract(1, 'month').format('YYYY-MM-DD');
 		}

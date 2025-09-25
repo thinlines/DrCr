@@ -60,9 +60,9 @@
 					<th class="py-0.5 pr-1 align-bottom">
 						<input id="statement-line-select-all" class="checkbox-primary" type="checkbox" @change="onToggleAll">
 					</th>
-					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Source account</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-start">Date</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Description</th>
+					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Source account</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold text-start">Charged to</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-end">Dr</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-end">Cr</th>
@@ -556,9 +556,9 @@
 			rows.push(
 				`<tr data-line-id="${ line.id }"${ rowClassAttr }>
 					<td class="py-0.5 pr-1 align-baseline">${ checkboxCell }</td>
-					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="/transactions/${ encodeURIComponent(line.source_account) }" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex]">${ dayjs(line.dt).format('YYYY-MM-DD') }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900">${ line.description }${ duplicateBadge }</td>
+					<td class="py-0.5 px-1 align-baseline text-gray-900"><a href="/transactions/${ encodeURIComponent(line.source_account) }" class="hover:text-blue-700 hover:underline">${ line.source_account }</a></td>
 					<td class="charge-account py-0.5 px-1 align-baseline text-gray-900"><span>${ reconciliationCell }</span></td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }</td>

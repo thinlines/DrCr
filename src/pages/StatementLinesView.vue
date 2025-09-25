@@ -54,7 +54,7 @@
     </div>
     
     <div id="statement-line-list" class="flex-1 min-h-0 overflow-y-auto wk-aa relative">
-        <table class="min-w-full sticky-table">
+        <table class="min-w-full sticky-table pr-3">
 			<thead class="sticky-header">
 				<tr class="">
 					<th class="py-0.5 pr-1 align-bottom">
@@ -67,12 +67,13 @@
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-end">Dr</th>
 					<th class="py-0.5 px-1 align-bottom text-gray-900 font-semibold lg:w-[12ex] text-end">Cr</th>
 					<th class="py-0.5 pl-1 align-bottom text-gray-900 font-semibold text-end">Balance</th>
+					<th class="py-0.5 pl-1 align-bottom text-gray-900 font-semibold text-center">Edit</th>
 				</tr>
 			</thead>
 			<tbody @click="onClickTableElement">
 				<tr>
 					<td></td>
-					<td class="py-0.5 px-1" colspan="7">Loading data…</td>
+					<td class="py-0.5 px-1" colspan="8">Loading data…</td>
 				</tr>
 			</tbody>
 		</table>
@@ -136,6 +137,32 @@
 			</aside>
 		</div>
 	</Teleport>
+
+	<Teleport to="body">
+		<div v-if="isTransactionEditorOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+			<div class="absolute inset-0 bg-black/40" @click="closeTransactionEditor"></div>
+			<div class="relative z-10 w-full max-w-4xl bg-white shadow-2xl rounded-lg flex flex-col max-h-[90vh]">
+				<div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+					<h2 class="text-base font-semibold text-gray-900">Edit transaction</h2>
+					<button type="button" class="text-gray-500 hover:text-gray-700" @click="closeTransactionEditor">
+						<XMarkIcon class="w-5 h-5" />
+					</button>
+				</div>
+				<div class="flex-1 overflow-y-auto px-4 py-5">
+					<p v-if="transactionEditorLoading" class="text-sm text-gray-600">Loading transaction…</p>
+					<p v-else-if="transactionEditorError" class="text-sm text-red-600">{{ transactionEditorError }}</p>
+					<TransactionEditor
+						v-else
+						:transaction="transactionEditorTransaction!"
+						close-strategy="component"
+						@close="closeTransactionEditor"
+						@saved="onTransactionEditorSaved"
+						@deleted="onTransactionEditorDeleted"
+					/>
+				</div>
+			</div>
+		</div>
+	</Teleport>
 	</div>
 </template>
 
@@ -145,11 +172,12 @@
 	import dayjs from 'dayjs';
 	
 	import { CheckIcon, PencilIcon, XMarkIcon } from '@heroicons/vue/24/outline';
-	
+
 	import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-	
+
 	import ComboBoxAccounts from '../components/ComboBoxAccounts.vue';
-	import { db } from '../db.ts';
+	import TransactionEditor, { EditingTransaction } from '../components/TransactionEditor.vue';
+	import { JoinedTransactionPosting, db, joinedToTransactions, serialiseAmount } from '../db.ts';
 	import type { AnnotatedStatementLine, DuplicateMatch } from '../importers/deduplicate.ts';
 	import { renderComponent } from '../webutil.ts';
 	import { ppWithCommodity } from '../display.ts';
@@ -210,7 +238,12 @@
 	});
 
 	const duplicateDrawerMatchDisplay = computed(() => duplicateDrawerMatchLine.value ?? duplicateDrawerMatchFallback.value);
-	
+
+	const isTransactionEditorOpen = ref(false);
+	const transactionEditorLoading = ref(false);
+	const transactionEditorError = ref(null as string | null);
+	const transactionEditorTransaction = ref<EditingTransaction | null>(null);
+
 	let clusterize: Clusterize | null = null;
 	
 	async function load() {
@@ -277,40 +310,104 @@
 		statementLines.value = newStatementLines;
 	}
 	
+	async function openTransactionEditor(transactionId: number) {
+		transactionEditorError.value = null;
+		transactionEditorTransaction.value = null;
+		isTransactionEditorOpen.value = true;
+		transactionEditorLoading.value = true;
+		try {
+			const session = await db.load();
+			const joinedTransactionPostings: JoinedTransactionPosting[] = await session.select(
+				`SELECT transaction_id, dt, transaction_description, id, description, account, quantity, commodity
+				FROM joined_transactions
+				WHERE transaction_id = $1
+				ORDER BY id`,
+				[transactionId]
+			);
+			const transactions = joinedToTransactions(joinedTransactionPostings);
+			if (transactions.length !== 1) {
+				throw new Error('Unexpected number of transactions returned from SQL');
+			}
+			const rawTransaction = transactions[0] as any;
+			rawTransaction.dt = dayjs(rawTransaction.dt).format('YYYY-MM-DD');
+			for (const posting of rawTransaction.postings) {
+				posting.originalAccount = posting.account;
+				posting.sign = posting.quantity >= 0 ? 'dr' : 'cr';
+				posting.amount_abs = serialiseAmount(Math.abs(posting.quantity), posting.commodity);
+			}
+			transactionEditorTransaction.value = rawTransaction as EditingTransaction;
+		} catch (err) {
+			console.error(err);
+			transactionEditorError.value = 'Unable to load transaction.';
+		}
+		transactionEditorLoading.value = false;
+	}
+
+	function closeTransactionEditor() {
+		isTransactionEditorOpen.value = false;
+		transactionEditorLoading.value = false;
+		transactionEditorError.value = null;
+		transactionEditorTransaction.value = null;
+	}
+
+	async function onTransactionEditorSaved() {
+		await load();
+	}
+
+	async function onTransactionEditorDeleted() {
+		await load();
+	}
+	
 	    function onClickTableElement(event: MouseEvent) {
         // Use event delegation to avoid polluting global scope with the event listener
-        if (event.target && (event.target as Element).classList.contains('statement-line-checkbox')) {
-            const allBoxes = document.querySelectorAll('.statement-line-checkbox');
-            const checkedBoxes = document.querySelectorAll('.statement-line-checkbox:checked');
-            const header = document.getElementById('statement-line-select-all') as HTMLInputElement | null;
-            if (header) {
-                if (allBoxes.length === 0) {
-                    header.checked = false;
-                    header.indeterminate = false;
-                } else if (checkedBoxes.length === 0) {
-                    header.checked = false;
-                    header.indeterminate = false;
-                } else if (checkedBoxes.length === allBoxes.length) {
-                    header.checked = true;
-                    header.indeterminate = false;
-                } else {
-                    header.checked = false;
-                    header.indeterminate = true;
-                }
-            }
-            // Update batch selection count for top-bar button visibility
-            selectedCount.value = checkedBoxes.length;
-        }
-        if (event.target && (event.target as Element).classList.contains('duplicate-badge')) {
-            event.preventDefault();
-            const tr = (event.target as Element).closest('tr');
-            const lineId = tr?.dataset.lineId ? parseInt(tr.dataset.lineId) : NaN;
-            if (!Number.isNaN(lineId)) {
-                openDuplicateDrawerForLine(lineId);
-            }
-            return;
-        }
-        if (event.target && (event.target as Element).classList.contains('classify-link')) {
+		const targetElement = event.target as Element | null;
+		if (!targetElement) {
+			return;
+		}
+		if (targetElement.classList.contains('statement-line-checkbox')) {
+			const allBoxes = document.querySelectorAll('.statement-line-checkbox');
+			const checkedBoxes = document.querySelectorAll('.statement-line-checkbox:checked');
+			const header = document.getElementById('statement-line-select-all') as HTMLInputElement | null;
+			if (header) {
+				if (allBoxes.length === 0) {
+					header.checked = false;
+					header.indeterminate = false;
+				} else if (checkedBoxes.length === 0) {
+					header.checked = false;
+					header.indeterminate = false;
+				} else if (checkedBoxes.length === allBoxes.length) {
+					header.checked = true;
+					header.indeterminate = false;
+				} else {
+					header.checked = false;
+					header.indeterminate = true;
+				}
+			}
+			// Update batch selection count for top-bar button visibility
+			selectedCount.value = checkedBoxes.length;
+		}
+		const editLink = targetElement.closest('.edit-transaction-link') as HTMLElement | null;
+		if (editLink) {
+			event.preventDefault();
+			const transactionId = editLink.dataset.transactionId;
+			if (transactionId) {
+				const id = parseInt(transactionId, 10);
+				if (!Number.isNaN(id)) {
+					void openTransactionEditor(id);
+				}
+			}
+			return;
+		}
+		if (targetElement.classList.contains('duplicate-badge')) {
+			event.preventDefault();
+			const tr = targetElement.closest('tr');
+			const lineId = tr?.dataset.lineId ? parseInt(tr.dataset.lineId) : NaN;
+			if (!Number.isNaN(lineId)) {
+				openDuplicateDrawerForLine(lineId);
+			}
+			return;
+		}
+		if (targetElement.classList.contains('classify-link')) {
             // ------------------------
             // Show classify line panel
 			
@@ -320,7 +417,7 @@
 			}
 			
 			// Set global state
-			const td = (event.target as Element).closest('td')!;  // Reconciliation cell
+			const td = targetElement.closest('td')!;  // Reconciliation cell
 			const tr = td.closest('tr')!;
 			classificationLineId.value = parseInt(tr.dataset.lineId!);
 			
@@ -526,7 +623,7 @@
             if (showOnlyDuplicates.value && !line.duplicate) {
                 continue;
             }
-            let reconciliationCell, checkboxCell;
+			let reconciliationCell, checkboxCell, actionCell = '';
             if (line.posting_accounts.length === 0) {
                 // Unreconciled
                 reconciliationCell =
@@ -535,20 +632,19 @@
             } else if (line.posting_accounts.length === 2) {
 				// Simple reconciliation
 				const otherAccount = line.posting_accounts.find((a) => a !== line.source_account);
-				reconciliationCell =
-					`<span>${ otherAccount }</span>
-					<a href="/journal/edit/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				reconciliationCell = `<span>${ otherAccount }</span>`;
 				checkboxCell = '';
 				
 				if (showOnlyUnclassified.value) { continue; }
 			} else {
 				// Complex reconciliation
-				reconciliationCell =
-					`<i>(Complex)</i>
-					<a href="/journal/edit/${ line.transaction_id }" class="text-gray-500 hover:text-gray-700" onclick="return openLinkInNewWindow(this);">${ PencilIconHTML }</a>`;
+				reconciliationCell = `<i>(Complex)</i>`;
 				checkboxCell = '';
 				
 				if (showOnlyUnclassified.value) { continue; }
+			}
+			if (line.transaction_id !== null) {
+				actionCell = `<button type="button" class="edit-transaction-link text-gray-500 hover:text-gray-700" data-transaction-id="${ line.transaction_id }" title="Edit transaction">${ PencilIconHTML }</button>`;
 			}
 			
 			const duplicateBadge = duplicateBadgeHtml(line);
@@ -563,6 +659,7 @@
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity >= 0 ? ppWithCommodity(line.quantity, line.commodity) : '' }</td>
 					<td class="py-0.5 px-1 align-baseline text-gray-900 lg:w-[12ex] text-end">${ line.quantity < 0 ? ppWithCommodity(-line.quantity, line.commodity) : '' }</td>
 					<td class="py-0.5 pl-1 align-baseline text-gray-900 text-end">${ line.balance ?? '' }</td>
+					<td class="py-0.5 pl-1 align-baseline text-center">${ actionCell }</td>
 				</tr>`
 			)
 		}

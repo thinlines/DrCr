@@ -103,8 +103,8 @@
 	import dayjs from 'dayjs';
 	
 	import { PlusIcon, XCircleIcon } from '@heroicons/vue/24/solid';
-	
-	import { emit } from '@tauri-apps/api/event';
+
+	import { emit as emitTauri } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	
 	import { ref } from 'vue';
@@ -128,9 +128,26 @@
 		postings: EditingPosting[]
 	}
 	
-	const { transaction } = defineProps<{ transaction: EditingTransaction }>();
-	
+	const props = withDefaults(defineProps<{ transaction: EditingTransaction; closeStrategy?: 'window' | 'component' }>(), {
+		closeStrategy: 'window'
+	});
+	const transaction = props.transaction;
+
+	const emitComponent = defineEmits<{
+		(e: 'close'): void;
+		(e: 'saved', payload: { id: number | null }): void;
+		(e: 'deleted', payload: { id: number | null }): void;
+	}>();
+
 	const error = ref(null as string | null);
+
+	async function closeEditor(action: 'saved' | 'deleted', transactionId: number | null) {
+		emitComponent(action, { id: transactionId });
+		emitComponent('close');
+		if (props.closeStrategy === 'window') {
+			await getCurrentWindow().close();
+		}
+	}
 	
 	function addPosting(posting: EditingPosting) {
 		const index = transaction.postings.indexOf(posting);
@@ -295,8 +312,8 @@
 		
 		await dbTransaction.commit();
 		
-		await emit('transaction-updated', {id: newTransaction.id});
-		await getCurrentWindow().close();
+		await emitTauri('transaction-updated', {id: newTransaction.id});
+		await closeEditor('saved', newTransaction.id);
 	}
 	
 	async function deleteTransaction() {
@@ -333,8 +350,8 @@
 		
 		await dbTransaction.commit();
 		
-		await emit('transaction-updated', {id: transaction.id});
-		await getCurrentWindow().close();
+		await emitTauri('transaction-updated', {id: transaction.id});
+		await closeEditor('deleted', transaction.id);
 	}
 	
 	async function onAmountChange(posting: EditingPosting) {

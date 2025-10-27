@@ -1,8 +1,10 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
+import path from "node:path";
 import * as child from "child_process";
 import * as fs from "node:fs";
+import tailwindcss from "@tailwindcss/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -15,14 +17,25 @@ export default defineConfig(async () => ({
       name: "update-version",
       async buildStart(options) {
         // Get commit from git
-        const commitHash = child.execSync("git rev-parse --short HEAD").toString().trim();
+        const commitHash = child
+          .execSync("git rev-parse --short HEAD")
+          .toString()
+          .trim();
 
         // Write to src/version.ts
-        fs.writeFileSync("src/version.ts", "export const COMMIT_HASH = " + JSON.stringify(commitHash) + ";");
+        fs.writeFileSync(
+          "src/version.ts",
+          "export const COMMIT_HASH = " + JSON.stringify(commitHash) + ";"
+        );
       },
     },
+    tailwindcss(),
   ],
-
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors
